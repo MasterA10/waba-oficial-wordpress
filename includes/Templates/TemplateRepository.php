@@ -49,10 +49,12 @@ class TemplateRepository {
         }
 
         if ($existing_id) {
+            $data['updated_at'] = current_time('mysql', 1);
             $wpdb->update($this->table_name, $data, ['id' => $existing_id]);
             return $existing_id;
         } else {
             $data['created_at'] = current_time('mysql', 1);
+            $data['updated_at'] = current_time('mysql', 1);
             $wpdb->insert($this->table_name, $data);
             return $wpdb->insert_id;
         }

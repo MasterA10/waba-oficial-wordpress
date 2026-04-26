@@ -152,6 +152,20 @@ body.was-app-shell {
 .was-btn:hover, .was-btn-primary:hover {
     background-color: var(--primary-hover);
 }
+.was-btn-secondary {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid var(--border);
+    padding: 8px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.was-btn-secondary:hover {
+    background: #e2e8f0;
+}
 .was-btn:disabled, .was-btn-primary:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -343,6 +357,49 @@ body.was-app-shell {
 .was-message-in .was-message-content {
     background-color: var(--msg-in);
     border-bottom-left-radius: 0;
+}
+
+/* Template Card in Inbox */
+.was-template-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+    margin: -5px; /* Pull to edges of parent padding */
+}
+.was-template-header {
+    background: #f1f5f9;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    border-bottom: 1px solid #e2e8f0;
+}
+.was-template-body {
+    padding: 10px;
+    font-size: 0.9rem;
+    color: #1e293b;
+    white-space: pre-wrap;
+}
+
+/* Wizard Content */
+.was-wizard-step-content h3 {
+    margin-top: 0;
+    font-size: 1.5rem;
+    color: #0f172a;
+}
+.was-category-cards {
+    margin-bottom: 30px;
+}
+.was-cat-card-inner strong {
+    display: block;
+    font-size: 1.1rem;
+    margin-bottom: 5px;
+}
+.was-cat-card-inner p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #64748b;
 }
 
 .was-chat-footer {

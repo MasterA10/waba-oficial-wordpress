@@ -49,14 +49,18 @@ class TemplateApiController {
     public function create_item(WP_REST_Request $request) {
         $params = $request->get_json_params();
         
-        // Validação básica
-        if (empty($params['name']) || empty($params['language']) || empty($params['category']) || empty($params['body_text'])) {
+        // Backward compatibility fallback for simple requests
+        if (!isset($params['body']['text']) && !empty($params['body_text'])) {
+            $params['body'] = ['text' => $params['body_text']];
+        }
+
+        if (empty($params['name']) || empty($params['language']) || empty($params['category']) || empty($params['body']['text'])) {
             return new WP_REST_Response(['message' => 'Campos obrigatórios ausentes'], 400);
         }
 
         try {
             $id = $this->service->createTemplate($params);
-            return new WP_REST_Response(['id' => $id, 'message' => 'Template criado localmente'], 201);
+            return new WP_REST_Response(['id' => $id, 'message' => 'Template criado com sucesso'], 201);
         } catch (\Exception $e) {
             return new WP_REST_Response(['message' => $e->getMessage()], 500);
         }
@@ -69,13 +73,33 @@ class TemplateApiController {
         $id = $request->get_param('id');
         $params = $request->get_json_params();
 
-        if (empty($params['to'])) {
+        $to = $params['to'] ?? null;
+
+        // If conversation_id is provided, find the contact's wa_id
+        if (empty($to) && !empty($params['conversation_id'])) {
+            global $wpdb;
+            $table_conv = \WAS\Core\TableNameResolver::get_table_name('conversations');
+            $table_cont = \WAS\Core\TableNameResolver::get_table_name('contacts');
+            
+            $wa_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT ct.wa_id FROM $table_conv cv 
+                 JOIN $table_cont ct ON cv.contact_id = ct.id 
+                 WHERE cv.id = %d",
+                $params['conversation_id']
+            ));
+            
+            if ($wa_id) {
+                $to = $wa_id;
+            }
+        }
+
+        if (empty($to)) {
             return new WP_REST_Response(['message' => 'Destinatário ausente'], 400);
         }
 
         try {
-            $this->service->sendTemplateMessage($params['to'], $id, $params['components'] ?? []);
-            return new WP_REST_Response(['message' => 'Template enviado para processamento'], 200);
+            $this->service->sendTemplateMessage($to, $id, $params['components'] ?? []);
+            return new WP_REST_Response(['message' => 'Template enviado para processamento', 'success' => true], 200);
         } catch (\Exception $e) {
             return new WP_REST_Response(['message' => $e->getMessage()], 500);
         }

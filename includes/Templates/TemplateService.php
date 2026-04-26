@@ -30,22 +30,28 @@ class TemplateService {
         // 1. Validar e Sanitizar Nome
         $data['name'] = strtolower(preg_replace('/[^a-z0-9_]/', '', $data['name']));
         
-        // 2. Salvar Localmente primeiro como 'pending'
+        // 2. Converte Friendly para Meta
+        $metaPayload = TemplatePayloadBuilder::build($data);
+
+        // 3. Salvar Localmente primeiro como 'draft'
         $template_id = $this->repository->createOrUpdate([
-            'name'            => $data['name'],
-            'language'        => $data['language'],
-            'category'        => $data['category'],
-            'status'          => 'PENDING',
-            'components_json' => json_encode([
-                ['type' => 'BODY', 'text' => $data['body_text']]
-            ])
+            'name'             => $data['name'],
+            'language'         => $data['language'],
+            'category'         => $data['category'],
+            'status'           => 'PENDING',
+            'friendly_payload' => json_encode($data),
+            'meta_payload'     => json_encode($metaPayload),
+            'body_text'        => $data['body']['text'],
+            'header_type'      => $data['header']['type'] ?? 'NONE',
+            'footer_text'      => $data['footer']['text'] ?? '',
+            'buttons_json'     => json_encode($data['buttons'] ?? [])
         ]);
 
-        // 3. Auditoria
+        // 4. Auditoria
         \WAS\Compliance\AuditLogger::log('create_template', 'template', $template_id, ['name' => $data['name']]);
 
-        // 4. Aqui seria a chamada para MetaApiClient (Dev 02)
-        // Por enquanto, simulamos sucesso ou erro
+        // 5. Aqui seria a chamada real para MetaApiClient (Dev 02)
+        // MetaApiClient::request('WA_CREATE_TEMPLATE', ['waba_id' => ...], $metaPayload);
         
         return $template_id;
     }

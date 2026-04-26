@@ -56,12 +56,29 @@ if (!defined('ABSPATH')) {
 
             <footer class="was-chat-footer">
                 <div id="was-chat-input-container">
-                    <textarea id="was-message-input" placeholder="Digite uma mensagem..." rows="1"></textarea>
+                    <button id="was-open-templates-inbox" class="was-btn-secondary" title="Enviar Modelo">
+                        <span class="dashicons dashicons-layout"></span>
+                    </button>
+                    <textarea id="was-message-input" placeholder="Digite uma mensagem..."></textarea>
                     <button id="was-send-message" class="was-btn-primary" disabled>
                         <span class="dashicons dashicons-send"></span>
                     </button>
                 </div>
-            </footer>
-        </div>
-    </main>
-</div>
+                </footer>
+                </div>
+                </main>
+                </div>
+
+                <!-- Modal de Seleção de Template na Inbox -->
+                <div id="was-inbox-tpl-modal" class="was-modal" style="display:none; position:fixed; z-index:12000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
+                <div class="was-modal-content" style="background:white; margin:10% auto; padding:20px; width:450px; border-radius:8px;">
+                <h3>Escolha um Modelo</h3>
+                <div id="was-inbox-tpl-list" style="max-height:300px; overflow-y:auto; margin-bottom:20px;">
+                <!-- Carregado via JS -->
+                </div>
+                <div style="text-align:right;">
+                <button type="button" id="was-close-inbox-tpl-modal" class="button">Cancelar</button>
+                </div>
+                </div>
+                </div>
+
