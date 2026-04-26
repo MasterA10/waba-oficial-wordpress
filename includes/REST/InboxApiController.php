@@ -126,8 +126,8 @@ class InboxApiController {
             $this->message_repo->create_outbound([
                 'conversation_id' => $conversation->id,
                 'wa_message_id'   => $result['wa_message_id'],
-                'type'            => $type,
-                'body'            => $body,
+                'message_type'    => $type,
+                'text_body'       => $body,
                 'status'          => 'sent'
             ]);
 

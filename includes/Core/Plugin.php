@@ -113,6 +113,35 @@ class Plugin {
 	}
 
 	/**
+	 * Check if the plugin should run in Demo Mode.
+	 * Returns true if no Meta App configuration is found.
+	 */
+	public static function is_demo_mode() {
+		// Manual override via constant
+		if ( defined( 'WAS_DEMO_MODE' ) ) {
+			return (bool) WAS_DEMO_MODE;
+		}
+
+		$repository = new \WAS\Meta\MetaAppRepository();
+		$app = $repository->get_active_app();
+
+		// True if no app or empty fields
+		if ( ! $app || empty( $app->app_id ) || empty( $app->app_secret ) ) {
+			return true;
+		}
+
+		// True if fields contain common mock/placeholder strings
+		$placeholders = ['mock', '123456', 'demo', 'test', 'insira'];
+		foreach ($placeholders as $p) {
+			if (strpos(strtolower($app->app_id), $p) !== false || strpos(strtolower($app->app_secret), $p) !== false) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Render the app shell with the specific page.
 	 *
 	 * @param string $page The page identifier.

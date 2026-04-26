@@ -42,11 +42,11 @@ if (!defined('ABSPATH')) {
                     <div class="was-contact-avatar" id="was-chat-avatar"></div>
                     <div>
                         <h3 id="was-chat-contact-name">Nome do Contato</h3>
-                        <span id="was-chat-contact-phone">5511999999999</span>
+                        <span id="was-chat-contact-phone"></span>
                     </div>
                 </div>
                 <div class="was-chat-actions">
-                    <!-- Atribuição, Tags, etc (P2) -->
+                    <!-- Ações adicionais futuramente -->
                 </div>
             </header>
 
@@ -64,21 +64,20 @@ if (!defined('ABSPATH')) {
                         <span class="dashicons dashicons-send"></span>
                     </button>
                 </div>
-                </footer>
-                </div>
-                </main>
-                </div>
+            </footer>
+        </div>
+    </main>
+</div>
 
-                <!-- Modal de Seleção de Template na Inbox -->
-                <div id="was-inbox-tpl-modal" class="was-modal" style="display:none; position:fixed; z-index:12000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
-                <div class="was-modal-content" style="background:white; margin:10% auto; padding:20px; width:450px; border-radius:8px;">
-                <h3>Escolha um Modelo</h3>
-                <div id="was-inbox-tpl-list" style="max-height:300px; overflow-y:auto; margin-bottom:20px;">
-                <!-- Carregado via JS -->
-                </div>
-                <div style="text-align:right;">
-                <button type="button" id="was-close-inbox-tpl-modal" class="button">Cancelar</button>
-                </div>
-                </div>
-                </div>
-
+<!-- Modal de Seleção de Template na Inbox -->
+<div id="was-inbox-tpl-modal" class="was-modal" style="display:none; position:fixed; z-index:12000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
+    <div class="was-modal-content" style="background:white; margin:10% auto; padding:20px; width:450px; border-radius:8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
+        <h3>Escolha um Modelo</h3>
+        <div id="was-inbox-tpl-list" style="max-height:300px; overflow-y:auto; margin-bottom:20px; border: 1px solid #eee; border-radius: 4px;">
+            <!-- Carregado via JS -->
+        </div>
+        <div style="text-align:right;">
+            <button type="button" id="was-close-inbox-tpl-modal" class="button">Cancelar</button>
+        </div>
+    </div>
+</div>

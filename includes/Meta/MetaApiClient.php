@@ -64,15 +64,20 @@ class MetaApiClient {
         $duration_ms = (int) ((microtime(true) - $start_time) * 1000);
 
         if (is_wp_error($response)) {
-            $apiResponse = new MetaApiResponse($operation, 500, ['error' => ['message' => $response->get_error_message()]]);
+            $apiResponse = MetaApiResponse::error($operation, ['message' => $response->get_error_message()], 500);
         } else {
             $status_code = wp_remote_retrieve_response_code($response);
-            $body_content = wp_remote_retrieve_body($response);
-            $apiResponse = new MetaApiResponse($operation, $status_code, $body_content);
+            $body_content = json_decode(wp_remote_retrieve_body($response), true) ?: [];
+            
+            if ($status_code >= 200 && $status_code < 300) {
+                $apiResponse = MetaApiResponse::success($operation, $body_content, $status_code);
+            } else {
+                $apiResponse = MetaApiResponse::error($operation, $body_content['error'] ?? ['message' => 'API Error'], $status_code);
+            }
             
             $request_id = wp_remote_retrieve_header($response, 'x-fb-request-id');
-            if ($request_id) {
-                $apiResponse->set_request_id($request_id);
+            if ($request_id && method_exists($apiResponse, 'set_request_id')) {
+                $apiResponse->meta_request_id = $request_id;
             }
         }
 

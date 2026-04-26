@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const { restUrl, nonce, page } = window.wasApp;
+    const { restUrl, nonce } = window.wasApp;
 
     /**
      * Helper to make authenticated API requests to WP REST API
@@ -39,14 +39,11 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Dashboard Initialization
      */
-    if (page === 'dashboard') {
+    if (document.getElementById('stat-wa-accounts')) {
         initDashboard();
     }
 
     async function initDashboard() {
-        const dashboardEl = document.querySelector('.was-dashboard');
-        if (!dashboardEl) return;
-
         try {
             const data = await wasApiFetch('/dashboard');
             const mapping = {
@@ -68,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Inbox Initialization
      */
-    if (page === 'inbox') {
+    if (document.getElementById('was-conversations-list')) {
         initInbox();
     }
 
@@ -76,13 +73,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initInbox() {
         const btnRefresh = document.getElementById('was-refresh-conversations');
-        const listContainer = document.getElementById('was-conversations-list');
         const sendBtn = document.getElementById('was-send-message');
         const inputField = document.getElementById('was-message-input');
         const openTplBtn = document.getElementById('was-open-templates-inbox');
         const closeTplBtn = document.getElementById('was-close-inbox-tpl-modal');
-
-        if (!listContainer) return;
 
         if (btnRefresh) btnRefresh.addEventListener('click', fetchConversations);
         
@@ -125,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const conversations = response.data || [];
             listContainer.innerHTML = '';
             if (conversations.length === 0) {
-                listContainer.innerHTML = '<div class="was-empty-state">Nenhuma conversa.</div>';
+                listContainer.innerHTML = '<div class="was-empty-state">Nenhuma conversa encontrada.</div>';
                 return;
             }
             conversations.forEach(conv => {
@@ -154,6 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('was-chat-contact-name').textContent = contactName || 'Contato';
         
         const historyContainer = document.getElementById('was-messages-history');
+        if (!historyContainer) return;
         historyContainer.innerHTML = '<div class="was-loading-state">Carregando...</div>';
 
         try {
@@ -161,7 +156,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const messages = response.data?.messages || [];
             historyContainer.innerHTML = '';
             messages.forEach(msg => {
-                renderMessage(msg.body || msg.text_body || 'Conteúdo indisponível', msg.direction || msg.type, msg.type);
+                const text = msg.text_body || msg.body || 'Conteúdo indisponível';
+                const type = msg.message_type || msg.type || 'text';
+                const payload = (type === 'template' && msg.raw_payload) ? JSON.parse(msg.raw_payload) : null;
+                renderMessage(text, msg.direction || 'outbound', type, payload);
             });
             scrollToBottom();
         } catch (err) {
@@ -201,15 +199,16 @@ document.addEventListener('DOMContentLoaded', () => {
     async function openInboxTplModal() {
         const modal = document.getElementById('was-inbox-tpl-modal');
         const list = document.getElementById('was-inbox-tpl-list');
+        if (!modal || !list) return;
         modal.style.display = 'block';
         list.innerHTML = '<p>Carregando...</p>';
 
         try {
             const templates = await wasApiFetch('/templates');
             list.innerHTML = '';
-            const approved = templates.filter(t => t.status === 'APPROVED' || t.status === 'approved');
+            const approved = (templates || []).filter(t => t.status === 'APPROVED' || t.status === 'approved');
             if (approved.length === 0) {
-                list.innerHTML = '<p>Nenhum modelo aprovado.</p>';
+                list.innerHTML = '<p>Nenhum modelo aprovado encontrado.</p>';
                 return;
             }
             approved.forEach(t => {
@@ -218,8 +217,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.style.padding = '10px';
                 item.style.borderBottom = '1px solid #eee';
                 item.style.cursor = 'pointer';
-                item.innerHTML = `<strong>${t.name}</strong><br><small>${t.body_text.substring(0, 80)}...</small>`;
-                item.addEventListener('click', () => sendTemplateInChat(t.id, t.name, t.body_text));
+                item.innerHTML = `<strong>${t.name}</strong><br><small>${(t.body_text || '').substring(0, 80)}...</small>`;
+                item.addEventListener('click', () => {
+                    document.getElementById('was-inbox-tpl-modal').style.display = 'none';
+                    openSendModal(t.id, t.name);
+                });
                 list.appendChild(item);
             });
         } catch (err) {
@@ -227,31 +229,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function sendTemplateInChat(id, name, body) {
-        if (!confirm(`Deseja enviar o modelo "${name}"?`)) return;
-        try {
-            const response = await wasApiFetch(`/templates/${id}/send`, 'POST', { 
-                conversation_id: currentConversationId 
-            });
-            if (response.success) {
-                renderMessage(body, 'outbound', 'template');
-                document.getElementById('was-inbox-tpl-modal').style.display = 'none';
-                scrollToBottom();
-            }
-        } catch (err) {
-            alert('Erro: ' + err.message);
-        }
-    }
-
-    function renderMessage(text, direction, type = 'text') {
+    function renderMessage(text, direction, type = 'text', payload = null) {
         const historyContainer = document.getElementById('was-messages-history');
         if (!historyContainer) return;
         const msgDiv = document.createElement('div');
         msgDiv.className = `was-message ${direction === 'outbound' || direction === 'sent' ? 'was-message-out' : 'was-message-in'}`;
         const contentDiv = document.createElement('div');
         contentDiv.className = 'was-message-content';
+        
         if (type === 'template') {
-            contentDiv.innerHTML = `<div class="was-template-card"><div class="was-template-header">📄 Modelo Oficial</div><div class="was-template-body">${text}</div></div>`;
+            const header = payload?.header ? `<div class="was-tpl-header">${payload.header}</div>` : '';
+            const footer = payload?.footer ? `<div class="was-tpl-footer">${payload.footer}</div>` : '';
+            let buttons = '';
+            if (payload?.buttons?.length > 0) {
+                buttons = '<div class="was-tpl-btns">' + 
+                    payload.buttons.map(b => {
+                        const icon = b.type === 'URL' ? '<span class="dashicons dashicons-share"></span>' : '<span class="dashicons dashicons-undo"></span>';
+                        return `<div class="was-tpl-btn-item">${icon} ${b.text}</div>`;
+                    }).join('') + 
+                    '</div>';
+            }
+
+            contentDiv.innerHTML = `
+                <div class="was-template-card">
+                    ${header}
+                    <div class="was-tpl-body">${text}</div>
+                    ${footer}
+                    ${buttons}
+                </div>`;
         } else {
             contentDiv.textContent = text;
         }
@@ -267,12 +272,14 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Templates & Wizard
      */
-    if (page === 'templates') {
+    if (document.getElementById('was-open-create-wizard')) {
         initTemplates();
     }
 
     let wizardStep = 1;
     let wizardButtons = [];
+    let editingTemplateId = null;
+    let activeSendTemplate = null;
 
     function initTemplates() {
         const syncBtn = document.getElementById('sync-templates');
@@ -285,17 +292,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (openWizardBtn) {
             openWizardBtn.addEventListener('click', () => {
+                editingTemplateId = null;
+                wizardForm.reset();
+                wizardButtons = [];
+                renderWizardButtons();
+                updatePreview();
                 document.getElementById('was-template-wizard').style.display = 'block';
                 setWizardStep(1);
             });
         }
-
         if (cancelWizardBtn) {
             cancelWizardBtn.addEventListener('click', () => {
                 if (confirm('Sair do construtor?')) document.getElementById('was-template-wizard').style.display = 'none';
             });
         }
-
         if (btnNext) btnNext.addEventListener('click', () => setWizardStep(wizardStep + 1));
         if (btnPrev) btnPrev.addEventListener('click', () => setWizardStep(wizardStep - 1));
 
@@ -356,8 +366,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
                 try {
                     btnSubmit.disabled = true;
-                    await wasApiFetch('/templates', 'POST', friendlyPayload);
-                    alert('Enviado!');
+                    const path = editingTemplateId ? `/templates/${editingTemplateId}` : '/templates';
+                    const method = editingTemplateId ? 'PUT' : 'POST';
+                    await wasApiFetch(path, method, friendlyPayload);
+                    alert(editingTemplateId ? 'Template atualizado!' : 'Enviado!');
                     document.getElementById('was-template-wizard').style.display = 'none';
                     wizardForm.reset();
                     wizardButtons = [];
@@ -382,15 +394,143 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 const id = document.getElementById('send-tpl-id').value;
                 const to = document.getElementById('send-tpl-to').value;
+                
+                // Collect variables
+                const varInputs = document.querySelectorAll('.was-var-input');
+                const variables = {};
+                varInputs.forEach(input => {
+                    variables[input.dataset.var] = input.value;
+                });
+
                 try {
-                    await wasApiFetch(`/templates/${id}/send`, 'POST', { to });
+                    const payload = { to, variables };
+                    // If in Inbox, currentConversationId exists
+                    if (currentConversationId) payload.conversation_id = currentConversationId;
+
+                    await wasApiFetch(`/templates/${id}/send`, 'POST', payload);
                     alert('Modelo enviado!');
                     document.getElementById('was-send-template-modal').style.display = 'none';
+                    sendTplForm.reset();
+                    if (document.getElementById('was-chat-contact-name')) {
+                        loadConversation(currentConversationId, document.getElementById('was-chat-contact-name').textContent);
+                    }
                 } catch (err) { alert(err.message); }
             });
         }
 
+        const closeSendModalBtn = document.getElementById('was-close-send-modal');
+        if (closeSendModalBtn) {
+            closeSendModalBtn.addEventListener('click', () => {
+                document.getElementById('was-send-template-modal').style.display = 'none';
+            });
+        }
+
         fetchTemplates();
+    }
+
+    async function openSendModal(id, name) {
+        const modal = document.getElementById('was-send-template-modal');
+        if (!modal) return;
+
+        try {
+            const tpl = await wasApiFetch(`/templates/${id}`);
+            activeSendTemplate = tpl;
+
+            document.getElementById('send-tpl-id').value = id;
+            document.getElementById('send-tpl-name-display').textContent = name;
+            
+            // Extract all variables {{...}}
+            const allText = (tpl.header_type === 'TEXT' ? tpl.friendly_payload?.header?.text : '') + ' ' + tpl.body_text + ' ' + (tpl.buttons_json?.map(b => b.url || '').join(' ') || '');
+            const vars = [...new Set(allText.match(/\{\{([^}]+)\}\}/g))];
+
+            const container = document.getElementById('was-tpl-variables-inputs');
+            container.innerHTML = '';
+
+            if (vars.length > 0) {
+                vars.forEach(v => {
+                    const varName = v.replace('{{', '').replace('}}', '');
+                    const p = document.createElement('p');
+                    p.innerHTML = `<label><strong>${varName}</strong></label><br><input type="text" class="was-var-input" data-var="${varName}" style="width:100%;" placeholder="Valor para ${v}" required>`;
+                    container.appendChild(p);
+                });
+                document.getElementById('was-tpl-variables-container').style.display = 'block';
+
+                container.querySelectorAll('.was-var-input').forEach(input => {
+                    input.addEventListener('input', updateSendPreview);
+                });
+            } else {
+                document.getElementById('was-tpl-variables-container').style.display = 'none';
+            }
+
+            updateSendPreview();
+            modal.style.display = 'block';
+        } catch (err) {
+            alert('Erro ao carregar detalhes: ' + err.message);
+        }
+    }
+
+    function updateSendPreview() {
+        if (!activeSendTemplate) return;
+
+        const varInputs = document.querySelectorAll('.was-var-input');
+        const varMap = {};
+        varInputs.forEach(input => { varMap[input.dataset.var] = input.value || `{{${input.dataset.var}}}`; });
+
+        const replaceVars = (text) => {
+            if (!text) return '';
+            return text.replace(/\{\{([^}]+)\}\}/g, (match, name) => varMap[name] || match);
+        };
+
+        const preHeader = document.getElementById('send-pre-header');
+        const preBody = document.getElementById('send-pre-body');
+        const preFooter = document.getElementById('send-pre-footer');
+        const preButtons = document.getElementById('send-pre-buttons');
+
+        if (activeSendTemplate.header_type === 'TEXT') {
+            preHeader.textContent = replaceVars(activeSendTemplate.friendly_payload?.header?.text);
+            preHeader.style.display = 'block';
+        } else preHeader.style.display = 'none';
+
+        preBody.textContent = replaceVars(activeSendTemplate.body_text);
+        
+        if (activeSendTemplate.footer_text) {
+            preFooter.textContent = activeSendTemplate.footer_text;
+            preFooter.style.display = 'block';
+        } else preFooter.style.display = 'none';
+
+        const btns = activeSendTemplate.buttons_json || [];
+        if (btns.length > 0) {
+            preButtons.innerHTML = btns.map(b => `<div class="was-wa-btn-item">${b.text}</div>`).join('');
+            preButtons.style.display = 'block';
+        } else preButtons.style.display = 'none';
+    }
+
+    async function openEditWizard(id) {
+        try {
+            const tpl = await wasApiFetch(`/templates/${id}`);
+            editingTemplateId = id;
+            
+            document.getElementById('wiz-tpl-name').value = tpl.name;
+            document.getElementById('wiz-tpl-lang').value = tpl.language;
+            const catRadio = document.querySelector(`input[name="category"][value="${tpl.category}"]`);
+            if (catRadio) catRadio.checked = true;
+
+            document.getElementById('wiz-header-type').value = tpl.header_type || 'NONE';
+            document.getElementById('wiz-header-text').value = tpl.friendly_payload?.header?.text || '';
+            document.getElementById('wiz-header-text-container').style.display = tpl.header_type === 'TEXT' ? 'block' : 'none';
+
+            document.getElementById('wiz-body-text').value = tpl.body_text;
+            document.getElementById('wiz-footer-text').value = tpl.footer_text || '';
+
+            wizardButtons = tpl.buttons_json || [];
+            
+            renderWizardButtons();
+            updatePreview();
+            document.getElementById('was-template-wizard').style.display = 'block';
+            setWizardStep(1);
+        } catch (err) {
+            alert('Erro ao carregar template: ' + err.message);
+        }
     }
 
     function setWizardStep(step) {
@@ -443,10 +583,17 @@ document.addEventListener('DOMContentLoaded', () => {
         wizardButtons.forEach((btn, idx) => {
             const div = document.createElement('div');
             div.style.background = '#f9f9f9'; div.style.padding = '10px'; div.style.marginBottom = '10px'; div.style.borderRadius = '4px';
-            div.innerHTML = `<select class="btn-type" data-idx="${idx}"><option value="QUICK_REPLY" ${btn.type === 'QUICK_REPLY'?'selected':''}>Resposta Rápida</option><option value="URL" ${btn.type === 'URL'?'selected':''}>Abrir Site</option></select> <input type="text" class="btn-text" data-idx="${idx}" value="${btn.text}"> <button type="button" class="btn-remove" data-idx="${idx}" style="color:red; background:none; border:none;">X</button>`;
+            let extraFields = '';
+            if (btn.type === 'URL') extraFields = `<input type="text" class="btn-url" data-idx="${idx}" value="${btn.url || ''}" placeholder="https://exemplo.com/{{variavel}}" style="width:100%; margin-top:5px;">`;
+            div.innerHTML = `<div style="display:flex; gap:10px; align-items:center;"><select class="btn-type" data-idx="${idx}" style="flex:1;"><option value="QUICK_REPLY" ${btn.type === 'QUICK_REPLY'?'selected':''}>Resposta Rápida</option><option value="URL" ${btn.type === 'URL'?'selected':''}>Abrir Site</option></select> <input type="text" class="btn-text" data-idx="${idx}" value="${btn.text}" style="flex:2;"> <button type="button" class="btn-remove" data-idx="${idx}" style="color:red; background:none; border:none; cursor:pointer;">X</button></div>${extraFields}`;
             container.appendChild(div);
         });
+        container.querySelectorAll('.btn-type').forEach(sel => sel.addEventListener('change', (e) => { 
+            const idx = e.target.dataset.idx; wizardButtons[idx].type = e.target.value; 
+            if (e.target.value === 'URL' && !wizardButtons[idx].url) wizardButtons[idx].url = ''; renderWizardButtons(); updatePreview(); 
+        }));
         container.querySelectorAll('.btn-text').forEach(input => input.addEventListener('input', (e) => { wizardButtons[e.target.dataset.idx].text = e.target.value; updatePreview(); }));
+        container.querySelectorAll('.btn-url').forEach(input => input.addEventListener('input', (e) => { wizardButtons[e.target.dataset.idx].url = e.target.value; updatePreview(); }));
         container.querySelectorAll('.btn-remove').forEach(btn => btn.addEventListener('click', (e) => { wizardButtons.splice(e.target.dataset.idx, 1); renderWizardButtons(); updatePreview(); }));
     }
 
@@ -471,20 +618,23 @@ document.addEventListener('DOMContentLoaded', () => {
             templates.forEach(t => {
                 const tr = document.createElement('tr');
                 const canSend = t.status === 'APPROVED' || t.status === 'approved';
-                tr.innerHTML = `<td><strong>${t.name}</strong></td><td>${t.category}</td><td>${t.language}</td><td><span class="was-status-badge was-status-${t.status.toLowerCase()}">${t.status}</span></td><td>${canSend ? `<button class="was-btn-send-tpl button" data-id="${t.id}" data-name="${t.name}">Enviar</button>` : '---'}</td>`;
+                tr.innerHTML = `<td><strong>${t.name}</strong></td><td>${t.category}</td><td>${t.language}</td><td><span class="was-status-badge was-status-${t.status.toLowerCase()}">${t.status}</span></td><td>
+                    <button class="was-btn-edit-tpl button-link" data-id="${t.id}" title="Editar">Editar</button>
+                    ${canSend ? `<button class="was-btn-send-tpl button" data-id="${t.id}" data-name="${t.name}">Enviar</button>` : '---'}
+                </td>`;
                 tbody.appendChild(tr);
             });
-            document.querySelectorAll('.was-btn-send-tpl').forEach(btn => btn.addEventListener('click', () => {
-                document.getElementById('send-tpl-id').value = btn.dataset.id;
-                document.getElementById('send-tpl-name-display').textContent = btn.dataset.name;
-                document.getElementById('was-send-template-modal').style.display = 'block';
-            }));
+            document.querySelectorAll('.was-btn-edit-tpl').forEach(btn => btn.addEventListener('click', () => openEditWizard(btn.dataset.id)));
+            document.querySelectorAll('.was-btn-send-tpl').forEach(btn => btn.addEventListener('click', () => openSendModal(btn.dataset.id, btn.dataset.name)));
         } catch (err) { tbody.innerHTML = '<tr><td colspan="5">Erro ao carregar</td></tr>'; }
     }
 
-    if (page === 'logs') initLogs();
-    if (page === 'settings-meta') initSettingsMeta();
-    if (page === 'settings-whatsapp') initSettingsWhatsApp();
+    /**
+     * Logs & Settings
+     */
+    if (document.getElementById('log-list-body')) initLogs();
+    if (document.getElementById('was-meta-config-form')) initSettingsMeta();
+    if (document.getElementById('was-launch-signup')) initSettingsWhatsApp();
 
     async function initLogs() {
         const tbody = document.getElementById('log-list-body');
@@ -518,10 +668,8 @@ document.addEventListener('DOMContentLoaded', () => {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = {
-                app_id: document.getElementById('app_id').value,
-                app_secret: document.getElementById('app_secret').value,
-                graph_version: document.getElementById('graph_version').value,
-                verify_token: document.getElementById('verify_token').value
+                app_id: document.getElementById('app_id').value, app_secret: document.getElementById('app_secret').value,
+                graph_version: document.getElementById('graph_version').value, verify_token: document.getElementById('verify_token').value
             };
             await wasApiFetch('/meta/config', 'POST', formData);
             alert('Salvo!');
@@ -530,13 +678,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function initSettingsWhatsApp() {
         const launchBtn = document.getElementById('was-launch-signup');
+        const statusText = document.getElementById('was-status-text');
+        const detailsDiv = document.getElementById('was-connection-details');
+        const wabaIdText = document.getElementById('was-waba-id');
+
         if (!launchBtn) return;
         try {
             const accounts = await wasApiFetch('/whatsapp/accounts');
             if (accounts && accounts.length > 0) {
-                document.getElementById('was-status-text').textContent = 'Conectado';
-                document.getElementById('was-waba-id').textContent = accounts[0].waba_id;
-                document.getElementById('was-connection-details').style.display = 'block';
+                if (statusText) statusText.textContent = 'Conectado';
+                if (wabaIdText) wabaIdText.textContent = accounts[0].waba_id;
+                if (detailsDiv) detailsDiv.style.display = 'block';
             }
         } catch (err) {}
     }

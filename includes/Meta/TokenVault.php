@@ -13,6 +13,35 @@ class TokenVault {
     private const METHOD = 'AES-256-CBC';
 
     /**
+     * Busca um token válido para o tenant/waba.
+     */
+    public function get_valid_token($tenant_id, $waba_internal_id) {
+        global $wpdb;
+        $table = \WAS\Core\TableNameResolver::get_table_name('meta_tokens');
+
+        $encrypted = $wpdb->get_var($wpdb->prepare(
+            "SELECT access_token_encrypted FROM $table WHERE tenant_id = %d AND (whatsapp_account_id = %d OR whatsapp_account_id IS NULL) AND status = 'active' ORDER BY whatsapp_account_id DESC LIMIT 1",
+            $tenant_id,
+            $waba_internal_id
+        ));
+
+        if (!$encrypted) {
+            return null;
+        }
+
+        // Se a chave não estiver definida, retorna o valor "puro" (fallback para modo dev/sem criptografia configurada)
+        if (!defined('WAS_ENCRYPTION_KEY')) {
+            return $encrypted;
+        }
+
+        try {
+            return self::decrypt($encrypted);
+        } catch (\Exception $e) {
+            return $encrypted; // Fallback
+        }
+    }
+
+    /**
      * Criptografa um valor.
      * 
      * @param string $value Valor puro.

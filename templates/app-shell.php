@@ -9,6 +9,7 @@
     if ( ! function_exists( 'get_current_screen' ) ) {
         require_once ABSPATH . 'wp-admin/includes/screen.php';
     }
+    wp_enqueue_style( 'dashicons' );
     wp_head(); 
     ?>
 </head>
@@ -19,18 +20,18 @@
         </div>
         <nav class="was-nav">
             <ul>
-                <li><a href="<?php echo home_url('/app/dashboard'); ?>" class="<?php echo $page === 'dashboard' ? 'active' : ''; ?>">Dashboard</a></li>
+                <li><a href="<?php echo home_url('/app/dashboard'); ?>" class="<?php echo $page === 'dashboard' ? 'active' : ''; ?>"><span class="dashicons dashicons-dashboard"></span> Dashboard</a></li>
                 <?php if (current_user_can('was_view_inbox')): ?>
-                    <li><a href="<?php echo home_url('/app/inbox'); ?>" class="<?php echo $page === 'inbox' ? 'active' : ''; ?>">Inbox</a></li>
+                    <li><a href="<?php echo home_url('/app/inbox'); ?>" class="<?php echo $page === 'inbox' ? 'active' : ''; ?>"><span class="dashicons dashicons-whatsapp"></span> Inbox</a></li>
                 <?php endif; ?>
                 <?php if (current_user_can('was_manage_templates')): ?>
-                    <li><a href="<?php echo home_url('/app/templates'); ?>" class="<?php echo $page === 'templates' ? 'active' : ''; ?>">Templates</a></li>
+                    <li><a href="<?php echo home_url('/app/templates'); ?>" class="<?php echo $page === 'templates' ? 'active' : ''; ?>"><span class="dashicons dashicons-layout"></span> Modelos</a></li>
                 <?php endif; ?>
                 <?php if (current_user_can('was_manage_whatsapp')): ?>
-                    <li><a href="<?php echo home_url('/app/settings/whatsapp'); ?>" class="<?php echo $page === 'settings/whatsapp' ? 'active' : ''; ?>">WhatsApp Setup</a></li>
+                    <li><a href="<?php echo home_url('/app/settings/whatsapp'); ?>" class="<?php echo $page === 'settings-whatsapp' ? 'active' : ''; ?>"><span class="dashicons dashicons-admin-settings"></span> WhatsApp Setup</a></li>
                 <?php endif; ?>
                 <?php if (current_user_can('was_view_logs')): ?>
-                    <li><a href="<?php echo home_url('/app/logs'); ?>" class="<?php echo $page === 'logs' ? 'active' : ''; ?>">Logs</a></li>
+                    <li><a href="<?php echo home_url('/app/logs'); ?>" class="<?php echo $page === 'logs' ? 'active' : ''; ?>"><span class="dashicons dashicons-list-view"></span> Auditoria</a></li>
                 <?php endif; ?>
             </ul>
         </nav>
@@ -50,7 +51,7 @@
                 <a href="<?php echo wp_logout_url(home_url('/app/login')); ?>">Sair</a>
             </div>
         </header>
-        <content class="was-content">
+        <content class="was-content page-<?php echo esc_attr($page); ?>">
             <?php 
             $page_file = WAS_PLUGIN_DIR . "templates/{$page}.php";
             if (file_exists($page_file)) {
