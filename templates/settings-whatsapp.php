@@ -66,72 +66,7 @@ $app_id = $app ? $app->app_id : '';
             fjs.parentNode.insertBefore(js, fjs);
         }(document, 'script', 'facebook-jssdk'));
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const launchBtn = document.getElementById('was-launch-signup');
-            const disconnectBtn = document.getElementById('was-disconnect-waba');
-            const statusText = document.getElementById('was-status-text');
-            const detailsDiv = document.getElementById('was-connection-details');
-
-            const restBase = '<?php echo esc_url_raw(rest_url(WAS_REST_NAMESPACE . '/whatsapp')); ?>';
-            const metaRestBase = '<?php echo esc_url_raw(rest_url(WAS_REST_NAMESPACE . '/meta')); ?>';
-            const nonce = '<?php echo wp_create_nonce('wp_rest'); ?>';
-
-            // Função para buscar estado atual
-            function checkStatus() {
-                fetch(restBase + '/accounts', { headers: { 'X-WP-Nonce': nonce } })
-                .then(r => r.json())
-                .then(data => {
-                    if (data && data.length > 0) {
-                        const account = data[0];
-                        statusText.textContent = 'Conectado';
-                        statusText.style.color = 'green';
-                        document.getElementById('was-waba-id').textContent = account.waba_id;
-                        document.getElementById('was-phone-number').textContent = account.display_phone_number || 'ID: ' + account.phone_number_id;
-                        detailsDiv.style.display = 'block';
-                        launchBtn.style.display = 'none';
-                        disconnectBtn.style.display = 'inline-block';
-                    } else {
-                        statusText.textContent = 'Não conectado';
-                        statusText.style.color = 'red';
-                        detailsDiv.style.display = 'none';
-                        launchBtn.style.display = 'inline-block';
-                        disconnectBtn.style.display = 'none';
-                    }
-                });
-            }
-
-            checkStatus();
-
-            // Lançar Embedded Signup
-            launchBtn.addEventListener('click', function() {
-                FB.login(function(response) {
-                    if (response.authResponse) {
-                        const code = response.authResponse.code;
-                        // O SDK do FB em popup para embedded signup retorna o código se configurado corretamente
-                        // Mas geralmente o fluxo de embedded signup é via FB.ui
-                        
-                        // Exemplo correto com FB.ui para Embedded Signup:
-                        FB.ui({
-                            method: 'share', // Placeholder, o método real de embedded signup costuma ser customizado ou via login com scopes específicos
-                            // Na documentação oficial, usa-se um fluxo de login com config_id
-                        }, function(response) {
-                            // Handler
-                        });
-
-                        // Para o MVP, assumiremos o retorno do code via FB.login custom ou similar
-                        // Se tivermos o code, enviamos para o backend
-                    }
-                }, {
-                    scope: 'whatsapp_business_management,whatsapp_business_messaging',
-                    extras: {
-                        feature: 'whatsapp_embedded_signup'
-                    }
-                });
-            });
-
-            // Mock de salvamento para teste da UI (já que o fluxo FB.ui é complexo de simular sem domínio real)
-            // Em produção, o script da Meta chama uma callback com os IDs.
-        });
+        // Nota: A lógica de estado (checkStatus) e botões agora é gerenciada pelo app.js
         </script>
     <?php endif; ?>
 </div>

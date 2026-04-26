@@ -34,7 +34,8 @@ body.was-app-shell {
     background-color: var(--bg-main);
     color: var(--text-main);
     display: flex;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -114,6 +115,8 @@ body.was-app-shell {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    height: 100vh;
+    overflow: hidden;
 }
 
 .was-header {
@@ -172,6 +175,10 @@ body.was-app-shell {
 .was-content {
     padding: 32px;
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 /* Dashboard Metrics */
@@ -252,6 +259,14 @@ body.was-app-shell {
 /* Inbox / Chat Overrides (keeping the premium look but integrating with shell) */
 .page-inbox {
     padding: 0 !important;
+    height: calc(100vh - var(--header-height));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+}
+
+body.wp-admin .page-inbox {
+    height: calc(100vh - 120px);
 }
 
 .was-inbox-container {
@@ -259,7 +274,11 @@ body.was-app-shell {
     flex: 1;
     background: #ffffff;
     overflow: hidden;
-    height: calc(100vh - var(--header-height));
+    height: 100%;
+    min-height: 0;
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
 }
 
 .was-inbox-sidebar {
@@ -327,8 +346,14 @@ body.was-app-shell .wrap h1 {
 
 /* Premium Inbox & Chat Styles */
 .was-inbox-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     background-color: #f0f2f5;
     position: relative;
+    overflow: hidden;
+    height: 100%;
+    min-height: 0;
 }
 
 .was-messages-history {
@@ -359,6 +384,7 @@ body.was-app-shell .wrap h1 {
     background: #f0f2f5;
     padding: 12px 24px;
     border-top: 1px solid var(--slate-200);
+    flex-shrink: 0;
 }
 
 #was-chat-input-container {
@@ -395,3 +421,127 @@ body.was-app-shell .wrap h1 {
 .was-tpl-select-item:hover {
     background-color: var(--slate-50);
 }
+
+/* Settings & Cards Styling */
+.was-content .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 32px;
+    border: 1px solid var(--slate-200);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    margin-bottom: 24px;
+}
+
+.was-content .card h2 {
+    margin-top: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--slate-900);
+}
+
+.was-content .form-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 24px;
+}
+
+.was-content .form-table th {
+    width: 200px;
+    padding: 20px 10px 20px 0;
+    vertical-align: top;
+    text-align: left;
+    font-weight: 600;
+    color: var(--slate-700);
+}
+
+.was-content .form-table td {
+    padding: 15px 0;
+    vertical-align: top;
+}
+
+.was-content .form-table input.regular-text {
+    width: 100%;
+    max-width: 450px;
+}
+
+.was-content .description {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--slate-600);
+}
+
+.was-status-box {
+    background: var(--slate-50) !important;
+    border: 1px solid var(--slate-200) !important;
+    box-shadow: none !important;
+}
+
+/* Restored Inbox Styles */
+.was-inbox-header {
+    padding: 16px 20px;
+    background: #f3f4f6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--slate-200);
+}
+
+.was-inbox-header h2 { margin: 0; font-size: 1.25rem; font-weight: 600; color: #111827; }
+
+.was-btn-icon { background: none; border: none; color: #6b7280; cursor: pointer; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: background-color 0.2s, color 0.2s; }
+.was-btn-icon:hover { background-color: #e5e7eb; color: #374151; }
+
+.was-inbox-search { padding: 12px 16px; background: #ffffff; border-bottom: 1px solid #f3f4f6; }
+.was-inbox-search input { width: 100%; padding: 10px 16px; background: #f3f4f6; border: 1px solid transparent; border-radius: 8px; box-sizing: border-box; font-size: 0.95rem; transition: border-color 0.2s, background-color 0.2s; outline: none; }
+.was-inbox-search input:focus { background: #ffffff; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+
+.was-conversations-list { flex: 1; overflow-y: auto; background: #ffffff; }
+
+.was-conversation-item {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--slate-100);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: background-color 0.15s ease;
+}
+.was-conversation-item:hover { background-color: #f3f4f6; }
+.was-conversation-item.active { background-color: #eff6ff; }
+
+.was-conv-avatar { width: 48px; height: 48px; border-radius: 50%; background-color: var(--slate-200); color: var(--slate-600); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+.was-conv-details { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.was-conv-details strong { font-size: 1rem; font-weight: 600; color: var(--slate-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.was-conv-details span { font-size: 0.85rem; color: var(--slate-600); margin-top: 2px; }
+
+/* Empty state */
+.was-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #6b7280; }
+.was-empty-icon { font-size: 64px; margin-bottom: 20px; opacity: 0.5; }
+.was-empty-state h3 { font-size: 1.5rem; color: #374151; margin: 0 0 8px 0; font-weight: 500; }
+
+/* Active Chat */
+.was-active-chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; height: 100%; min-height: 0; }
+.was-chat-header { padding: 12px 24px; background: #f3f4f6; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; z-index: 10; flex-shrink: 0; }
+.was-contact-info { display: flex; align-items: center; gap: 15px; }
+.was-chat-header .was-contact-avatar { width: 42px; height: 42px; border-radius: 50%; background-color: #cbd5e1; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.was-chat-header .was-contact-avatar::after { content: "👤"; }
+.was-contact-info h3 { margin: 0; font-size: 1.15rem; font-weight: 500; color: #111827; }
+.was-contact-info span { font-size: 0.85rem; color: #6b7280; }
+
+.was-messages-history { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.was-message { max-width: 65%; display: flex; flex-direction: column; position: relative; margin-bottom: 8px; }
+.was-message-out { align-self: flex-end; }
+.was-message-in { align-self: flex-start; }
+
+/* Template Card in Inbox - Design Oficial */
+.was-template-card { background: #ffffff; border-radius: 8px; overflow: hidden; margin: -4px; box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13); min-width: 240px; max-width: 320px; border: 1px solid rgba(0,0,0,0.05); }
+.was-tpl-header { padding: 12px 16px 4px 16px; font-weight: 700; font-size: 0.98rem; color: #111b21; letter-spacing: -0.01em; }
+.was-tpl-body { padding: 8px 16px 10px 16px; font-size: 0.92rem; color: #111b21; white-space: pre-wrap; line-height: 1.45; }
+.was-tpl-footer { padding: 0 16px 12px 16px; font-size: 0.78rem; color: #667781; font-weight: 400; }
+.was-tpl-btns { border-top: 1px solid #f0f2f5; display: flex; flex-direction: column; }
+.was-tpl-btn-item { padding: 12px; text-align: center; color: #008069; font-weight: 500; font-size: 0.88rem; border-bottom: 1px solid #f0f2f5; cursor: pointer; transition: background 0.15s; background: transparent; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.was-tpl-btn-item:last-child { border-bottom: none; }
+.was-tpl-btn-item:hover { background: #f8fafc; }
+.was-tpl-btn-item::before { font-family: "dashicons"; font-size: 14px; }
+.was-btn-secondary { background: transparent; color: #54656f; border: none; padding: 8px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.2s; }
+.was-btn-secondary:hover { color: #111b21; background: rgba(0,0,0,0.04); }
