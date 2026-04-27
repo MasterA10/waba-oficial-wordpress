@@ -34,7 +34,7 @@ class InboundMessageService {
             TenantContext::set_tenant_id($dto['tenant_id']);
         }
 
-        // 2. Verificar duplicidade (WAS-071)
+        // 2. Verificar duplicidade
         if ($this->message_repo->find_by_wa_message_id($dto['wa_message_id'])) {
             return true; // Já processada
         }
@@ -60,7 +60,7 @@ class InboundMessageService {
         $type = $dto['type'] ?? 'text';
         $body = $dto['text_body'] ?? '';
 
-        // Fallback para tipos não suportados (WAS-072)
+        // Fallback para tipos não suportados
         if (!in_array($type, ['text', 'image', 'video', 'audio', 'document', 'sticker'])) {
             $type = 'unknown';
             $body = $body ?: '[Tipo de mensagem não suportado]';
@@ -69,8 +69,8 @@ class InboundMessageService {
         $message_id = $this->message_repo->create_inbound([
             'conversation_id' => $conversation->id,
             'wa_message_id'   => $dto['wa_message_id'],
-            'type'            => $type,
-            'body'            => $body,
+            'message_type'    => $type,
+            'text_body'       => $body,
             'status'          => 'received'
         ]);
 

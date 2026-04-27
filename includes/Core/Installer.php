@@ -23,6 +23,7 @@ class Installer {
 		self::create_tables();
 		self::validate_installation();
 		self::create_capabilities();
+		\WAS\Compliance\LegalPagesGenerator::generateAll();
 		self::seed_data();
 	}
 

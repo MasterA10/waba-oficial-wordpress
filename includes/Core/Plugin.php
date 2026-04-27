@@ -66,6 +66,9 @@ class Plugin {
 	 */
 	private function register_hooks() {
 		add_action( 'rest_api_init', [ \WAS\REST\Routes::class, 'register' ] );
+
+        // Legal Pages Hooks (Template Redirect)
+        \WAS\Compliance\LegalPagesGenerator::boot();
         
         // Inbox routes might be separate if register_routes is needed instance-wise
         add_action( 'rest_api_init', function() {

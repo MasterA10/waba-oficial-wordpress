@@ -20,6 +20,28 @@ class LegalPagesGenerator {
     ];
 
     /**
+     * Inicializa os hooks do gerador de páginas
+     */
+    public static function boot() {
+        add_action('template_redirect', [self::class, 'handle_template_redirect']);
+    }
+
+    /**
+     * Intercepta a renderização das páginas legais para usar o template do plugin sem o tema
+     */
+    public static function handle_template_redirect() {
+        foreach (self::$pages as $slug => $title) {
+            if (is_page($slug)) {
+                $file_path = WAS_PLUGIN_DIR . "templates/legal/{$slug}.php";
+                if (file_exists($file_path)) {
+                    include $file_path;
+                    exit;
+                }
+            }
+        }
+    }
+
+    /**
      * Cria as páginas se não existirem
      */
     public static function generateAll() {
@@ -45,7 +67,14 @@ class LegalPagesGenerator {
     }
 
     private static function getPlaceholderContent($slug) {
-        // No futuro, isso pode carregar de templates PHP em templates/legal/
+        $file_path = WAS_PLUGIN_DIR . "templates/legal/{$slug}.php";
+        
+        if (file_exists($file_path)) {
+            ob_start();
+            include $file_path;
+            return ob_get_clean();
+        }
+
         return "Conteúdo para a página $slug. Esta página é necessária para o App Review da Meta.";
     }
 }
