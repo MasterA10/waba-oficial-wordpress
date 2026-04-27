@@ -34,8 +34,9 @@ class TemplateSyncService {
                 'meta_template_id' => $meta_tpl['id'],
                 'status'           => $meta_tpl['status'],
                 'category'         => $meta_tpl['category'],
-                'rejected_reason'  => $meta_tpl['rejected_reason'] ?? null,
-                'meta_payload'     => json_encode($meta_tpl)
+                'rejection_reason' => $meta_tpl['rejected_reason'] ?? null,
+                'meta_payload'     => json_encode($meta_tpl),
+                'updated_at'       => current_time('mysql', 1)
             ];
 
             // Extrair corpo e componentes para o banco local
@@ -56,7 +57,7 @@ class TemplateSyncService {
                 $this->repository->update($existing->id, $data);
             } else {
                 $data['name'] = $meta_tpl['name'];
-                'language' => $meta_tpl['language'];
+                $data['language'] = $meta_tpl['language'];
                 $this->repository->create($data);
             }
             $synced_count++;

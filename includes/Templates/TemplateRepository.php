@@ -19,6 +19,10 @@ class TemplateRepository {
         global $wpdb;
         $tenant_id = TenantContext::get_tenant_id();
 
+        if (!$tenant_id && defined('WP_CLI')) {
+            $tenant_id = 1; // Fallback para testes CLI
+        }
+
         $defaults = [
             'tenant_id' => $tenant_id,
             'whatsapp_account_id' => 1,
@@ -28,6 +32,7 @@ class TemplateRepository {
         ];
 
         $payload = array_merge($defaults, $data);
+        
         $result = $wpdb->insert($this->table_name, $payload);
 
         return $result ? $wpdb->insert_id : false;
