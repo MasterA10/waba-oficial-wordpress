@@ -258,6 +258,72 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateWizardButton = (i, val) => { wizardButtons[i].text = val; updatePreview(); };
     window.removeWizardButton = (i) => { wizardButtons.splice(i, 1); renderWizardButtons(); updatePreview(); };
 
+    // --- Modal de Envio de Template ---
+    window.openSendModal = async function(id, name) {
+        const modal = document.getElementById('was-send-template-modal');
+        if (!modal) return;
+        
+        document.getElementById('send-tpl-id').value = id;
+        document.getElementById('send-tpl-name-display').textContent = name;
+        
+        try {
+            const tpl = await wasApiFetch(`/templates/${id}`);
+            const varMap = tpl.variable_map ? JSON.parse(tpl.variable_map) : {};
+            const inputsContainer = document.getElementById('was-tpl-variables-inputs');
+            inputsContainer.innerHTML = '';
+            
+            const varKeys = Object.keys(varMap);
+            if (varKeys.length === 0) {
+                inputsContainer.innerHTML = '<p class="description">Este modelo não possui variáveis no corpo da mensagem.</p>';
+            } else {
+                varKeys.forEach(k => {
+                    inputsContainer.innerHTML += `<div style="margin-bottom:10px;"><label><strong>Variável {{${k}}}</strong> (Mapeada como: ${varMap[k]})</label><input type="text" class="tpl-var-input regular-text" data-key="${k}" style="width:100%; margin-top:4px;" required></div>`;
+                });
+            }
+            modal.style.display = 'block';
+        } catch (err) {
+            alert('Erro ao carregar detalhes do template para envio.');
+        }
+    };
+
+    const closeSendModal = document.getElementById('was-close-send-modal');
+    if (closeSendModal) {
+        closeSendModal.addEventListener('click', () => {
+            document.getElementById('was-send-template-modal').style.display = 'none';
+        });
+    }
+
+    const sendTplForm = document.getElementById('was-send-template-form');
+    if (sendTplForm) {
+        sendTplForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('send-tpl-id').value;
+            const to = document.getElementById('send-tpl-to').value;
+            
+            const varInputs = document.querySelectorAll('.tpl-var-input');
+            const variables = Array.from(varInputs).map(inp => inp.value);
+
+            const submitBtn = sendTplForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Enviando...';
+            submitBtn.disabled = true;
+
+            try {
+                await wasApiFetch(`/templates/${id}/send`, 'POST', {
+                    to_phone: to,
+                    variables: variables
+                });
+                alert('Template enviado com sucesso!');
+                document.getElementById('was-send-template-modal').style.display = 'none';
+            } catch(err) {
+                alert(err.message || 'Erro ao enviar template');
+            } finally {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    }
+
     /**
      * Settings & Logs
      */

@@ -25,18 +25,27 @@ class TemplateSendService {
     /**
      * Envia um template aprovado.
      */
-    public function send($conversation_id, $template_id, $variables = [], $button_variables = []) {
+    public function send($conversation_id, $template_id, $variables = [], $button_variables = [], $to_phone = null) {
         $tenant_id = TenantContext::get_tenant_id();
         
         $repository = new TemplateRepository();
         $template = $repository->get_by_id($template_id);
         if (!$template) return ['success' => false, 'error' => 'Template não encontrado'];
 
-        // Buscar dados do contato
-        global $wpdb;
-        $prefix = \WAS\Core\TableNameResolver::get_table_name("");
-        $contact_id = $wpdb->get_var($wpdb->prepare("SELECT contact_id FROM {$prefix}conversations WHERE id = %d", $conversation_id));
-        $to = $wpdb->get_var($wpdb->prepare("SELECT wa_id FROM {$prefix}contacts WHERE id = %d", $contact_id));
+        $to = $to_phone;
+
+        if (!$to && $conversation_id) {
+            // Buscar dados do contato
+            global $wpdb;
+            $prefix = \WAS\Core\TableNameResolver::get_table_name("");
+            $contact_id = $wpdb->get_var($wpdb->prepare("SELECT contact_id FROM {$prefix}conversations WHERE id = %d", $conversation_id));
+            $to = $wpdb->get_var($wpdb->prepare("SELECT wa_id FROM {$prefix}contacts WHERE id = %d", $contact_id));
+        }
+
+        if (!$to) return ['success' => false, 'error' => 'Destinatário não informado'];
+
+        // Limpar número (apenas dígitos)
+        $to = preg_replace('/\D/', '', $to);
 
         $phone_service = new PhoneNumberService();
         $phone_number_id = $phone_service->get_primary_id($tenant_id);
