@@ -44,6 +44,7 @@ class OutboundMessageService {
         if (!$phone_number_id || !$token) {
             \WAS\Compliance\AuditLogger::log('send_text_error', 'conversation', $conversation_id, [
                 'error' => 'Missing config',
+                'tenant_id' => $tenant_id,
                 'has_phone' => !!$phone_number_id,
                 'has_token' => !!$token
             ]);
