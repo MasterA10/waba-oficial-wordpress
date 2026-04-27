@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WhatsApp SaaS Core
  * Description: Transform WordPress into a multi-tenant WhatsApp SaaS using Meta Official API.
- * Version: 0.2.1
+ * Version: 0.2.3
  * Author: Alex Alves
  * Text Domain: whatsapp-saas-core
  * 

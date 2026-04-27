@@ -283,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('app_secret').value = data.app_secret || '';
                 document.getElementById('primary_phone_number_id').value = data.primary_phone_number_id || '';
                 document.getElementById('meta_access_token').value = data.meta_access_token || '';
+                document.getElementById('waba_id').value = data.waba_id || '';
                 document.getElementById('verify_token').value = data.verify_token || '';
                 document.getElementById('webhook_url').value = data.webhook_url || '';
             }
@@ -294,7 +295,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 app_secret: document.getElementById('app_secret').value,
                 verify_token: document.getElementById('verify_token').value,
                 primary_phone_number_id: document.getElementById('primary_phone_number_id').value,
-                meta_access_token: document.getElementById('meta_access_token').value
+                meta_access_token: document.getElementById('meta_access_token').value,
+                waba_id: document.getElementById('waba_id').value
             };
             try { await wasApiFetch('/meta/config', 'POST', payload); alert('Salvo!'); } catch (err) { alert(err.message); }
         });

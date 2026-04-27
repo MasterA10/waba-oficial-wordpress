@@ -32,6 +32,13 @@ if (!defined('ABSPATH')) {
                         </td>
                     </tr>
                     <tr>
+                        <th scope="row"><label for="waba_id">WABA ID</label></th>
+                        <td>
+                            <input name="waba_id" type="text" id="waba_id" value="" class="regular-text">
+                            <p class="description">Identificador da Conta WhatsApp Business (ex: 2304943043356575).</p>
+                        </td>
+                    </tr>
+                    <tr>
                         <th scope="row"><label for="primary_phone_number_id">Phone Number ID Principal</label></th>
                         <td>
                             <input name="primary_phone_number_id" type="text" id="primary_phone_number_id" value="" class="regular-text">
