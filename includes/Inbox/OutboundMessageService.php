@@ -42,13 +42,22 @@ class OutboundMessageService {
         $token = $this->token_service->get_active_token($tenant_id);
 
         if (!$phone_number_id || !$token) {
-            \WAS\Compliance\AuditLogger::log('send_text_error', 'conversation', $conversation_id, [
-                'error' => 'Missing config',
-                'tenant_id' => $tenant_id,
-                'has_phone' => !!$phone_number_id,
-                'has_token' => !!$token
+            $missing_config = [];
+            if (!$phone_number_id) $missing_config[] = 'WhatsApp Phone Number ID não configurado ou não é o padrão.';
+            if (!$token) $missing_config[] = 'Meta Access Token não encontrado, expirado ou inválido.';
+            
+            $error_message = 'Falha de configuração ao tentar enviar mensagem: ' . implode(' ', $missing_config);
+
+            \WAS\Core\SystemLogger::logError($error_message, [
+                'action'          => 'send_text',
+                'conversation_id' => $conversation_id,
+                'contact_wa_id'   => $contact->wa_id,
+                'tenant_id'       => $tenant_id,
+                'has_phone'       => !!$phone_number_id,
+                'has_token'       => !!$token
             ]);
-            return ['success' => false, 'error' => 'Configuração de envio (número/token) incompleta'];
+            
+            return ['success' => false, 'error' => $error_message];
         }
 
         $payload = [
@@ -88,6 +97,14 @@ class OutboundMessageService {
             $this->conversation_repo->update_last_message_at($conversation_id);
             
             return ['success' => true, 'wa_message_id' => $wa_message_id];
+        } else {
+            \WAS\Core\SystemLogger::logError('A Meta API recusou o envio da mensagem de texto.', [
+                'conversation_id' => $conversation_id,
+                'tenant_id'       => $tenant_id,
+                'contact_wa_id'   => $contact->wa_id,
+                'api_error'       => $response['error'] ?? 'Erro desconhecido',
+                'api_code'        => $response['code'] ?? null
+            ]);
         }
 
         return $response;
