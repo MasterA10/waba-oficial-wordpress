@@ -25,6 +25,7 @@ class Installer {
 		self::create_capabilities();
 		\WAS\Compliance\LegalPagesGenerator::generateAll();
 		self::seed_data();
+        flush_rewrite_rules(false);
 	}
 
 	/**

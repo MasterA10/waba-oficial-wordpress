@@ -41,7 +41,21 @@ class Plugin {
 	public function boot() {
 		$this->register_hooks();
 		$this->register_rewrite_rules();
+        $this->maybe_flush_rewrite_rules();
 	}
+
+    /**
+     * Flushes rewrite rules automatically if version changes.
+     * Useful for sync/dev environments.
+     */
+    private function maybe_flush_rewrite_rules() {
+        $installed_version = get_option( 'was_version' );
+        
+        if ( $installed_version !== WAS_VERSION ) {
+            flush_rewrite_rules( false );
+            update_option( 'was_version', WAS_VERSION );
+        }
+    }
 
 	/**
 	 * Register rewrite rules for the SaaS App and Webhook.
