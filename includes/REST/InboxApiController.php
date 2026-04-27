@@ -58,14 +58,16 @@ class InboxApiController {
                 'permission_callback' => [$this, 'check_send_permission'],
             ],
         ]);
-        }
+    }
 
-        public function check_permission() {
-        ...
-        /**
-        * Envia uma mensagem de texto em uma conversa.
-        */
-        public function send_text_message($request) {
+    public function check_permission() {
+        return current_user_can('was_view_inbox');
+    }
+
+    /**
+     * Envia uma mensagem de texto em uma conversa.
+     */
+    public function send_text_message($request) {
         $id   = $request['id'];
         $text = $request->get_param('text');
 
@@ -84,10 +86,8 @@ class InboxApiController {
             'success' => false,
             'message' => $result['error'] ?? 'Erro ao enviar mensagem'
         ], 500);
-        }
+    }
 
-        /**
-        * Envia uma mensagem em uma conversa.
     public function check_send_permission() {
         $auth = Routes::check_auth();
         if ( is_wp_error( $auth ) ) {
