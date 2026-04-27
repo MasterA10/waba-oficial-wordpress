@@ -83,18 +83,48 @@ class TemplateRepository {
         global $wpdb;
         $tenant_id = TenantContext::get_tenant_id();
         return $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$this->table_name} WHERE name = %s AND language = %s AND tenant_id = %d",
+            "SELECT * FROM {$this->table_name} WHERE name = %s AND language = %s AND tenant_id = %d AND deleted_at IS NULL",
             $name,
             $language,
             $tenant_id
         ));
     }
 
+    public function findByWabaNameLanguage($tenant_id, $waba_id, $name, $language) {
+        global $wpdb;
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->table_name} WHERE tenant_id = %d AND waba_id = %s AND name = %s AND language = %s AND deleted_at IS NULL",
+            $tenant_id,
+            $waba_id,
+            $name,
+            $language
+        ));
+    }
+
+    public function findForTenant($id, $tenant_id) {
+        global $wpdb;
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->table_name} WHERE id = %d AND tenant_id = %d AND deleted_at IS NULL",
+            $id,
+            $tenant_id
+        ));
+    }
+
+    public function softDelete($id) {
+        global $wpdb;
+        $tenant_id = TenantContext::get_tenant_id();
+        return $wpdb->update(
+            $this->table_name,
+            ['status' => 'DELETED', 'deleted_at' => current_time('mysql', 1)],
+            ['id' => $id, 'tenant_id' => $tenant_id]
+        );
+    }
+
     public function list_templates($limit = 50, $offset = 0) {
         global $wpdb;
         $tenant_id = TenantContext::get_tenant_id();
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$this->table_name} WHERE tenant_id = %d ORDER BY updated_at DESC LIMIT %d OFFSET %d",
+            "SELECT * FROM {$this->table_name} WHERE tenant_id = %d AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT %d OFFSET %d",
             $tenant_id,
             $limit,
             $offset

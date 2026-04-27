@@ -39,7 +39,6 @@ class TemplateApiController {
             return new WP_REST_Response(['message' => 'Nome e conteúdo do corpo são obrigatórios'], 400);
         }
 
-        // 1. Construir payload oficial
         try {
             $build_result = $this->builder->build($params);
             $meta_payload = $build_result['meta_payload'];
@@ -48,24 +47,38 @@ class TemplateApiController {
             return new WP_REST_Response(['message' => $e->getMessage()], 400);
         }
 
-        // 2. Salvar rascunho local primeiro
+        $tenant_id = TenantContext::get_tenant_id();
+        $account_repo = new \WAS\WhatsApp\WhatsAppAccountRepository();
+        $account = $account_repo->getByTenant($tenant_id)[0] ?? null;
+
+        if (!$account || empty($account->waba_id)) {
+            return new WP_REST_Response(['message' => 'WABA ID não configurado para o tenant.'], 400);
+        }
+
+        $token_service = new \WAS\Meta\TokenService();
+        $token = $token_service->get_active_token($tenant_id);
+
+        if (!$token) {
+            return new WP_REST_Response(['message' => 'Token não configurado para o tenant.'], 400);
+        }
+
         $local_id = $this->repository->create([
-            'name' => $params['name'],
-            'category' => $params['category'],
-            'language' => $params['language'],
-            'body_text' => $params['body']['text'],
-            'status' => 'submitting',
-            'friendly_payload' => json_encode($params),
-            'variable_map' => json_encode($variable_map)
+            'waba_id'             => $account->waba_id,
+            'whatsapp_account_id' => $account->id,
+            'name'                => $params['name'],
+            'category'            => $params['category'],
+            'language'            => $params['language'],
+            'body_text'           => $params['body']['text'],
+            'status'              => 'submitting',
+            'friendly_payload'    => json_encode($params),
+            'variable_map'        => json_encode($variable_map)
         ]);
 
-        // 3. Enviar para a Meta
         try {
             $meta_service = new TemplateMetaService();
-            $tenant_id = TenantContext::get_tenant_id();
-            $response = $meta_service->create($tenant_id, $meta_payload);
+            $response = $meta_service->create($account->waba_id, $meta_payload, $token);
 
-            if ($response['success']) {
+            if ($response['success'] ?? false) {
                 $this->repository->update($local_id, [
                     'meta_template_id' => $response['id'] ?? null,
                     'status'           => 'PENDING',
@@ -74,42 +87,23 @@ class TemplateApiController {
 
                 \WAS\Compliance\AuditLogger::log('template_create_success', 'template', $local_id, [
                     'name'      => $meta_payload['name'],
-                    'category'  => $meta_payload['category'],
-                    'language'  => $meta_payload['language'],
-                    'meta_id'   => $response['id'] ?? null,
-                    'message'   => sprintf(
-                        'O template "%s" (%s) foi criado com sucesso na Meta com o ID %s.',
-                        $meta_payload['name'],
-                        $meta_payload['category'],
-                        $response['id'] ?? 'N/A'
-                    )
+                    'waba_id'   => $account->waba_id,
+                    'meta_id'   => $response['id'] ?? null
                 ]);
 
-                return new WP_REST_Response([
-                    'success' => true, 
-                    'id' => $local_id, 
-                    'meta_id' => $response['id'] ?? null
-                ], 201);
+                return new WP_REST_Response(['success' => true, 'id' => $local_id, 'meta_id' => $response['id'] ?? null], 201);
             }
 
-            // Se falhou na Meta, atualiza status local
             $this->repository->update($local_id, [
-                'status' => 'failed',
-                'rejection_reason' => $response['error'] ?? 'Erro desconhecido'
-            ]);
-
-            \WAS\Core\SystemLogger::logError('A Meta recusou a criação do template.', [
-                'local_id'     => $local_id,
-                'name'         => $params['name'],
-                'meta_error'   => $response['error'] ?? 'Unknown Meta error',
-                'meta_payload' => $meta_payload
+                'status' => 'FAILED',
+                'last_meta_error' => $response['error'] ?? 'Erro desconhecido'
             ]);
 
             return new WP_REST_Response(['message' => 'Erro na Meta: ' . ($response['error'] ?? 'Desconhecido')], 400);
 
         } catch (\Throwable $e) {
             \WAS\Core\SystemLogger::logException($e, ['context' => 'TemplateApiController::create_item', 'local_id' => $local_id]);
-            return new WP_REST_Response(['message' => 'Erro interno ao processar criação de template na Meta.'], 500);
+            return new WP_REST_Response(['message' => 'Erro interno ao criar template.'], 500);
         }
     }
 
@@ -132,23 +126,27 @@ class TemplateApiController {
                 return new WP_REST_Error('not_found', 'Template não encontrado', ['status' => 404]);
             }
 
-            // 1. Construir payload novo
+            $policyService = new \WAS\Templates\TemplatePolicyService();
+            if ($policyService->shouldBlockEdit($template)) {
+                return new WP_REST_Response(['message' => 'Este template não pode ser editado no estado atual. Considere duplicá-lo.'], 403);
+            }
+
             $build_result = $this->builder->build($params);
             $meta_payload = $build_result['meta_payload'];
             $variable_map = $build_result['variable_map'];
 
-            // 2. Enviar para Meta
-            $meta_service = new TemplateMetaService();
             $tenant_id = TenantContext::get_tenant_id();
-            
-            if ($template->meta_template_id) {
-                $response = $meta_service->update($tenant_id, $template->meta_template_id, $meta_payload['components']);
-                if (!$response['success']) {
+            $token_service = new \WAS\Meta\TokenService();
+            $token = $token_service->get_active_token($tenant_id);
+
+            if ($template->meta_template_id && $token) {
+                $meta_service = new TemplateMetaService();
+                $response = $meta_service->update($template->meta_template_id, $meta_payload, $token);
+                if (!($response['success'] ?? false)) {
                     return new WP_REST_Response(['message' => 'Erro na Meta ao atualizar: ' . ($response['error'] ?? 'Desconhecido')], 400);
                 }
             }
 
-            // 3. Atualizar localmente
             $update_data = [
                 'name' => $params['name'],
                 'category' => $params['category'],
@@ -159,7 +157,7 @@ class TemplateApiController {
                 'meta_payload' => json_encode($meta_payload)
             ];
 
-            $updated = $this->repository->update($id, $update_data);
+            $this->repository->update($id, $update_data);
             
             \WAS\Compliance\AuditLogger::log('template_update_success', 'template', $id, [
                 'name' => $meta_payload['name'],
@@ -175,45 +173,51 @@ class TemplateApiController {
     }
 
     public function delete_item(WP_REST_Request $request) {
-        $id = $request['id'];
-        $tenant_id = TenantContext::get_tenant_id();
-
+        $id = (int) $request['id'];
+        
         try {
-            $template = $this->repository->get_by_id($id);
-            if (!$template) {
-                return new WP_REST_Error('not_found', 'Template não encontrado', ['status' => 404]);
+            $deletionService = new \WAS\Templates\TemplateDeletionService();
+            $result = $deletionService->deleteTemplate($id);
+
+            if ($result['success'] ?? false) {
+                return new WP_REST_Response(['success' => true], 200);
             }
-
-            $meta_service = new TemplateMetaService();
-            
-            // Exclui da Meta primeiro (só se já foi enviado)
-            if ($template->meta_template_id || $template->status !== 'draft') {
-                $response = $meta_service->delete($tenant_id, $template->name);
-                if (!$response['success'] && !str_contains(strtolower($response['error'] ?? ''), 'does not exist')) {
-                    return new WP_REST_Response(['message' => 'Erro na Meta ao excluir: ' . ($response['error'] ?? 'Desconhecido')], 400);
-                }
-            }
-
-            // Exclui localmente
-            $this->repository->delete($id);
-
-            \WAS\Compliance\AuditLogger::log('template_delete_success', 'template', $id, [
-                'name' => $template->name
-            ]);
-
-            return new WP_REST_Response(['success' => true], 200);
-
+            return new WP_REST_Response(['message' => $result['error'] ?? 'Erro ao excluir.'], 400);
         } catch (\Throwable $e) {
             \WAS\Core\SystemLogger::logException($e, ['context' => 'TemplateApiController::delete_item', 'local_id' => $id]);
             return new WP_REST_Response(['message' => 'Erro interno ao excluir template.'], 500);
         }
     }
 
+    public function duplicate_item(WP_REST_Request $request) {
+        $id = (int) $request['id'];
+        $params = $request->get_json_params();
+        $newName = $params['new_name'] ?? '';
+
+        if (!$newName || !preg_match('/^[a-z0-9_]+$/', $newName)) {
+            return new WP_REST_Response(['message' => 'Nome inválido. Use apenas minúsculas e underscores.'], 400);
+        }
+
+        try {
+            $duplicateService = new \WAS\Templates\TemplateDuplicationService();
+            $result = $duplicateService->duplicate($id, $newName);
+
+            if ($result['success'] ?? false) {
+                return new WP_REST_Response($result, 201);
+            }
+            return new WP_REST_Response(['message' => $result['error'] ?? 'Erro ao duplicar.'], 400);
+        } catch (\Throwable $e) {
+            \WAS\Core\SystemLogger::logException($e, ['context' => 'TemplateApiController::duplicate_item', 'local_id' => $id]);
+            return new WP_REST_Response(['message' => 'Erro interno ao duplicar template.'], 500);
+        }
+    }
+
     public function sync_templates(WP_REST_Request $request) {
         $tenant_id = TenantContext::get_tenant_id();
+        $waba_id = $request->get_param('waba_id');
         try {
             $sync_service = new \WAS\Templates\TemplateSyncService();
-            $result = $sync_service->sync($tenant_id);
+            $result = $sync_service->syncWaba($tenant_id, $waba_id);
 
             if ($result['success'] ?? false) {
                 return new WP_REST_Response($result, 200);

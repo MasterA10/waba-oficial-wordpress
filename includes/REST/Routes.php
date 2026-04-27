@@ -110,6 +110,15 @@ class Routes {
             ]
         ]);
 
+        // Template Duplicate
+        register_rest_route(WAS_REST_NAMESPACE, '/templates/(?P<id>\d+)/duplicate', [
+            [
+                'methods'             => 'POST',
+                'callback'            => [$templateController, 'duplicate_item'],
+                'permission_callback' => [self::class, 'check_auth'],
+            ]
+        ]);
+
         // Template Sync
         register_rest_route(WAS_REST_NAMESPACE, '/templates/sync', [
             [

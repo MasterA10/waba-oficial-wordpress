@@ -36,10 +36,28 @@ class WhatsAppAccountRepository {
      */
     public function getByTenant(int $tenant_id = null) {
         global $wpdb;
-        $tenant_id = $tenant_id ?: TenantContext::getTenantId();
+        $tenant_id = $tenant_id ?: TenantContext::get_tenant_id();
 
         return $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$this->table_name} WHERE tenant_id = %d",
+            $tenant_id
+        ));
+    }
+
+    /**
+     * Busca uma conta do tenant, filtrando opcionalmente por waba_id.
+     */
+    public function findForTenant(int $tenant_id, ?string $waba_id = null) {
+        global $wpdb;
+        if ($waba_id) {
+            return $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$this->table_name} WHERE tenant_id = %d AND waba_id = %s LIMIT 1",
+                $tenant_id,
+                $waba_id
+            ));
+        }
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->table_name} WHERE tenant_id = %d LIMIT 1",
             $tenant_id
         ));
     }

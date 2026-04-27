@@ -226,9 +226,70 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!tbody) return;
         try {
             const data = await wasApiFetch('/templates');
-            tbody.innerHTML = (data || []).map(t => `<tr><td><strong>${t.name}</strong></td><td>${t.category}</td><td>${t.language}</td><td>${t.status}</td><td><button class="button was-btn-send-tpl" data-id="${t.id}" data-name="${t.name}">Enviar</button></td></tr>`).join('') || '<tr><td colspan="5">Vazio</td></tr>';
+            tbody.innerHTML = (data || []).map(t => {
+                let color = '#555';
+                const st = (t.status || 'DRAFT').toUpperCase();
+                if (st === 'APPROVED') color = '#25d366';
+                else if (st === 'REJECTED') color = '#dc2626';
+                else if (st === 'PENDING' || st === 'IN_REVIEW') color = '#f59e0b';
+                else if (st === 'DELETED') color = '#999';
+
+                return `<tr>
+                    <td><strong>${t.name}</strong><br><small style="color:#888">${t.waba_id}</small></td>
+                    <td>${t.category}</td>
+                    <td>${t.language}</td>
+                    <td><span style="font-weight:600; color:${color}; border:1px solid ${color}33; padding:2px 6px; border-radius:4px; background:${color}11;">${st}</span></td>
+                    <td style="display:flex; gap:5px; flex-wrap:wrap;">
+                        <button type="button" class="button was-btn-send-tpl" data-id="${t.id}" data-name="${t.name}">Enviar</button>
+                        <button type="button" class="button was-btn-dup-tpl" data-id="${t.id}">Duplicar</button>
+                        <button type="button" class="button was-btn-edit-tpl" data-id="${t.id}">Editar</button>
+                        <button type="button" class="button button-link-delete was-btn-del-tpl" data-id="${t.id}">Excluir</button>
+                    </td>
+                </tr>`;
+            }).join('') || '<tr><td colspan="5">Vazio</td></tr>';
+            
             document.querySelectorAll('.was-btn-send-tpl').forEach(btn => btn.addEventListener('click', () => openSendModal(btn.dataset.id, btn.dataset.name)));
-        } catch (err) { tbody.innerHTML = 'Erro ao carregar.'; }
+            
+            document.querySelectorAll('.was-btn-del-tpl').forEach(btn => btn.addEventListener('click', async () => {
+                if(confirm('Tem certeza que deseja excluir permanentemente este template? Essa ação pode demorar alguns segundos para refletir na Meta.')) {
+                    try {
+                        btn.disabled = true;
+                        btn.textContent = '...';
+                        await wasApiFetch(`/templates/${btn.dataset.id}`, 'DELETE');
+                        fetchTemplates();
+                    } catch(err) {
+                        alert(err.message || 'Erro ao excluir');
+                        btn.disabled = false;
+                        btn.textContent = 'Excluir';
+                    }
+                }
+            }));
+
+            document.querySelectorAll('.was-btn-dup-tpl').forEach(btn => btn.addEventListener('click', async () => {
+                const newName = prompt('Digite um nome para a cópia (apenas minúsculas e _):');
+                if (newName) {
+                    try {
+                        btn.disabled = true;
+                        btn.textContent = '...';
+                        await wasApiFetch(`/templates/${btn.dataset.id}/duplicate`, 'POST', { new_name: newName });
+                        alert('Template duplicado! Um rascunho foi criado.');
+                        fetchTemplates();
+                    } catch(err) {
+                        alert(err.message || 'Erro ao duplicar');
+                        btn.disabled = false;
+                        btn.textContent = 'Duplicar';
+                    }
+                }
+            }));
+
+            document.querySelectorAll('.was-btn-edit-tpl').forEach(btn => btn.addEventListener('click', () => {
+                alert('A edição de templates usará a mesma interface do Wizard. Funcionalidade visual em finalização!');
+                // Aqui poderíamos popular o Wizard e abrir o form
+            }));
+
+        } catch (err) { 
+            tbody.innerHTML = '<tr><td colspan="5">Erro ao carregar templates.</td></tr>'; 
+        }
     }
 
     function setWizardStep(step) {
