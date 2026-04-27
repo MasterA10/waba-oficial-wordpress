@@ -320,6 +320,3 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) { alert(err.message); }
     };
 });
-message); }
-    };
-});
