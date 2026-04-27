@@ -227,16 +227,22 @@ class TemplateApiController {
     }
 
     public function send_template(WP_REST_Request $request) {
-        $id = $request['id'];
+        $id = $request['id']; // ID do template
         $conversation_id = $request->get_param('conversation_id');
-        $tenant_id = TenantContext::get_tenant_id();
+        $variables = $request->get_param('variables') ?? [];
+        $button_variables = $request->get_param('button_variables') ?? [];
 
         try {
             $send_service = new \WAS\Templates\TemplateSendService();
-            $result = $send_service->send_template($id, $conversation_id, $tenant_id);
+            // Assinatura correta: send($conversation_id, $template_id, $variables, $button_variables)
+            $result = $send_service->send($conversation_id, $id, $variables, $button_variables);
 
             if ($result['success'] ?? false) {
-                return new WP_REST_Response(['success' => true], 200);
+                \WAS\Compliance\AuditLogger::log('template_send_success', 'template', $id, [
+                    'conversation_id' => $conversation_id,
+                    'wa_message_id' => $result['wa_message_id'] ?? null
+                ]);
+                return new WP_REST_Response(['success' => true, 'wa_message_id' => $result['wa_message_id'] ?? null], 200);
             }
 
             return new WP_REST_Response(['message' => $result['error'] ?? 'Erro ao enviar template.'], 400);
