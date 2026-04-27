@@ -42,14 +42,20 @@ class TokenVault {
 
         // Se a chave não estiver definida, retorna o valor "puro" (fallback para modo dev/sem criptografia configurada)
         if (!defined('WAS_ENCRYPTION_KEY')) {
-            error_log("WAS Warning [Vault]: WAS_ENCRYPTION_KEY not defined.");
+            \WAS\Core\SystemLogger::logError("WAS_ENCRYPTION_KEY not defined. Returning raw token.", [
+                'tenant_id' => $tenant_id,
+                'context'   => 'TokenVault::get_valid_token'
+            ]);
             return $encrypted;
         }
 
         try {
             return self::decrypt($encrypted);
         } catch (\Exception $e) {
-            error_log("WAS Error [Vault]: Decrypt failed for tenant $tenant_id: " . $e->getMessage());
+            \WAS\Core\SystemLogger::logException($e, [
+                'context'   => 'TokenVault::get_valid_token',
+                'tenant_id' => $tenant_id,
+            ]);
             return $encrypted; // Fallback
         }
     }

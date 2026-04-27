@@ -42,7 +42,6 @@ class OutboundMessageService {
         $token = $this->token_service->get_active_token($tenant_id);
 
         if (!$phone_number_id || !$token) {
-            error_log("WAS Debug [SendText]: tenant=$tenant_id, phone=$phone_number_id, token_exists=" . ($token ? 'YES' : 'NO'));
             $missing_config = [];
             if (!$phone_number_id) $missing_config[] = 'WhatsApp Phone Number ID não configurado ou não é o padrão.';
             if (!$token) $missing_config[] = 'Meta Access Token não encontrado, expirado ou inválido.';
