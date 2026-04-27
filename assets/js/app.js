@@ -669,8 +669,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('app_id').value = data.app_id || '';
                 document.getElementById('app_secret').value = data.app_secret || '';
                 document.getElementById('graph_version').value = data.graph_version || 'v25.0';
+                document.getElementById('primary_phone_number_id').value = data.primary_phone_number_id || '';
                 tokenInput.value = data.verify_token || '';
-
                 if (urlInput) {
                     urlInput.value = data.webhook_url || '';
                 }
@@ -693,12 +693,13 @@ document.addEventListener('DOMContentLoaded', () => {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (statusSpan) statusSpan.textContent = 'Salvando...';
-
-            const formData = {
-                app_id: document.getElementById('app_id').value,
-                app_secret: document.getElementById('app_secret').value,
-                graph_version: document.getElementById('graph_version').value,
-                verify_token: tokenInput.value,
+const formData = {
+    app_id: document.getElementById('app_id').value,
+    app_secret: document.getElementById('app_secret').value,
+    graph_version: document.getElementById('graph_version').value,
+    verify_token: tokenInput.value,
+    primary_phone_number_id: document.getElementById('primary_phone_number_id').value
+};
                 primary_phone_number_id: document.getElementById('primary_phone_number_id').value
             };
 
