@@ -57,6 +57,7 @@ class MetaAppRepository {
 
         $prepared_data = [
             'app_id'        => sanitize_text_field($data['app_id']),
+            'config_id'     => sanitize_text_field($data['config_id'] ?? ''),
             'graph_version' => sanitize_text_field($data['graph_version'] ?? WAS_META_GRAPH_DEFAULT_VERSION),
             'verify_token'  => sanitize_text_field($data['verify_token']),
             'updated_at'    => current_time('mysql', true),

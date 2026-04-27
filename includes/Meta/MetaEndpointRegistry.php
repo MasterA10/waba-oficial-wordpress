@@ -20,6 +20,9 @@ class MetaEndpointRegistry {
             'media.upload'     => '/{phone_number_id}/media',
             'media.get'        => '/{media_id}',
             'media.delete'     => '/{media_id}',
+
+            'oauth.access_token' => '/oauth/access_token',
+            'waba.subscribe_webhooks' => '/{waba_id}/subscribed_apps',
         ];
 
         if (!isset($map[$operation])) {

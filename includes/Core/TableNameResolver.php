@@ -43,6 +43,10 @@ class TableNameResolver {
         return self::get_table_name( 'message_templates' );
     }
 
+    public static function getOnboardingSessionsTable() {
+        return self::get_table_name( 'onboarding_sessions' );
+    }
+
 	/**
 	 * List of all plugin tables.
 	 *
@@ -66,6 +70,7 @@ class TableNameResolver {
 			'webhook_events',
 			'audit_logs',
 			'settings',
+			'onboarding_sessions',
 		];
 	}
 }

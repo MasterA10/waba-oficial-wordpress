@@ -79,7 +79,13 @@ class TemplateSyncService {
             return 'unchanged';
         }
 
+        // Tenta encontrar primeiro pelo WABA ID + Nome + Lang (Padrão Novo)
         $existing = $this->repository->findByWabaNameLanguage($tenantId, $wabaId, $name, $language);
+
+        // Fallback: se não achar, tenta pelo Nome + Lang (Migração para templates antigos sem waba_id)
+        if (!$existing) {
+            $existing = $this->repository->get_by_name_lang($name, $language);
+        }
 
         $data = [
             'tenant_id' => $tenantId,
@@ -95,7 +101,7 @@ class TemplateSyncService {
             'meta_payload' => wp_json_encode($metaTemplate),
             'synced_at' => current_time('mysql', 1),
             'updated_at' => current_time('mysql', 1),
-            'body_text' => '' // Fallback required
+            'body_text' => ''
         ];
 
         if (!empty($metaTemplate['components']) && is_array($metaTemplate['components'])) {
@@ -104,7 +110,6 @@ class TemplateSyncService {
                     $data['body_text'] = $comp['text'] ?? '';
                 } elseif ($comp['type'] === 'HEADER') {
                     $data['header_type'] = $comp['format'] ?? null;
-                    // 'header_text' doesn't exist in schema, friendly_payload is used. We use meta_payload instead.
                 } elseif ($comp['type'] === 'FOOTER') {
                     $data['footer_text'] = $comp['text'] ?? '';
                 } elseif ($comp['type'] === 'BUTTONS') {
@@ -115,11 +120,12 @@ class TemplateSyncService {
 
         if (!$existing) {
             $data['created_at'] = current_time('mysql', 1);
-            $this->repository->create($data);
-            return 'created_local';
+            $res = $this->repository->create($data);
+            return $res ? 'created_local' : 'errors';
         }
 
-        $this->repository->update($existing->id, $data);
-        return 'updated_local';
+        // Se existir, atualiza
+        $res = $this->repository->update($existing->id, $data);
+        return $res !== false ? 'updated_local' : 'errors';
     }
 }

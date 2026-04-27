@@ -42,15 +42,21 @@ global $wpdb;
 $acc_table = \WAS\Core\TableNameResolver::get_table_name('whatsapp_accounts');
 $waba_id = $wpdb->get_var($wpdb->prepare("SELECT waba_id FROM $acc_table WHERE tenant_id = %d LIMIT 1", $tenant_id));
 
+// Buscar URL do Cadastro Incorporado
+$settings_table = \WAS\Core\TableNameResolver::get_table_name('settings');
+$embedded_signup_url = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM $settings_table WHERE tenant_id = %d AND setting_key = 'embedded_signup_url'", $tenant_id));
+
 return new WP_REST_Response([
     'app_id'        => $app->app_id,
     'app_secret'    => TokenVault::mask(TokenVault::decrypt($app->app_secret)),
+    'config_id'     => $app->config_id ?? '',
     'graph_version' => $app->graph_version,
     'verify_token'  => $app->verify_token,
     'webhook_url'   => home_url('/was-meta-check-99'),
     'primary_phone_number_id' => $phone_service->get_primary_id($tenant_id),
     'meta_access_token' => $raw_token ? TokenVault::mask($raw_token, 8) : '',
-    'waba_id'       => $waba_id ?: ''
+    'waba_id'       => $waba_id ?: '',
+    'embedded_signup_url' => $embedded_signup_url ?: ''
 ], 200);
 }
 
@@ -74,6 +80,23 @@ $result = $this->repository->save_app($params);
 
 if ($result === false) {
     return new WP_REST_Response(['message' => 'Erro ao salvar configuração'], 500);
+}
+
+// Salvar URL do Cadastro Incorporado
+if (isset($params['embedded_signup_url'])) {
+    global $wpdb;
+    $settings_table = \WAS\Core\TableNameResolver::get_table_name('settings');
+    $existing = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $settings_table WHERE tenant_id = %d AND setting_key = 'embedded_signup_url'", $tenant_id));
+    
+    if ($existing) {
+        $wpdb->update($settings_table, ['setting_value' => sanitize_text_field($params['embedded_signup_url'])], ['tenant_id' => $tenant_id, 'setting_key' => 'embedded_signup_url']);
+    } else {
+        $wpdb->insert($settings_table, [
+            'tenant_id' => $tenant_id,
+            'setting_key' => 'embedded_signup_url',
+            'setting_value' => sanitize_text_field($params['embedded_signup_url'])
+        ]);
+    }
 }
 
 // Salvar WABA ID se fornecido

@@ -19,9 +19,13 @@ class Routes {
         $authController = new AuthApiController();
         $dashboardController = new DashboardApiController();
         $inboxController = new InboxApiController();
+        $embeddedSignupController = new EmbeddedSignupController();
 
         // Inbox (Conversations)
         $inboxController->register_routes();
+
+        // Onboarding
+        $embeddedSignupController->register_routes();
 
         // Auth
         register_rest_route(WAS_REST_NAMESPACE, '/me', [

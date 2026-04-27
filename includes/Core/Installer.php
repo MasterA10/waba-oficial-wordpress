@@ -94,6 +94,7 @@ class Installer {
 			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
 			app_id varchar(100) NOT NULL,
 			app_secret text NOT NULL,
+			config_id varchar(100) NULL,
 			graph_version varchar(20) DEFAULT 'v25.0',
 			webhook_verify_token varchar(255) NULL,
 			verify_token varchar(255) NULL,
@@ -350,6 +351,33 @@ class Installer {
 			KEY setting_key (setting_key)
 		) $charset_collate;";
 		dbDelta( $sql_settings );
+
+		// WAS-027: Onboarding Sessions table.
+		$table_onboarding = TableNameResolver::get_table_name( 'onboarding_sessions' );
+		$sql_onboarding = "CREATE TABLE $table_onboarding (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			tenant_id bigint(20) UNSIGNED NOT NULL,
+			user_id bigint(20) UNSIGNED NOT NULL,
+			session_uuid varchar(100) NOT NULL,
+			status varchar(50) NOT NULL DEFAULT 'started',
+			meta_code text DEFAULT NULL,
+			waba_id varchar(100) DEFAULT NULL,
+			phone_number_id varchar(100) DEFAULT NULL,
+			business_id varchar(100) DEFAULT NULL,
+			error_message text DEFAULT NULL,
+			raw_session_payload longtext DEFAULT NULL,
+			started_at datetime NOT NULL,
+			completed_at datetime DEFAULT NULL,
+			failed_at datetime DEFAULT NULL,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY session_uuid (session_uuid),
+			KEY tenant_id (tenant_id),
+			KEY user_id (user_id),
+			KEY status (status)
+		) $charset_collate;";
+		dbDelta( $sql_onboarding );
 
 		// Meta API Logs table.
 		$table_meta_logs = TableNameResolver::get_table_name( 'meta_api_logs' );

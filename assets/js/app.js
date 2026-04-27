@@ -413,22 +413,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('waba_id').value = data.waba_id || '';
                 document.getElementById('verify_token').value = data.verify_token || '';
                 document.getElementById('webhook_url').value = data.webhook_url || '';
-            }
-        } catch (err) {}
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = {
+                if (document.getElementById('config_id')) {
+                    document.getElementById('config_id').value = data.config_id || '';
+                }
+                if (document.getElementById('embedded_signup_url')) {
+                    document.getElementById('embedded_signup_url').value = data.embedded_signup_url || '';
+                    if (document.getElementById('was-start-embedded-signup')) {
+                        document.getElementById('was-start-embedded-signup').href = data.embedded_signup_url || '#';
+                    }
+                }
+                }
+                } catch (err) {}
+
+                const saveConfig = async (e) => {
+                if (e) e.preventDefault();
+                const payload = {
                 app_id: document.getElementById('app_id').value,
                 app_secret: document.getElementById('app_secret').value,
                 verify_token: document.getElementById('verify_token').value,
                 primary_phone_number_id: document.getElementById('primary_phone_number_id').value,
                 meta_access_token: document.getElementById('meta_access_token').value,
-                waba_id: document.getElementById('waba_id').value
-            };
-            try { await wasApiFetch('/meta/config', 'POST', payload); alert('Salvo!'); } catch (err) { alert(err.message); }
-        });
-    }
+                waba_id: document.getElementById('waba_id').value,
+                config_id: document.getElementById('config_id') ? document.getElementById('config_id').value : '',
+                embedded_signup_url: document.getElementById('embedded_signup_url') ? document.getElementById('embedded_signup_url').value : ''
+                };
+                try { 
+                await wasApiFetch('/meta/config', 'POST', payload); 
+                alert('Configurações salvas com sucesso!'); 
+                if (payload.embedded_signup_url && document.getElementById('was-start-embedded-signup')) {
+                   document.getElementById('was-start-embedded-signup').href = payload.embedded_signup_url;
+                }
+                } catch (err) { alert(err.message); }
+                };
 
+                form.addEventListener('submit', saveConfig);
+
+                const embeddedForm = document.getElementById('was-embedded-signup-config-form');
+                if (embeddedForm) {
+                embeddedForm.addEventListener('submit', saveConfig);
+                }
+                }
     async function openInboxTplModal() {
         const modal = document.getElementById('was-inbox-tpl-modal');
         const list = document.getElementById('was-inbox-tpl-list');
@@ -437,7 +461,14 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const data = await wasApiFetch('/templates');
             const approved = (data || []).filter(t => t.status === 'APPROVED');
-            list.innerHTML = approved.map(t => `<div class="was-tpl-select-item" onclick="sendTemplateFromInbox(${t.id})"><strong>${t.name}</strong><br><small>${t.body_text.substring(0, 50)}...</small></div>`).join('') || 'Nenhum template aprovado.';
+            list.innerHTML = approved.map(t => {
+                const body = t.body_text || '';
+                const preview = body.length > 50 ? body.substring(0, 50) + '...' : body;
+                return `<div class="was-tpl-select-item" onclick="sendTemplateFromInbox(${t.id})">
+                    <strong>${t.name}</strong><br>
+                    <small>${preview}</small>
+                </div>`;
+            }).join('') || 'Nenhum template aprovado.';
         } catch (err) { list.innerHTML = 'Erro.'; }
     }
 

@@ -92,5 +92,34 @@ if (!defined('ABSPATH')) {
                 </p>
             </form>
         </div>
+
+        <div class="card" style="max-width: 800px; margin-top: 20px;">
+            <h2>Cadastro Incorporado (Embedded Signup)</h2>
+            <p class="description">Utilize o fluxo oficial da Meta para conectar sua conta WhatsApp Business de forma simplificada.</p>
+            
+            <form id="was-embedded-signup-config-form">
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="config_id">Embedded Signup Configuration ID</label></th>
+                        <td>
+                            <input name="config_id" type="text" id="config_id" value="" class="regular-text">
+                            <p class="description">O ID da configuração de login obtido no painel da Meta Developers.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="embedded_signup_url">Link do Cadastro Incorporado</label></th>
+                        <td>
+                            <input name="embedded_signup_url" type="url" id="embedded_signup_url" value="" class="large-text" placeholder="https://...">
+                            <p class="description">Insira aqui o link correto de acordo com o seu plano para iniciar o cadastro.</p>
+                        </td>
+                    </tr>
+                </table>
+
+                <p class="submit">
+                    <button type="submit" class="button button-primary">Salvar Configuração de Cadastro</button>
+                    <a id="was-start-embedded-signup" href="#" class="button button-secondary" style="margin-left: 10px;" target="_blank">Iniciar Cadastro Incorporado</a>
+                </p>
+            </form>
+        </div>
     </div>
 </div>
