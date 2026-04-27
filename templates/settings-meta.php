@@ -52,6 +52,14 @@ if (!defined('ABSPATH')) {
                                 <input name="verify_token" type="text" id="verify_token" value="" class="regular-text">
                                 <button type="button" id="was-generate-token" class="button">Gerar Novo</button>
                             </div>
+                            <script>
+                                document.getElementById('was-generate-token').addEventListener('click', function() {
+                                    const randomToken = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+                                        .map(b => b.toString(16).padStart(2, '0'))
+                                        .join('');
+                                    document.getElementById('verify_token').value = randomToken;
+                                });
+                            </script>
                             <p class="description">Token usado para validar o webhook. Cole este valor no campo "Verificar token" na Meta.</p>
                         </td>
                     </tr>
