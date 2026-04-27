@@ -292,7 +292,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 app_id: document.getElementById('app_id').value,
                 app_secret: document.getElementById('app_secret').value,
                 verify_token: document.getElementById('verify_token').value,
-                primary_phone_number_id: document.getElementById('primary_phone_number_id').value
+                primary_phone_number_id: document.getElementById('primary_phone_number_id').value,
+                meta_access_token: document.getElementById('meta_access_token').value
             };
             try { await wasApiFetch('/meta/config', 'POST', payload); alert('Salvo!'); } catch (err) { alert(err.message); }
         });
@@ -317,5 +318,8 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Enviado!'); document.getElementById('was-inbox-tpl-modal').style.display = 'none';
             loadConversation(currentConversationId, document.getElementById('was-chat-contact-name').textContent);
         } catch (err) { alert(err.message); }
+    };
+});
+message); }
     };
 });

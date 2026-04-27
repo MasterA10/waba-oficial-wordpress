@@ -39,6 +39,13 @@ if (!defined('ABSPATH')) {
                         </td>
                     </tr>
                     <tr>
+                        <th scope="row"><label for="meta_access_token">Meta Access Token</label></th>
+                        <td>
+                            <textarea name="meta_access_token" id="meta_access_token" class="large-text" rows="4" placeholder="EAAL..."></textarea>
+                            <p class="description">Token de Acesso (Access Token) gerado na Meta Developers. Será salvo criptografado.</p>
+                        </td>
+                    </tr>
+                    <tr>
                         <th scope="row"><label for="graph_version">Graph API Version</label></th>
                         <td>
                             <input name="graph_version" type="text" id="graph_version" value="v25.0" class="small-text">

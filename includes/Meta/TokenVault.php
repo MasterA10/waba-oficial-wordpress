@@ -33,10 +33,6 @@ class TokenVault {
         $encrypted = $wpdb->get_var($prepared);
 
         if (!$encrypted) {
-            \WAS\Core\SystemLogger::logError("Token query empty", [
-                'tenant_id' => $tenant_id,
-                'sql' => $prepared
-            ]);
             return null;
         }
 
