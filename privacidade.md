@@ -1,11 +1,3 @@
-wp core install \
- --url="https://dominai.cloud" \
- --title="Waba" \
- --admin_user="admin" \
- --admin_password="admin" \
- --admin_email="nasalexalves@gmail.com" \
- --allow-root
-
 Aviso de Privacidade
 Política de Privacidade
 

@@ -55,11 +55,10 @@ class Plugin {
             // Raw Webhook Rule
             add_rewrite_rule( '^was-meta-webhook/?$', 'index.php?was_meta_webhook=1', 'top' );
             
-            // Flush rules automatically if version changes
-            $installed_version = get_option( 'was_version' );
-            if ( $installed_version !== WAS_VERSION ) {
+            // Force flush if rule is missing (bulletproof for sync)
+            $rules = get_option( 'rewrite_rules' );
+            if ( ! is_array( $rules ) || ! isset( $rules['^was-meta-webhook/?$'] ) ) {
                 flush_rewrite_rules( false );
-                update_option( 'was_version', WAS_VERSION );
             }
 		}, 99 );
 
@@ -97,7 +96,20 @@ class Plugin {
         }
 
         if ( $_SERVER['REQUEST_METHOD'] === 'POST' ) {
-            $controller->receive_event( new \WP_REST_Request( 'POST', '/meta/webhook' ) );
+            $response = $controller->receive_event( new \WP_REST_Request( 'POST', '/meta/webhook' ) );
+            if ( is_wp_error( $response ) ) {
+                status_header( 500 );
+                header( 'Content-Type: application/json; charset=utf-8' );
+                echo wp_json_encode( [ 'message' => $response->get_error_message() ] );
+            } elseif ( $response instanceof \WP_REST_Response ) {
+                status_header( $response->get_status() );
+                header( 'Content-Type: application/json; charset=utf-8' );
+                echo wp_json_encode( $response->get_data() );
+            } else {
+                status_header( 200 );
+                header( 'Content-Type: application/json; charset=utf-8' );
+                echo wp_json_encode( [ 'success' => true ] );
+            }
             exit;
         }
 
