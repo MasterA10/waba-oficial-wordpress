@@ -25,11 +25,20 @@ class TemplateRepository {
 
         $defaults = [
             'tenant_id' => $tenant_id,
-            'whatsapp_account_id' => 1,
+            'whatsapp_account_id' => 0, // Fallback
             'status' => 'draft',
             'created_at' => current_time('mysql', 1),
             'updated_at' => current_time('mysql', 1),
         ];
+
+        // Se não vier account_id, busca o primeiro do tenant
+        if (!isset($data['whatsapp_account_id'])) {
+            $acc_table = TableNameResolver::get_table_name('whatsapp_accounts');
+            $account_id = $wpdb->get_var($wpdb->prepare("SELECT id FROM $acc_table WHERE tenant_id = %d LIMIT 1", $tenant_id));
+            if ($account_id) {
+                $defaults['whatsapp_account_id'] = $account_id;
+            }
+        }
 
         $payload = array_merge($defaults, $data);
         

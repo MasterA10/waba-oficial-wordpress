@@ -21,6 +21,10 @@ class TemplateSyncService {
         $response = $this->meta_service->list_from_meta($tenant_id);
 
         if (!$response['success']) {
+            \WAS\Core\SystemLogger::logError('Falha ao listar templates da Meta para sincronização.', [
+                'tenant_id' => $tenant_id,
+                'error'     => $response['error'] ?? 'Unknown error'
+            ]);
             return $response;
         }
 
@@ -62,6 +66,12 @@ class TemplateSyncService {
             }
             $synced_count++;
         }
+
+        \WAS\Compliance\AuditLogger::log('template_sync_completed', 'template', 0, [
+            'tenant_id'       => $tenant_id,
+            'synced_count'    => $synced_count,
+            'total_from_meta' => count($templates)
+        ]);
 
         return ['success' => true, 'count' => $synced_count];
     }

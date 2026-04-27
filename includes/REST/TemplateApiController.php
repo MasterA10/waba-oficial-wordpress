@@ -103,6 +103,68 @@ class TemplateApiController {
         }
     }
 
+    public function get_item(WP_REST_Request $request) {
+        $id = $request['id'];
+        $template = $this->repository->get_by_id($id);
+        if (!$template) {
+            return new WP_REST_Error('not_found', 'Template não encontrado', ['status' => 404]);
+        }
+        return new WP_REST_Response($template, 200);
+    }
+
+    public function update_item(WP_REST_Request $request) {
+        $id = $request['id'];
+        $params = $request->get_json_params();
+        
+        try {
+            $updated = $this->repository->update($id, $params);
+            if ($updated) {
+                return new WP_REST_Response(['success' => true], 200);
+            }
+            return new WP_REST_Response(['message' => 'Nenhuma alteração realizada.'], 400);
+        } catch (\Throwable $e) {
+            \WAS\Core\SystemLogger::logException($e, ['context' => 'TemplateApiController::update_item', 'local_id' => $id]);
+            return new WP_REST_Response(['message' => 'Erro interno ao atualizar template.'], 500);
+        }
+    }
+
+    public function sync_templates(WP_REST_Request $request) {
+        $tenant_id = TenantContext::get_tenant_id();
+        try {
+            $sync_service = new \WAS\Templates\TemplateSyncService();
+            $result = $sync_service->sync($tenant_id);
+
+            if ($result['success'] ?? false) {
+                return new WP_REST_Response($result, 200);
+            }
+
+            return new WP_REST_Response(['message' => $result['error'] ?? 'Erro ao sincronizar da Meta.'], 400);
+        } catch (\Throwable $e) {
+            \WAS\Core\SystemLogger::logException($e, ['context' => 'TemplateApiController::sync_templates']);
+            return new WP_REST_Response(['message' => 'Erro interno do sistema ao sincronizar templates.'], 500);
+        }
+    }
+
+    public function send_template(WP_REST_Request $request) {
+        $id = $request['id'];
+        $conversation_id = $request->get_param('conversation_id');
+        $tenant_id = TenantContext::get_tenant_id();
+
+        try {
+            $send_service = new \WAS\Templates\TemplateSendService();
+            $result = $send_service->send_template($id, $conversation_id, $tenant_id);
+
+            if ($result['success'] ?? false) {
+                return new WP_REST_Response(['success' => true], 200);
+            }
+
+            return new WP_REST_Response(['message' => $result['error'] ?? 'Erro ao enviar template.'], 400);
+        } catch (\Throwable $e) {
+            \WAS\Core\SystemLogger::logException($e, ['context' => 'TemplateApiController::send_template', 'local_id' => $id, 'conversation_id' => $conversation_id]);
+            return new WP_REST_Response(['message' => 'Erro interno do sistema ao enviar template.'], 500);
+        }
+    }
+
     public function permissions_check() {
         return current_user_can('manage_options');
     }
