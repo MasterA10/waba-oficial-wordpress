@@ -52,12 +52,12 @@ class Plugin {
 			add_rewrite_rule( '^app/dashboard/?$', 'index.php?was_app_page=dashboard', 'top' );
 			add_rewrite_rule( '^app/(.+)/?$', 'index.php?was_app_page=$matches[1]', 'top' );
             
-            // Raw Webhook Rule
-            add_rewrite_rule( '^was-meta-webhook/?$', 'index.php?was_meta_webhook=1', 'top' );
+            // Raw Webhook Rule - URL Única para evitar cache do servidor
+            add_rewrite_rule( '^was-meta-check-99/?$', 'index.php?was_meta_webhook=1', 'top' );
             
             // Force flush if rule is missing (bulletproof for sync)
             $rules = get_option( 'rewrite_rules' );
-            if ( ! is_array( $rules ) || ! isset( $rules['^was-meta-webhook/?$'] ) ) {
+            if ( ! is_array( $rules ) || ! isset( $rules['^was-meta-check-99/?$'] ) ) {
                 flush_rewrite_rules( false );
             }
 		}, 99 );
@@ -86,6 +86,10 @@ class Plugin {
     public function handle_raw_webhook() {
         if ( (int) get_query_var( 'was_meta_webhook' ) !== 1 ) {
             return;
+        }
+        
+        if (isset($_GET['debug_was'])) {
+            wp_die("WAS Debug: Endpoint Webhook Atingido com Sucesso! Método: " . $_SERVER['REQUEST_METHOD']);
         }
 
         $controller = new \WAS\REST\WebhookController();
