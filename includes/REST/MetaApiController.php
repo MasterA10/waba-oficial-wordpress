@@ -96,7 +96,6 @@ if (!empty($params['waba_id'])) {
 }
 
 // Salvar Access Token se fornecido e não mascarado
-...
 if (!empty($params['meta_access_token']) && strpos($params['meta_access_token'], '...') === false) {
     global $wpdb;
     $token_table = \WAS\Core\TableNameResolver::get_table_name('meta_tokens');
