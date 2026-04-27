@@ -282,6 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('app_id').value = data.app_id || '';
                 document.getElementById('app_secret').value = data.app_secret || '';
                 document.getElementById('primary_phone_number_id').value = data.primary_phone_number_id || '';
+                document.getElementById('meta_access_token').value = data.meta_access_token || '';
                 document.getElementById('verify_token').value = data.verify_token || '';
                 document.getElementById('webhook_url').value = data.webhook_url || '';
             }
