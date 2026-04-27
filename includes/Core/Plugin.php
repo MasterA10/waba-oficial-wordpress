@@ -44,22 +44,52 @@ class Plugin {
 	}
 
 	/**
-	 * Register rewrite rules for the SaaS App.
+	 * Register rewrite rules for the SaaS App and Webhook.
 	 */
 	private function register_rewrite_rules() {
 		add_action( 'init', function() {
 			add_rewrite_rule( '^app/login/?$', 'index.php?was_app_page=login', 'top' );
 			add_rewrite_rule( '^app/dashboard/?$', 'index.php?was_app_page=dashboard', 'top' );
 			add_rewrite_rule( '^app/(.+)/?$', 'index.php?was_app_page=$matches[1]', 'top' );
+            
+            // Raw Webhook Rule
+            add_rewrite_rule( '^was-meta-webhook/?$', 'index.php?was_meta_webhook=1', 'top' );
 		} );
 
 		add_filter( 'query_vars', function( $vars ) {
 			$vars[] = 'was_app_page';
+            $vars[] = 'was_meta_webhook';
 			return $vars;
 		} );
 
 		add_action( 'template_redirect', [ $this, 'handle_app_routing' ] );
+        add_action( 'template_redirect', [ $this, 'handle_raw_webhook' ] );
 	}
+
+    /**
+     * Handle the raw webhook endpoint for Meta verification.
+     */
+    public function handle_raw_webhook() {
+        if ( (int) get_query_var( 'was_meta_webhook' ) !== 1 ) {
+            return;
+        }
+
+        $controller = new \WAS\REST\WebhookController();
+
+        if ( $_SERVER['REQUEST_METHOD'] === 'GET' ) {
+            $controller->verify_webhook( new \WP_REST_Request( 'GET', '/meta/webhook' ) );
+            exit;
+        }
+
+        if ( $_SERVER['REQUEST_METHOD'] === 'POST' ) {
+            $controller->receive_event( new \WP_REST_Request( 'POST', '/meta/webhook' ) );
+            exit;
+        }
+
+        status_header( 405 );
+        echo 'Method Not Allowed';
+        exit;
+    }
 
 	/**
 	 * Register basic hooks.

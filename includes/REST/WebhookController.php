@@ -20,18 +20,20 @@ class WebhookController {
      * Verificação do Webhook (GET) - Meta Challenge
      */
     public function verify_webhook(WP_REST_Request $request) {
-        $mode = $request->get_param('hub_mode') ?: $request->get_param('hub.mode');
-        $token = $request->get_param('hub_verify_token') ?: $request->get_param('hub.verify_token');
-        $challenge = $request->get_param('hub_challenge') ?: $request->get_param('hub.challenge');
+        // Suporta tanto REST quanto Raw ($_GET)
+        $mode      = $request->get_param('hub_mode') ?: ($_GET['hub_mode'] ?? $_GET['hub.mode'] ?? '');
+        $token     = $request->get_param('hub_verify_token') ?: ($_GET['hub_verify_token'] ?? $_GET['hub.verify_token'] ?? '');
+        $challenge = $request->get_param('hub_challenge') ?: ($_GET['hub_challenge'] ?? $_GET['hub.challenge'] ?? '');
 
-        if ($mode === 'subscribe' && $token) {
+        if ($mode === 'subscribe' && !empty($token)) {
             $repository = new MetaAppRepository();
             $app = $repository->get_active_app();
 
             // Comparação segura de token
             if ($app && hash_equals($app->verify_token, (string)$token)) {
                 // IMPORTANTE: Deve retornar APENAS o challenge como texto puro
-                header('Content-Type: text/plain');
+                status_header(200);
+                header('Content-Type: text/plain; charset=utf-8');
                 echo (string)$challenge;
                 exit;
             }
@@ -51,8 +53,16 @@ class WebhookController {
             return new WP_REST_Response(['message' => 'App not configured'], 500);
         }
 
+        // Para Raw requests, precisamos ler o body diretamente se o $request estiver vazio
         $raw_body = $request->get_body();
+        if (empty($raw_body)) {
+            $raw_body = file_get_contents('php://input');
+        }
+
         $signature = $request->get_header('x-hub-signature-256');
+        if (empty($signature)) {
+            $signature = $_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '';
+        }
 
         // 1. Validar assinatura (Segurança)
         if (!WebhookSignatureValidator::is_valid($raw_body, $signature, $app->app_secret)) {
