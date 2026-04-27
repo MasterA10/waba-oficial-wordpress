@@ -41,21 +41,7 @@ class Plugin {
 	public function boot() {
 		$this->register_hooks();
 		$this->register_rewrite_rules();
-        $this->maybe_flush_rewrite_rules();
 	}
-
-    /**
-     * Flushes rewrite rules automatically if version changes.
-     * Useful for sync/dev environments.
-     */
-    private function maybe_flush_rewrite_rules() {
-        $installed_version = get_option( 'was_version' );
-        
-        if ( $installed_version !== WAS_VERSION ) {
-            flush_rewrite_rules( false );
-            update_option( 'was_version', WAS_VERSION );
-        }
-    }
 
 	/**
 	 * Register rewrite rules for the SaaS App and Webhook.
@@ -68,7 +54,14 @@ class Plugin {
             
             // Raw Webhook Rule
             add_rewrite_rule( '^was-meta-webhook/?$', 'index.php?was_meta_webhook=1', 'top' );
-		} );
+            
+            // Flush rules automatically if version changes
+            $installed_version = get_option( 'was_version' );
+            if ( $installed_version !== WAS_VERSION ) {
+                flush_rewrite_rules( false );
+                update_option( 'was_version', WAS_VERSION );
+            }
+		}, 99 );
 
         // Prevent WordPress from redirecting webhooks (canonical)
         add_filter( 'redirect_canonical', function( $redirect_url, $requested_url ) {
