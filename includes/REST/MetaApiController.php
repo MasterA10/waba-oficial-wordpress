@@ -89,14 +89,13 @@ if (!empty($params['meta_access_token']) && strpos($params['meta_access_token'],
 }
 
 // Salvar Phone Number ID se fornecido
-...
-        if (!empty($params['primary_phone_number_id'])) {
-            $phone_service = new \WAS\WhatsApp\PhoneNumberService();
-            $tenant_id = \WAS\Auth\TenantContext::get_tenant_id();
-            $phone_service->register_phone_number($params['primary_phone_number_id'], $tenant_id);
-        }
+if (!empty($params['primary_phone_number_id'])) {
+    $phone_service = new \WAS\WhatsApp\PhoneNumberService();
+    $tenant_id = \WAS\Auth\TenantContext::get_tenant_id();
+    $phone_service->register_phone_number($params['primary_phone_number_id'], $tenant_id);
+}
 
-        AuditLogger::log('save_meta_config', 'meta_app', $result, [
+AuditLogger::log('save_meta_config', 'meta_app', $result, [
             'app_id' => $params['app_id']
         ]);
 
