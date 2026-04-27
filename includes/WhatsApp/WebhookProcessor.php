@@ -39,12 +39,20 @@ class WebhookProcessor {
 
         // 4. Se for mensagem, rotear para InboundMessageService
         if ($this->is_message_event($payload)) {
-            $success = $this->handle_message_event($payload, $tenant_id, $phone_number_id, $event_id);
-            if (!$success) {
-                error_log("WAS Error: InboundMessageService failed to process message.");
-                echo "DEBUG: InboundMessageService returned false.\n";
-            } else {
-                echo "DEBUG: InboundMessageService returned true.\n";
+            try {
+                $success = $this->handle_message_event($payload, $tenant_id, $phone_number_id, $event_id);
+                if (!$success) {
+                    \WAS\Core\SystemLogger::logError('InboundMessageService retornou false ao processar mensagem.', [
+                        'payload_summary' => ['waba_id' => $waba_id, 'phone' => $phone_number_id]
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                \WAS\Core\SystemLogger::logException($e, [
+                    'context'         => 'WebhookProcessor::process',
+                    'tenant_id'       => $tenant_id,
+                    'phone_number_id' => $phone_number_id,
+                    'event_id'        => $event_id
+                ]);
             }
         }
 

@@ -39,9 +39,10 @@ class MetaApiClient {
             $url,
             $result['code'] ?? wp_remote_retrieve_response_code($response),
             $result['success'],
-            $result,
+            is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_body($response),
             $duration,
-            !$result['success'] ? ['message' => $result['error'] ?? ''] : []
+            !$result['success'] ? ['message' => $result['error'] ?? ''] : [],
+            $body
         );
 
         return $result;
@@ -67,9 +68,10 @@ class MetaApiClient {
             $url,
             $result['code'] ?? wp_remote_retrieve_response_code($response),
             $result['success'],
-            $result,
+            is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_body($response),
             $duration,
-            !$result['success'] ? ['message' => $result['error'] ?? ''] : []
+            !$result['success'] ? ['message' => $result['error'] ?? ''] : [],
+            $query
         );
 
         return $result;
@@ -96,9 +98,10 @@ class MetaApiClient {
             $url,
             $result['code'] ?? wp_remote_retrieve_response_code($response),
             $result['success'],
-            $result,
+            is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_body($response),
             $duration,
-            !$result['success'] ? ['message' => $result['error'] ?? ''] : []
+            !$result['success'] ? ['message' => $result['error'] ?? ''] : [],
+            $query
         );
 
         return $result;

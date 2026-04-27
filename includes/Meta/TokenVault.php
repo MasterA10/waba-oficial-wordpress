@@ -92,7 +92,7 @@ class TokenVault {
         $decrypted = openssl_decrypt($encrypted, self::METHOD, WAS_ENCRYPTION_KEY, 0, $iv);
         
         if ($decrypted === false) {
-            return '';
+            throw new \Exception('Falha ao descriptografar valor. A chave de criptografia pode ter mudado.');
         }
 
         return $decrypted;

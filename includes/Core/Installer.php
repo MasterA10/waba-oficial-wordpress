@@ -352,6 +352,8 @@ class Installer {
 			operation varchar(100) NOT NULL,
 			method varchar(10) NOT NULL,
 			path text NOT NULL,
+			request_payload longtext NULL,
+			response_body longtext NULL,
 			status_code int(5) NOT NULL,
 			success tinyint(1) NOT NULL,
 			error_code varchar(50) NULL,
