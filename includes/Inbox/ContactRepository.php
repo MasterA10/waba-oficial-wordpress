@@ -22,7 +22,7 @@ class ContactRepository {
      * @param string $profile_name O nome de perfil do contato.
      * @return object|false O objeto do contato ou false em caso de erro.
      */
-    public function find_or_create_by_wa_id($wa_id, $profile_name = '') {
+    public function find_or_create_by_wa_id($wa_id, $profile_name = '', $phone = '') {
         global $wpdb;
         $tenant_id = TenantContext::get_tenant_id();
 
@@ -56,11 +56,11 @@ class ContactRepository {
             [
                 'tenant_id'    => $tenant_id,
                 'wa_id'        => $wa_id,
+                'phone'        => !empty($phone) ? $phone : $wa_id, // Campo obrigatório
                 'profile_name' => $profile_name,
                 'created_at'   => current_time('mysql', 1),
                 'updated_at'   => current_time('mysql', 1),
-            ],
-            ['%d', '%s', '%s', '%s', '%s']
+            ]
         );
 
         if ($result) {

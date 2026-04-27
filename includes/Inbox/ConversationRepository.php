@@ -19,9 +19,10 @@ class ConversationRepository {
      * Busca uma conversa aberta para um contato ou cria se não existir.
      * 
      * @param int $contact_id ID do contato.
+     * @param string $phone_number_id O ID do número de telefone (Meta).
      * @return object|false
      */
-    public function find_or_create_open_conversation($contact_id) {
+    public function find_or_create_open_conversation($contact_id, $phone_number_id = '') {
         global $wpdb;
         $tenant_id = TenantContext::get_tenant_id();
 
@@ -44,12 +45,12 @@ class ConversationRepository {
             [
                 'tenant_id'       => $tenant_id,
                 'contact_id'      => $contact_id,
+                'phone_number_id' => $phone_number_id, // Campo obrigatório
                 'status'          => 'open',
                 'last_message_at' => current_time('mysql', 1),
                 'created_at'      => current_time('mysql', 1),
                 'updated_at'      => current_time('mysql', 1),
-            ],
-            ['%d', '%d', '%s', '%s', '%s', '%s']
+            ]
         );
 
         if ($result) {

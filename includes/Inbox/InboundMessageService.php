@@ -42,7 +42,8 @@ class InboundMessageService {
         // 3. Encontrar ou criar contato
         $contact = $this->contact_repo->find_or_create_by_wa_id(
             $dto['from'], 
-            $dto['profile_name'] ?? ''
+            $dto['profile_name'] ?? '',
+            $dto['from'] // Usa o wa_id como telefone por padrão
         );
 
         if (!$contact) {
@@ -50,7 +51,10 @@ class InboundMessageService {
         }
 
         // 4. Encontrar ou criar conversa aberta
-        $conversation = $this->conversation_repo->find_or_create_open_conversation($contact->id);
+        $conversation = $this->conversation_repo->find_or_create_open_conversation(
+            $contact->id,
+            $dto['phone_number_id'] ?? ''
+        );
 
         if (!$conversation) {
             return false;

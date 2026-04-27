@@ -49,7 +49,7 @@ class WebhookController {
      */
     public function receive_event(WP_REST_Request $request) {
         $repository = new MetaAppRepository();
-        $app = $repository->get_active_app();
+        $app = $repository->get_active_app(true); // Decrypt secret
         
         $headers = function_exists('getallheaders') ? getallheaders() : [];
 
