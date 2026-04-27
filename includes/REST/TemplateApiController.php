@@ -41,7 +41,9 @@ class TemplateApiController {
 
         // 1. Construir payload oficial
         try {
-            $meta_payload = $this->builder->build($params);
+            $build_result = $this->builder->build($params);
+            $meta_payload = $build_result['meta_payload'];
+            $variable_map = $build_result['variable_map'];
         } catch (\Exception $e) {
             return new WP_REST_Response(['message' => $e->getMessage()], 400);
         }
@@ -54,7 +56,7 @@ class TemplateApiController {
             'body_text' => $params['body']['text'],
             'status' => 'submitting',
             'friendly_payload' => json_encode($params),
-            'variable_map' => json_encode($meta_payload['variable_map'])
+            'variable_map' => json_encode($variable_map)
         ]);
 
         // 3. Enviar para a Meta

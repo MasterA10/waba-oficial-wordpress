@@ -1,115 +1,258 @@
 <?php
 namespace WAS\Templates;
 
+use RuntimeException;
+
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class TemplatePayloadBuilder {
-    private $parser;
-
-    public function __construct() {
-        $this->parser = new TemplateVariableParser();
-    }
-
-    /**
-     * Transforma friendly_payload em meta_payload oficial.
-     */
-    public function build(array $friendly): array {
+final class TemplatePayloadBuilder
+{
+    public function build(array $friendly): array
+    {
         $components = [];
+        $variableMap = [];
 
-        // 1. HEADER
-        if (!empty($friendly['header']) && $friendly['header']['type'] !== 'NONE') {
-            $components[] = $this->build_header($friendly['header']);
+        if (!empty($friendly['header']) && $this->shouldAddHeader($friendly['header'])) {
+            $components[] = $this->buildHeader($friendly['header']);
         }
 
-        // 2. BODY (Obrigatório)
-        $body = $this->build_body($friendly['body']);
-        $components[] = $body['component'];
+        $bodyResult = $this->buildBody($friendly['body'] ?? []);
+        $components[] = $bodyResult['component'];
+        $variableMap = $bodyResult['variable_map'];
 
-        // 3. FOOTER
-        if (!empty($friendly['footer']['text'])) {
+        if (!empty(trim($friendly['footer']['text'] ?? ''))) {
             $components[] = [
                 'type' => 'FOOTER',
-                'text' => $friendly['footer']['text'],
+                'text' => trim($friendly['footer']['text']),
             ];
         }
 
-        // 4. BUTTONS
-        if (!empty($friendly['buttons'])) {
-            $components[] = [
-                'type' => 'BUTTONS',
-                'buttons' => $this->build_buttons($friendly['buttons'], $body['variable_map']),
-            ];
+        if (!empty($friendly['buttons']) && is_array($friendly['buttons'])) {
+            $buttons = $this->buildButtons($friendly['buttons'], $variableMap);
+
+            if (!empty($buttons)) {
+                $components[] = [
+                    'type' => 'BUTTONS',
+                    'buttons' => $buttons,
+                ];
+            }
         }
+
+        $metaPayload = [
+            'name' => $this->normalizeName($friendly['name'] ?? ''),
+            'category' => strtoupper($friendly['category'] ?? ''),
+            'language' => $friendly['language'] ?? 'pt_BR',
+            'components' => $components,
+        ];
 
         return [
-            'name' => $friendly['name'],
-            'category' => $friendly['category'],
-            'language' => $friendly['language'],
-            'components' => $components,
-            'variable_map' => $body['variable_map'] // Guardamos para o banco
+            'meta_payload' => $metaPayload,
+            'variable_map' => $variableMap,
         ];
     }
 
-    private function build_header(array $header): array {
-        if ($header['type'] === 'TEXT') {
+    private function shouldAddHeader(array $header): bool
+    {
+        $type = strtoupper($header['type'] ?? 'NONE');
+
+        if ($type === 'NONE') {
+            return false;
+        }
+
+        if ($type === 'TEXT') {
+            return trim((string) ($header['text'] ?? '')) !== '';
+        }
+
+        if (in_array($type, ['IMAGE', 'VIDEO', 'DOCUMENT'], true)) {
+            return !empty($header['media_handle']);
+        }
+
+        return false;
+    }
+
+    private function buildHeader(array $header): array
+    {
+        $type = strtoupper($header['type'] ?? 'NONE');
+
+        if ($type === 'TEXT') {
             return [
                 'type' => 'HEADER',
                 'format' => 'TEXT',
-                'text' => $header['text'],
+                'text' => trim($header['text']),
             ];
         }
-        // Futuro: Adicionar IMAGE, VIDEO, DOCUMENT
-        return [];
-    }
 
-    private function build_body(array $body_data): array {
-        $examples = [];
-        foreach ($body_data['variables'] ?? [] as $var) {
-            $examples[$var['key']] = $var['example'] ?? '';
+        if (in_array($type, ['IMAGE', 'VIDEO', 'DOCUMENT'], true)) {
+            return [
+                'type' => 'HEADER',
+                'format' => $type,
+                'example' => [
+                    'header_handle' => [
+                        $header['media_handle'],
+                    ],
+                ],
+            ];
         }
 
-        $parsed = $this->parser->parse($body_data['text'], $examples);
+        throw new RuntimeException('Header inválido.');
+    }
+
+    private function buildBody(array $body): array
+    {
+        $text = trim((string) ($body['text'] ?? ''));
+
+        if ($text === '') {
+            throw new RuntimeException('O corpo do template é obrigatório.');
+        }
+
+        $examples = [];
+
+        foreach (($body['variables'] ?? []) as $variable) {
+            $key = $variable['key'] ?? '';
+            $value = $variable['example'] ?? '';
+
+            if ($key !== '') {
+                $examples[$key] = $value;
+            }
+        }
+
+        $parsed = $this->parseVariables($text, $examples);
 
         $component = [
             'type' => 'BODY',
-            'text' => $parsed['meta_text'],
+            'text' => $parsed['text'],
         ];
 
-        if (!empty($parsed['example_values'])) {
+        if (!empty($parsed['examples'])) {
             $component['example'] = [
-                'body_text' => [ $parsed['example_values'] ]
+                'body_text' => [
+                    $parsed['examples'],
+                ],
             ];
         }
 
         return [
             'component' => $component,
-            'variable_map' => $parsed['variable_map']
+            'variable_map' => $parsed['variable_map'],
         ];
     }
 
-    private function build_buttons(array $buttons, array $var_map): array {
-        $meta_buttons = [];
-        foreach ($buttons as $btn) {
-            $type = strtoupper($btn['type']);
+    private function parseVariables(string $text, array $examples): array
+    {
+        preg_match_all('/{{\s*([a-zA-Z0-9_]+)\s*}}/', $text, $matches);
+
+        $names = array_values(array_unique($matches[1] ?? []));
+
+        $variableMap = [];
+        $exampleValues = [];
+        $metaText = $text;
+
+        foreach ($names as $index => $name) {
+            $position = $index + 1;
+
+            if (!isset($examples[$name]) || trim((string) $examples[$name]) === '') {
+                throw new RuntimeException("A variável {{$name}} precisa de exemplo.");
+            }
+
+            $variableMap[(string) $position] = $name;
+            $exampleValues[] = (string) $examples[$name];
+
+            $metaText = preg_replace(
+                '/{{\s*' . preg_quote($name, '/') . '\s*}}/',
+                '{{' . $position . '}}',
+                $metaText
+            );
+        }
+
+        return [
+            'text' => $metaText,
+            'variable_map' => $variableMap,
+            'examples' => $exampleValues,
+        ];
+    }
+
+    private function buildButtons(array $buttons, array $variableMap): array
+    {
+        $result = [];
+
+        foreach ($buttons as $button) {
+            $type = strtoupper($button['type'] ?? '');
+
             if ($type === 'QUICK_REPLY') {
-                $meta_buttons[] = ['type' => 'QUICK_REPLY', 'text' => $btn['text']];
-            } elseif ($type === 'PHONE_NUMBER') {
-                $meta_buttons[] = ['type' => 'PHONE_NUMBER', 'text' => $btn['text'], 'phone_number' => $btn['phone_number']];
-            } elseif ($type === 'URL') {
-                $url = $btn['url'];
-                // Converte variáveis da URL se existirem no mapa do body
-                foreach ($var_map as $pos => $name) {
-                    $url = str_replace("{{{$name}}}", "{{{$pos}}}", $url);
+                if (!empty(trim($button['text'] ?? ''))) {
+                    $result[] = [
+                        'type' => 'QUICK_REPLY',
+                        'text' => trim($button['text']),
+                    ];
                 }
-                $payload = ['type' => 'URL', 'text' => $btn['text'], 'url' => $url];
-                if (!empty($btn['example'])) {
-                    $payload['example'] = [$btn['example']];
+            }
+
+            if ($type === 'PHONE_NUMBER') {
+                $result[] = [
+                    'type' => 'PHONE_NUMBER',
+                    'text' => trim($button['text']),
+                    'phone_number' => trim($button['phone_number']),
+                ];
+            }
+
+            if ($type === 'URL') {
+                $url = $this->convertUrlVariables($button['url'], $variableMap);
+
+                $payload = [
+                    'type' => 'URL',
+                    'text' => trim($button['text']),
+                    'url' => $url,
+                ];
+
+                if (str_contains($url, '{{') && !empty($button['example'])) {
+                    $payload['example'] = [
+                        (string) $button['example'],
+                    ];
                 }
-                $meta_buttons[] = $payload;
+
+                $result[] = $payload;
+            }
+
+            if ($type === 'COPY_CODE') {
+                $result[] = [
+                    'type' => 'COPY_CODE',
+                    'example' => (string) $button['example'],
+                ];
             }
         }
-        return $meta_buttons;
+
+        return $result;
+    }
+
+    private function convertUrlVariables(string $url, array $variableMap): string
+    {
+        foreach ($variableMap as $position => $name) {
+            $url = preg_replace(
+                '/{{\s*' . preg_quote($name, '/') . '\s*}}/',
+                '{{' . $position . '}}',
+                $url
+            );
+        }
+
+        return $url;
+    }
+
+    private function normalizeName(string $name): string
+    {
+        if (function_exists('remove_accents')) {
+            $name = strtolower(remove_accents($name));
+        } else {
+            $name = strtolower($name);
+        }
+        $name = preg_replace('/[^a-z0-9_]+/', '_', $name);
+        $name = trim($name, '_');
+
+        if ($name === '') {
+            throw new RuntimeException('Nome do template inválido.');
+        }
+
+        return $name;
     }
 }
