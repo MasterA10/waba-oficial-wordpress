@@ -29,20 +29,27 @@ class TokenVault {
 
         $query .= " ORDER BY whatsapp_account_id DESC LIMIT 1";
 
-        $encrypted = $wpdb->get_var($wpdb->prepare($query, ...$params));
+        $prepared = $wpdb->prepare($query, ...$params);
+        $encrypted = $wpdb->get_var($prepared);
 
         if (!$encrypted) {
+            \WAS\Core\SystemLogger::logError("Token query empty", [
+                'tenant_id' => $tenant_id,
+                'sql' => $prepared
+            ]);
             return null;
         }
 
         // Se a chave não estiver definida, retorna o valor "puro" (fallback para modo dev/sem criptografia configurada)
         if (!defined('WAS_ENCRYPTION_KEY')) {
+            error_log("WAS Warning [Vault]: WAS_ENCRYPTION_KEY not defined.");
             return $encrypted;
         }
 
         try {
             return self::decrypt($encrypted);
         } catch (\Exception $e) {
+            error_log("WAS Error [Vault]: Decrypt failed for tenant $tenant_id: " . $e->getMessage());
             return $encrypted; // Fallback
         }
     }

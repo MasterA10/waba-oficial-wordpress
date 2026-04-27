@@ -75,17 +75,25 @@ class InboxApiController {
             return new \WP_REST_Response(['success' => false, 'message' => 'O texto da mensagem é obrigatório'], 400);
         }
 
-        $service = new \WAS\Inbox\OutboundMessageService();
-        $result = $service->send_text($id, $text);
+        try {
+            $service = new \WAS\Inbox\OutboundMessageService();
+            $result = $service->send_text($id, $text);
 
-        if ($result['success']) {
-            return new \WP_REST_Response($result, 200);
+            if ($result['success']) {
+                return new \WP_REST_Response($result, 200);
+            }
+
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => $result['error'] ?? 'Erro ao enviar mensagem'
+            ], 500);
+        } catch (\Throwable $e) {
+            \WAS\Core\SystemLogger::logException($e, ['context' => 'InboxApiController::send_text_message', 'conversation_id' => $id]);
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'Erro interno do sistema ao enviar mensagem.'
+            ], 500);
         }
-
-        return new \WP_REST_Response([
-            'success' => false,
-            'message' => $result['error'] ?? 'Erro ao enviar mensagem'
-        ], 500);
     }
 
     public function check_send_permission() {
@@ -111,19 +119,27 @@ class InboxApiController {
         $id      = $request['id'];
         $user_id = $request->get_param('user_id');
 
-        $result = $this->conversation_repo->assign($id, $user_id);
+        try {
+            $result = $this->conversation_repo->assign($id, $user_id);
 
-        if ($result !== false) {
+            if ($result !== false) {
+                return new \WP_REST_Response([
+                    'success' => true,
+                    'message' => 'Conversa atribuída com sucesso'
+                ], 200);
+            }
+
             return new \WP_REST_Response([
-                'success' => true,
-                'message' => 'Conversa atribuída com sucesso'
-            ], 200);
+                'success' => false,
+                'message' => 'Erro ao atribuir conversa'
+            ], 500);
+        } catch (\Throwable $e) {
+            \WAS\Core\SystemLogger::logException($e, ['context' => 'InboxApiController::assign_conversation', 'conversation_id' => $id]);
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'Erro interno do sistema ao atribuir conversa.'
+            ], 500);
         }
-
-        return new \WP_REST_Response([
-            'success' => false,
-            'message' => 'Erro ao atribuir conversa'
-        ], 500);
     }
 
     /**
@@ -134,54 +150,61 @@ class InboxApiController {
         $type    = $request->get_param('type') ?: 'text';
         $body    = $request->get_param('body');
         
-        $conversation = $this->conversation_repo->get_by_id($id);
-        if (!$conversation) {
-            return new \WP_REST_Error('not_found', 'Conversa não encontrada', ['status' => 404]);
-        }
+        try {
+            $conversation = $this->conversation_repo->get_by_id($id);
+            if (!$conversation) {
+                return new \WP_REST_Error('not_found', 'Conversa não encontrada', ['status' => 404]);
+            }
 
-        // Buscar dados do contato para saber o "to"
-        $contact_repo = new \WAS\Inbox\ContactRepository();
-        $contact = $contact_repo->get_by_id($conversation->contact_id);
+            // Buscar dados do contato para saber o "to"
+            $contact_repo = new \WAS\Inbox\ContactRepository();
+            $contact = $contact_repo->get_by_id($conversation->contact_id);
 
-        if (!$contact) {
-            return new \WP_REST_Error('contact_not_found', 'Contato não encontrado', ['status' => 404]);
-        }
+            if (!$contact) {
+                return new \WP_REST_Error('contact_not_found', 'Contato não encontrado', ['status' => 404]);
+            }
 
-        $tenant_id = \WAS\Auth\TenantContext::get_tenant_id();
+            $tenant_id = \WAS\Auth\TenantContext::get_tenant_id();
 
-        // Chamar serviço de envio (Dev 02)
-        $dispatch_service = new \WAS\WhatsApp\MessageDispatchService();
-        $result = $dispatch_service->send_message($contact->wa_id, $type, $body, $tenant_id);
+            // Chamar serviço de envio (Dev 02)
+            $dispatch_service = new \WAS\WhatsApp\MessageDispatchService();
+            $result = $dispatch_service->send_message($contact->wa_id, $type, $body, $tenant_id);
 
-        if ($result['success']) {
-            // Salvar no repositório local
-            $this->message_repo->create_outbound([
-                'conversation_id' => $conversation->id,
-                'wa_message_id'   => $result['wa_message_id'],
-                'message_type'    => $type,
-                'text_body'       => $body,
-                'status'          => 'sent'
-            ]);
+            if ($result['success']) {
+                // Salvar no repositório local
+                $this->message_repo->create_outbound([
+                    'conversation_id' => $conversation->id,
+                    'wa_message_id'   => $result['wa_message_id'],
+                    'message_type'    => $type,
+                    'text_body'       => $body,
+                    'status'          => 'sent'
+                ]);
 
-            $this->conversation_repo->update_last_message_at($conversation->id);
+                $this->conversation_repo->update_last_message_at($conversation->id);
+
+                return new \WP_REST_Response([
+                    'success' => true,
+                    'wa_message_id' => $result['wa_message_id']
+                ], 200);
+            }
 
             return new \WP_REST_Response([
-                'success' => true,
-                'wa_message_id' => $result['wa_message_id']
-            ], 200);
+                'success' => false,
+                'message' => $result['error'] ?? 'Erro ao enviar mensagem'
+            ], 500);
+        } catch (\Throwable $e) {
+            \WAS\Core\SystemLogger::logException($e, ['context' => 'InboxApiController::send_message', 'conversation_id' => $id]);
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'Erro interno do sistema ao enviar mensagem de template/mídia.'
+            ], 500);
         }
-
-        return new \WP_REST_Response([
-            'success' => false,
-            'message' => $result['error'] ?? 'Erro ao enviar mensagem'
-        ], 500);
     }
 
     /**
      * Lista conversas do tenant atual.
      */
     public function get_conversations($request) {
-        error_log('WAS Debug: get_conversations called');
         $limit  = $request->get_param('limit') ?: 20;
         $offset = $request->get_param('offset') ?: 0;
 

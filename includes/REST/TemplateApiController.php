@@ -58,39 +58,49 @@ class TemplateApiController {
         ]);
 
         // 3. Enviar para a Meta
-        $meta_service = new TemplateMetaService();
-        $tenant_id = TenantContext::get_tenant_id();
-        $response = $meta_service->create($tenant_id, $meta_payload);
+        try {
+            $meta_service = new TemplateMetaService();
+            $tenant_id = TenantContext::get_tenant_id();
+            $response = $meta_service->create($tenant_id, $meta_payload);
 
-        if ($response['success']) {
+            if ($response['success']) {
+                $this->repository->update($local_id, [
+                    'meta_template_id' => $response['id'] ?? null,
+                    'status'           => 'PENDING',
+                    'meta_payload'     => json_encode($meta_payload)
+                ]);
+
+                \WAS\Compliance\AuditLogger::log('template_create_success', 'template', $local_id, [
+                    'name' => $params['name'],
+                    'meta_id' => $response['id'] ?? null
+                ]);
+
+                return new WP_REST_Response([
+                    'success' => true, 
+                    'id' => $local_id, 
+                    'meta_id' => $response['id'] ?? null
+                ], 201);
+            }
+
+            // Se falhou na Meta, atualiza status local
             $this->repository->update($local_id, [
-                'meta_template_id' => $response['id'] ?? null,
-                'status'           => 'PENDING',
-                'meta_payload'     => json_encode($meta_payload)
+                'status' => 'failed',
+                'rejection_reason' => $response['error'] ?? 'Erro desconhecido'
             ]);
 
-            \WAS\Compliance\AuditLogger::log('template_create_success', 'template', $local_id, [
-                'name' => $params['name'],
-                'meta_id' => $response['id'] ?? null
+            \WAS\Core\SystemLogger::logError('A Meta recusou a criação do template.', [
+                'local_id'     => $local_id,
+                'name'         => $params['name'],
+                'meta_error'   => $response['error'] ?? 'Unknown Meta error',
+                'meta_payload' => $meta_payload
             ]);
 
-            return new WP_REST_Response([
-                'success' => true, 
-                'id' => $local_id, 
-                'meta_id' => $response['id'] ?? null
-            ], 201);
+            return new WP_REST_Response(['message' => 'Erro na Meta: ' . ($response['error'] ?? 'Desconhecido')], 400);
+
+        } catch (\Throwable $e) {
+            \WAS\Core\SystemLogger::logException($e, ['context' => 'TemplateApiController::create_item', 'local_id' => $local_id]);
+            return new WP_REST_Response(['message' => 'Erro interno ao processar criação de template na Meta.'], 500);
         }
-
-        // Se falhou na Meta, atualiza status local
-        $this->repository->update($local_id, [
-            'status' => 'failed',
-            'rejection_reason' => $response['error'] ?? 'Erro desconhecido'
-        ]);
-
-        \WAS\Compliance\AuditLogger::log('template_create_error', 'template', $local_id, [
-            'name' => $params['name'],
-            'error' => $response['error'] ?? 'Unknown Meta error'
-        ]);
     }
 
     public function permissions_check() {
