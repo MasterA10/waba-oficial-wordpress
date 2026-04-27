@@ -729,6 +729,3 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {}
     }
 });
-}
-    }
-});
