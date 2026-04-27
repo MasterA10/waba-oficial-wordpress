@@ -39,7 +39,13 @@ class WebhookProcessor {
 
         // 4. Se for mensagem, rotear para InboundMessageService
         if ($this->is_message_event($payload)) {
-            $this->handle_message_event($payload, $tenant_id, $phone_number_id, $event_id);
+            $success = $this->handle_message_event($payload, $tenant_id, $phone_number_id, $event_id);
+            if (!$success) {
+                error_log("WAS Error: InboundMessageService failed to process message.");
+                echo "DEBUG: InboundMessageService returned false.\n";
+            } else {
+                echo "DEBUG: InboundMessageService returned true.\n";
+            }
         }
 
         // Marcar como processado
@@ -78,7 +84,7 @@ class WebhookProcessor {
             'wa_message_id'   => $message['id'],
             'from'            => $message['from'],
             'profile_name'    => $contact['profile']['name'] ?? '',
-            'type'            => $message['type'],
+            'message_type'    => $message['type'],
             'text_body'       => $message['text']['body'] ?? '',
             'timestamp'       => $message['timestamp'],
             'raw_event_id'    => $event_id,

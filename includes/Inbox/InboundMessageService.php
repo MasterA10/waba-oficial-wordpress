@@ -61,7 +61,7 @@ class InboundMessageService {
         }
 
         // 5. Salvar a mensagem
-        $type = $dto['type'] ?? 'text';
+        $type = $dto['message_type'] ?? $dto['type'] ?? 'text';
         $body = $dto['text_body'] ?? '';
 
         // Fallback para tipos não suportados
