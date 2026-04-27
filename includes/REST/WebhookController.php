@@ -25,12 +25,13 @@ class WebhookController {
         $token     = $request->get_param('hub_verify_token') ?: ($_GET['hub_verify_token'] ?? $_GET['hub.verify_token'] ?? '');
         $challenge = $request->get_param('hub_challenge') ?: ($_GET['hub_challenge'] ?? $_GET['hub.challenge'] ?? '');
 
-        if ($mode === 'subscribe' && !empty($token)) {
-            $repository = new MetaAppRepository();
-            $app = $repository->get_active_app();
+        $repository = new MetaAppRepository();
+        $app = $repository->get_active_app();
 
+        if ($mode === 'subscribe' && !empty($token)) {
             // Comparação segura de token
             if ($app && hash_equals($app->verify_token, (string)$token)) {
+                \WAS\WhatsApp\WebhookLogger::log_verification($_GET, 200, (string)$challenge);
                 // IMPORTANTE: Deve retornar APENAS o challenge como texto puro
                 status_header(200);
                 header('Content-Type: text/plain; charset=utf-8');
@@ -39,6 +40,7 @@ class WebhookController {
             }
         }
 
+        \WAS\WhatsApp\WebhookLogger::log_verification($_GET, 403, 'Forbidden');
         return new WP_REST_Response(['message' => 'Forbidden'], 403);
     }
 
@@ -49,7 +51,10 @@ class WebhookController {
         $repository = new MetaAppRepository();
         $app = $repository->get_active_app();
         
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
+
         if (!$app) {
+            \WAS\WhatsApp\WebhookLogger::log_event([], $headers, 500, 'App not configured');
             return new WP_REST_Response(['message' => 'App not configured'], 500);
         }
 
@@ -65,18 +70,23 @@ class WebhookController {
         }
 
         // 1. Validar assinatura (Segurança)
-        if (!WebhookSignatureValidator::is_valid($raw_body, $signature, $app->app_secret)) {
+        if (!\WAS\WhatsApp\WebhookSignatureValidator::is_valid($raw_body, $signature, $app->app_secret)) {
+            \WAS\WhatsApp\WebhookLogger::log_event($raw_body, $headers, 403, 'Invalid signature');
             return new WP_REST_Response(['message' => 'Invalid signature'], 403);
         }
 
         $payload = json_decode($raw_body, true);
         if (empty($payload)) {
+            \WAS\WhatsApp\WebhookLogger::log_event($raw_body, $headers, 400, 'Invalid payload');
             return new WP_REST_Response(['message' => 'Invalid payload'], 400);
         }
 
         // 2. Processar evento (Roteamento e Persistência)
-        $processor = new WebhookProcessor();
+        $processor = new \WAS\WhatsApp\WebhookProcessor();
         $processor->process($payload);
+
+        // Registrar sucesso
+        \WAS\WhatsApp\WebhookLogger::log_event($payload, $headers, 200, 'Success');
 
         // 3. Responder rápido para a Meta
         return new WP_REST_Response(['success' => true], 200);

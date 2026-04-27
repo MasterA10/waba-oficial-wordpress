@@ -56,6 +56,14 @@ class Plugin {
             add_rewrite_rule( '^was-meta-webhook/?$', 'index.php?was_meta_webhook=1', 'top' );
 		} );
 
+        // Prevent WordPress from redirecting webhooks (canonical)
+        add_filter( 'redirect_canonical', function( $redirect_url, $requested_url ) {
+            if ( get_query_var( 'was_meta_webhook' ) ) {
+                return false;
+            }
+            return $redirect_url;
+        }, 10, 2 );
+
 		add_filter( 'query_vars', function( $vars ) {
 			$vars[] = 'was_app_page';
             $vars[] = 'was_meta_webhook';
