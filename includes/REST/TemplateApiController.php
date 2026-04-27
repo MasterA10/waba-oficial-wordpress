@@ -26,6 +26,10 @@ class TemplateApiController {
      */
     public function get_items(WP_REST_Request $request) {
         $templates = $this->repository->list_templates();
+        \WAS\Core\SystemLogger::logError('GET /templates requested by browser', [
+            'count' => is_array($templates) ? count($templates) : 0,
+            'tenant_id' => TenantContext::get_tenant_id()
+        ]);
         return new WP_REST_Response($templates, 200);
     }
 

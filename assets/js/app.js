@@ -215,7 +215,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (syncBtn) syncBtn.addEventListener('click', async () => {
             syncBtn.disabled = true;
-            try { await wasApiFetch('/templates/sync', 'POST'); fetchTemplates(); } finally { syncBtn.disabled = false; }
+            syncBtn.textContent = 'Sincronizando...';
+            try { 
+                await wasApiFetch('/templates/sync', 'POST'); 
+                alert('Sincronização concluída com sucesso!');
+                fetchTemplates(); 
+            } catch (err) {
+                alert(err.message || 'Erro ao sincronizar. Verifique se o Token e o WABA ID são válidos.');
+            } finally { 
+                syncBtn.disabled = false; 
+                syncBtn.textContent = 'Sincronizar com Meta';
+            }
         });
 
         fetchTemplates();
