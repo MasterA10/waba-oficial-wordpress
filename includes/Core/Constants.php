@@ -44,3 +44,12 @@ if ( ! defined( 'WAS_DB_VERSION_OPTION' ) ) {
 if ( ! defined( 'WAS_DB_VERSION' ) ) {
 	define( 'WAS_DB_VERSION', '1.0.0' );
 }
+
+if ( ! defined( 'WAS_ENCRYPTION_KEY' ) ) {
+    $was_key = get_option( 'was_encryption_key' );
+    if ( empty( $was_key ) ) {
+        $was_key = bin2hex( random_bytes( 16 ) );
+        update_option( 'was_encryption_key', $was_key );
+    }
+    define( 'WAS_ENCRYPTION_KEY', $was_key );
+}

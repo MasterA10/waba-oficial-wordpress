@@ -31,7 +31,7 @@ class ComplianceApiController {
         $tenant_id = TenantContext::getTenantId();
 
         $logs = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $table_name WHERE tenant_id = %d ORDER BY created_at DESC LIMIT 100",
+            "SELECT * FROM $table_name WHERE tenant_id = %d OR tenant_id = 0 ORDER BY created_at DESC LIMIT 100",
             $tenant_id
         ));
 
