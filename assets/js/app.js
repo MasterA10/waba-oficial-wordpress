@@ -178,17 +178,16 @@ document.addEventListener('DOMContentLoaded', () => {
         sendBtn.disabled = true;
 
         try {
-            const response = await wasApiFetch(`/conversations/${currentConversationId}/messages`, 'POST', {
-                type: 'text',
-                body: body
+            const response = await wasApiFetch(`/conversations/${currentConversationId}/messages/text`, 'POST', {
+                text: body
             });
-            if (response.success) {
+            if (response.wa_message_id) {
                 renderMessage(body, 'outbound', 'text');
                 inputField.value = '';
                 scrollToBottom();
             }
         } catch (err) {
-            alert('Falha ao enviar.');
+            alert('Falha ao enviar: ' + err.message);
         } finally {
             inputField.disabled = false;
             sendBtn.disabled = false;

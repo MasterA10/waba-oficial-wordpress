@@ -1,98 +1,58 @@
 <?php
-
 namespace WAS\Meta;
+
+use WAS\Meta\MetaAppRepository;
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-/**
- * Cliente HTTP para Meta Graph API
- * 
- * Única porta de saída oficial para chamadas à Meta.
- */
 class MetaApiClient {
+    private $version;
+    private $baseUrl = 'https://graph.facebook.com';
 
-    /**
-     * Executa uma requisição para a Meta Graph API.
-     * 
-     * @param string $operation Operação interna (ex: WA_SEND_MESSAGE).
-     * @param array $placeholders Variáveis para o path.
-     * @param array $body Corpo da requisição.
-     * @param string $token Access Token a ser usado (opcional).
-     * @return MetaApiResponse
-     */
-    public static function request(string $operation, array $placeholders = [], array $body = [], string $token = ''): MetaApiResponse {
-        $start_time = microtime(true);
-        
-        // 1. Resolve endpoint
-        $resolved = MetaEndpointRegistry::resolve($operation, $placeholders);
-        $method = $resolved['method'];
-        $path = $resolved['path'];
+    public function __construct() {
+        $repository = new MetaAppRepository();
+        $app = $repository->get_active_app();
+        $this->version = $app->graph_version ?? 'v25.0';
+    }
 
-        // 2. Resolve versão da Graph API (Pode vir de config futuramente)
-        $version = WAS_META_GRAPH_DEFAULT_VERSION;
-        
-        // 3. Monta URL
-        $url = WAS_META_GRAPH_BASE_URL . '/' . $version . '/' . ltrim($path, '/');
+    public function postJson(string $operation, array $pathParams, array $body, string $token) {
+        $url = $this->buildUrl($operation, $pathParams);
 
-        // 4. Prepara headers
-        $args = [
-            'method'      => $method,
-            'timeout'     => 30,
-            'redirection' => 5,
-            'httpversion' => '1.0',
-            'blocking'    => true,
-            'headers'     => [
-                'Content-Type' => 'application/json',
+        $response = wp_remote_post($url, [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $token,
+                'Content-Type'  => 'application/json',
             ],
-            'body'        => !empty($body) ? json_encode($body) : null,
-        ];
+            'body'    => wp_json_encode($body),
+            'timeout' => 30,
+        ]);
 
-        if (!empty($token)) {
-            $args['headers']['Authorization'] = 'Bearer ' . $token;
-        }
+        return $this->parse($response);
+    }
 
-        // Se for GET, o body vai como query params se necessário (depende da operação)
-        if ($method === 'GET' && !empty($body)) {
-            $url = add_query_arg($body, $url);
-            unset($args['body']);
-        }
+    private function buildUrl(string $operation, array $pathParams): string {
+        $path = MetaEndpointRegistry::resolve($operation, $pathParams);
+        return sprintf('%s/%s%s', $this->baseUrl, $this->version, $path);
+    }
 
-        // 5. Executa
-        $response = wp_remote_request($url, $args);
-        $duration_ms = (int) ((microtime(true) - $start_time) * 1000);
-
+    private function parse($response) {
         if (is_wp_error($response)) {
-            $apiResponse = MetaApiResponse::error($operation, ['message' => $response->get_error_message()], 500);
-        } else {
-            $status_code = wp_remote_retrieve_response_code($response);
-            $body_content = json_decode(wp_remote_retrieve_body($response), true) ?: [];
-            
-            if ($status_code >= 200 && $status_code < 300) {
-                $apiResponse = MetaApiResponse::success($operation, $body_content, $status_code);
-            } else {
-                $apiResponse = MetaApiResponse::error($operation, $body_content['error'] ?? ['message' => 'API Error'], $status_code);
-            }
-            
-            $request_id = wp_remote_retrieve_header($response, 'x-fb-request-id');
-            if ($request_id && method_exists($apiResponse, 'set_request_id')) {
-                $apiResponse->meta_request_id = $request_id;
-            }
+            return ['success' => false, 'error' => $response->get_error_message()];
         }
 
-        // 6. Loga requisição
-        MetaApiRequestLogger::log(
-            $operation,
-            $method,
-            $path,
-            $apiResponse->status_code,
-            $apiResponse->success,
-            $apiResponse->data,
-            $duration_ms,
-            $apiResponse->error
-        );
+        $code = wp_remote_retrieve_response_code($response);
+        $body = json_decode(wp_remote_retrieve_body($response), true);
 
-        return $apiResponse;
+        if ($code >= 400 || isset($body['error'])) {
+            return [
+                'success' => false,
+                'error' => $body['error']['message'] ?? 'Erro na Meta API',
+                'code' => $body['error']['code'] ?? $code
+            ];
+        }
+
+        return array_merge(['success' => true], $body ?: []);
     }
 }

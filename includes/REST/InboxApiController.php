@@ -50,12 +50,44 @@ class InboxApiController {
                 'permission_callback' => [$this, 'check_assignment_permission'],
             ],
         ]);
-    }
 
-    public function check_permission() {
-        return Routes::check_auth();
-    }
+        register_rest_route(WAS_REST_NAMESPACE, '/conversations/(?P<id>\d+)/messages/text', [
+            [
+                'methods'             => \WP_REST_Server::CREATABLE,
+                'callback'            => [$this, 'send_text_message'],
+                'permission_callback' => [$this, 'check_send_permission'],
+            ],
+        ]);
+        }
 
+        public function check_permission() {
+        ...
+        /**
+        * Envia uma mensagem de texto em uma conversa.
+        */
+        public function send_text_message($request) {
+        $id   = $request['id'];
+        $text = $request->get_param('text');
+
+        if (empty($text)) {
+            return new \WP_REST_Response(['success' => false, 'message' => 'O texto da mensagem é obrigatório'], 400);
+        }
+
+        $service = new \WAS\Inbox\OutboundMessageService();
+        $result = $service->send_text($id, $text);
+
+        if ($result['success']) {
+            return new \WP_REST_Response($result, 200);
+        }
+
+        return new \WP_REST_Response([
+            'success' => false,
+            'message' => $result['error'] ?? 'Erro ao enviar mensagem'
+        ], 500);
+        }
+
+        /**
+        * Envia uma mensagem em uma conversa.
     public function check_send_permission() {
         $auth = Routes::check_auth();
         if ( is_wp_error( $auth ) ) {
