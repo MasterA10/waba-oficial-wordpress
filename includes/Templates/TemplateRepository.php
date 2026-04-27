@@ -59,6 +59,16 @@ class TemplateRepository {
         );
     }
 
+    public function delete($id) {
+        global $wpdb;
+        $tenant_id = TenantContext::get_tenant_id();
+
+        return $wpdb->delete(
+            $this->table_name,
+            ['id' => $id, 'tenant_id' => $tenant_id]
+        );
+    }
+
     public function get_by_id($id) {
         global $wpdb;
         $tenant_id = TenantContext::get_tenant_id();

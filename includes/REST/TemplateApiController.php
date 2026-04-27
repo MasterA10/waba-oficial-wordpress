@@ -73,8 +73,16 @@ class TemplateApiController {
                 ]);
 
                 \WAS\Compliance\AuditLogger::log('template_create_success', 'template', $local_id, [
-                    'name' => $params['name'],
-                    'meta_id' => $response['id'] ?? null
+                    'name'      => $meta_payload['name'],
+                    'category'  => $meta_payload['category'],
+                    'language'  => $meta_payload['language'],
+                    'meta_id'   => $response['id'] ?? null,
+                    'message'   => sprintf(
+                        'O template "%s" (%s) foi criado com sucesso na Meta com o ID %s.',
+                        $meta_payload['name'],
+                        $meta_payload['category'],
+                        $response['id'] ?? 'N/A'
+                    )
                 ]);
 
                 return new WP_REST_Response([
@@ -119,14 +127,85 @@ class TemplateApiController {
         $params = $request->get_json_params();
         
         try {
-            $updated = $this->repository->update($id, $params);
-            if ($updated) {
-                return new WP_REST_Response(['success' => true], 200);
+            $template = $this->repository->get_by_id($id);
+            if (!$template) {
+                return new WP_REST_Error('not_found', 'Template não encontrado', ['status' => 404]);
             }
-            return new WP_REST_Response(['message' => 'Nenhuma alteração realizada.'], 400);
+
+            // 1. Construir payload novo
+            $build_result = $this->builder->build($params);
+            $meta_payload = $build_result['meta_payload'];
+            $variable_map = $build_result['variable_map'];
+
+            // 2. Enviar para Meta
+            $meta_service = new TemplateMetaService();
+            $tenant_id = TenantContext::get_tenant_id();
+            
+            if ($template->meta_template_id) {
+                $response = $meta_service->update($tenant_id, $template->meta_template_id, $meta_payload['components']);
+                if (!$response['success']) {
+                    return new WP_REST_Response(['message' => 'Erro na Meta ao atualizar: ' . ($response['error'] ?? 'Desconhecido')], 400);
+                }
+            }
+
+            // 3. Atualizar localmente
+            $update_data = [
+                'name' => $params['name'],
+                'category' => $params['category'],
+                'language' => $params['language'],
+                'body_text' => $params['body']['text'],
+                'friendly_payload' => json_encode($params),
+                'variable_map' => json_encode($variable_map),
+                'meta_payload' => json_encode($meta_payload)
+            ];
+
+            $updated = $this->repository->update($id, $update_data);
+            
+            \WAS\Compliance\AuditLogger::log('template_update_success', 'template', $id, [
+                'name' => $meta_payload['name'],
+                'meta_id' => $template->meta_template_id
+            ]);
+
+            return new WP_REST_Response(['success' => true], 200);
+
         } catch (\Throwable $e) {
             \WAS\Core\SystemLogger::logException($e, ['context' => 'TemplateApiController::update_item', 'local_id' => $id]);
             return new WP_REST_Response(['message' => 'Erro interno ao atualizar template.'], 500);
+        }
+    }
+
+    public function delete_item(WP_REST_Request $request) {
+        $id = $request['id'];
+        $tenant_id = TenantContext::get_tenant_id();
+
+        try {
+            $template = $this->repository->get_by_id($id);
+            if (!$template) {
+                return new WP_REST_Error('not_found', 'Template não encontrado', ['status' => 404]);
+            }
+
+            $meta_service = new TemplateMetaService();
+            
+            // Exclui da Meta primeiro (só se já foi enviado)
+            if ($template->meta_template_id || $template->status !== 'draft') {
+                $response = $meta_service->delete($tenant_id, $template->name);
+                if (!$response['success'] && !str_contains(strtolower($response['error'] ?? ''), 'does not exist')) {
+                    return new WP_REST_Response(['message' => 'Erro na Meta ao excluir: ' . ($response['error'] ?? 'Desconhecido')], 400);
+                }
+            }
+
+            // Exclui localmente
+            $this->repository->delete($id);
+
+            \WAS\Compliance\AuditLogger::log('template_delete_success', 'template', $id, [
+                'name' => $template->name
+            ]);
+
+            return new WP_REST_Response(['success' => true], 200);
+
+        } catch (\Throwable $e) {
+            \WAS\Core\SystemLogger::logException($e, ['context' => 'TemplateApiController::delete_item', 'local_id' => $id]);
+            return new WP_REST_Response(['message' => 'Erro interno ao excluir template.'], 500);
         }
     }
 

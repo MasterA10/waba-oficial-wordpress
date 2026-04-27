@@ -40,20 +40,23 @@ class TemplateSyncService {
                 'category'         => $meta_tpl['category'],
                 'rejection_reason' => $meta_tpl['rejected_reason'] ?? null,
                 'meta_payload'     => json_encode($meta_tpl),
-                'updated_at'       => current_time('mysql', 1)
+                'updated_at'       => current_time('mysql', 1),
+                'body_text'        => '' // Default obrigatório
             ];
 
             // Extrair corpo e componentes para o banco local
-            foreach ($meta_tpl['components'] as $comp) {
-                if ($comp['type'] === 'BODY') {
-                    $data['body_text'] = $comp['text'];
-                } elseif ($comp['type'] === 'HEADER') {
-                    $data['header_type'] = $comp['format'];
-                    $data['header_text'] = $comp['text'] ?? null;
-                } elseif ($comp['type'] === 'FOOTER') {
-                    $data['footer_text'] = $comp['text'];
-                } elseif ($comp['type'] === 'BUTTONS') {
-                    $data['buttons_json'] = json_encode($comp['buttons']);
+            if (!empty($meta_tpl['components']) && is_array($meta_tpl['components'])) {
+                foreach ($meta_tpl['components'] as $comp) {
+                    if ($comp['type'] === 'BODY') {
+                        $data['body_text'] = $comp['text'] ?? '';
+                    } elseif ($comp['type'] === 'HEADER') {
+                        $data['header_type'] = $comp['format'] ?? null;
+                        $data['header_text'] = $comp['text'] ?? null;
+                    } elseif ($comp['type'] === 'FOOTER') {
+                        $data['footer_text'] = $comp['text'] ?? '';
+                    } elseif ($comp['type'] === 'BUTTONS') {
+                        $data['buttons_json'] = json_encode($comp['buttons']);
+                    }
                 }
             }
 

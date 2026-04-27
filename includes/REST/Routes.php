@@ -102,6 +102,11 @@ class Routes {
                 'methods'             => 'PUT',
                 'callback'            => [$templateController, 'update_item'],
                 'permission_callback' => [self::class, 'check_auth'],
+            ],
+            [
+                'methods'             => 'DELETE',
+                'callback'            => [$templateController, 'delete_item'],
+                'permission_callback' => [self::class, 'check_auth'],
             ]
         ]);
 
