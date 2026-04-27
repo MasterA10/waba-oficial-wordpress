@@ -656,26 +656,61 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initSettingsMeta() {
         const form = document.getElementById('was-meta-config-form');
         if (!form) return;
+
+        const urlInput = document.getElementById('webhook_url');
+        const tokenBtn = document.getElementById('was-generate-token');
+        const tokenInput = document.getElementById('verify_token');
+        const statusSpan = document.getElementById('was-save-status');
+
+        // Fetch current config
         try {
             const data = await wasApiFetch('/meta/config');
             if (data) {
                 document.getElementById('app_id').value = data.app_id || '';
                 document.getElementById('app_secret').value = data.app_secret || '';
                 document.getElementById('graph_version').value = data.graph_version || 'v25.0';
-                document.getElementById('verify_token').value = data.verify_token || '';
+                tokenInput.value = data.verify_token || '';
+
+                if (urlInput) {
+                    urlInput.value = data.webhook_url || '';
+                }
             }
-        } catch (err) {}
+        } catch (err) {
+            console.error('Error fetching config:', err);
+        }
+
+        // Generate Token Logic
+        if (tokenBtn && tokenInput) {
+            tokenBtn.addEventListener('click', () => {
+                const randomToken = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+                    .map(b => b.toString(16).padStart(2, '0'))
+                    .join('');
+                tokenInput.value = randomToken;
+            });
+        }
+
+        // Save Logic
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (statusSpan) statusSpan.textContent = 'Salvando...';
+
             const formData = {
-                app_id: document.getElementById('app_id').value, app_secret: document.getElementById('app_secret').value,
-                graph_version: document.getElementById('graph_version').value, verify_token: document.getElementById('verify_token').value
+                app_id: document.getElementById('app_id').value,
+                app_secret: document.getElementById('app_secret').value,
+                graph_version: document.getElementById('graph_version').value,
+                verify_token: tokenInput.value
             };
-            await wasApiFetch('/meta/config', 'POST', formData);
-            alert('Salvo!');
+
+            try {
+                await wasApiFetch('/meta/config', 'POST', formData);
+                if (statusSpan) statusSpan.textContent = '✅ Configurações salvas com sucesso!';
+                setTimeout(() => { if (statusSpan) statusSpan.textContent = ''; }, 3000);
+            } catch (err) {
+                if (statusSpan) statusSpan.textContent = '❌ Erro ao salvar.';
+                alert('Erro: ' + err.message);
+            }
         });
     }
-
     async function initSettingsWhatsApp() {
         const launchBtn = document.getElementById('was-launch-signup');
         const statusText = document.getElementById('was-status-text');

@@ -38,6 +38,7 @@ class MetaApiController {
             'app_secret'    => TokenVault::mask(TokenVault::decrypt($app->app_secret)),
             'graph_version' => $app->graph_version,
             'verify_token'  => $app->verify_token,
+            'webhook_url'   => home_url('/was-meta-check-99')
         ], 200);
     }
 

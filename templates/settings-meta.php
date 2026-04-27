@@ -39,13 +39,20 @@ if (!defined('ABSPATH')) {
                         </td>
                     </tr>
                     <tr>
+                        <th scope="row"><label for="webhook_url">Callback URL</label></th>
+                        <td>
+                            <input type="text" id="webhook_url" value="Carregando..." class="large-text" readonly onclick="this.select();">
+                            <p class="description">Copie esta URL e cole no campo "URL de retorno de chamada" no painel da Meta Developers.</p>
+                        </td>
+                    </tr>
+                    <tr>
                         <th scope="row"><label for="verify_token">Webhook Verify Token</label></th>
                         <td>
                             <div style="display: flex; gap: 10px; align-items: center;">
                                 <input name="verify_token" type="text" id="verify_token" value="" class="regular-text">
-                                <button type="button" id="was-generate-token" class="button">Gerar</button>
+                                <button type="button" id="was-generate-token" class="button">Gerar Novo</button>
                             </div>
-                            <p class="description">Token usado para validar o webhook na configuração da Meta.</p>
+                            <p class="description">Token usado para validar o webhook. Cole este valor no campo "Verificar token" na Meta.</p>
                         </td>
                     </tr>
                 </table>

@@ -87,10 +87,6 @@ class Plugin {
         if ( (int) get_query_var( 'was_meta_webhook' ) !== 1 ) {
             return;
         }
-        
-        if (isset($_GET['debug_was'])) {
-            wp_die("WAS Debug: Endpoint Webhook Atingido com Sucesso! Método: " . $_SERVER['REQUEST_METHOD']);
-        }
 
         $controller = new \WAS\REST\WebhookController();
 
