@@ -413,6 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initSettingsMeta() {
         const form = document.getElementById('was-meta-config-form');
         if (!form) return;
+
         try {
             const data = await wasApiFetch('/meta/config');
             if (data) {
@@ -432,12 +433,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('was-start-embedded-signup').href = data.embedded_signup_url || '#';
                     }
                 }
-                }
-                } catch (err) {}
+            }
+        } catch (err) {
+            console.error('Error fetching meta config:', err);
+        }
 
-                const saveConfig = async (e) => {
-                if (e) e.preventDefault();
-                const payload = {
+        const saveConfig = async (e) => {
+            if (e) e.preventDefault();
+            const payload = {
                 app_id: document.getElementById('app_id').value,
                 app_secret: document.getElementById('app_secret').value,
                 verify_token: document.getElementById('verify_token').value,
@@ -446,23 +449,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 waba_id: document.getElementById('waba_id').value,
                 config_id: document.getElementById('config_id') ? document.getElementById('config_id').value : '',
                 embedded_signup_url: document.getElementById('embedded_signup_url') ? document.getElementById('embedded_signup_url').value : ''
-                };
-                try { 
-                await wasApiFetch('/meta/config', 'POST', payload); 
-                alert('Configurações salvas com sucesso!'); 
+            };
+            try {
+                await wasApiFetch('/meta/config', 'POST', payload);
+                alert('Configurações salvas com sucesso!');
                 if (payload.embedded_signup_url && document.getElementById('was-start-embedded-signup')) {
-                   document.getElementById('was-start-embedded-signup').href = payload.embedded_signup_url;
+                    document.getElementById('was-start-embedded-signup').href = payload.embedded_signup_url;
                 }
-                } catch (err) { alert(err.message); }
-                };
+            } catch (err) {
+                alert(err.message || 'Erro ao salvar configurações');
+            }
+        };
 
-                form.addEventListener('submit', saveConfig);
+        form.addEventListener('submit', saveConfig);
 
-                const embeddedForm = document.getElementById('was-embedded-signup-config-form');
-                if (embeddedForm) {
-                embeddedForm.addEventListener('submit', saveConfig);
-                }
-                }
+        const embeddedForm = document.getElementById('was-embedded-signup-config-form');
+        if (embeddedForm) {
+            embeddedForm.addEventListener('submit', saveConfig);
+        }
+    }
     async function openInboxTplModal() {
         const modal = document.getElementById('was-inbox-tpl-modal');
         const list = document.getElementById('was-inbox-tpl-list');

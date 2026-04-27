@@ -123,11 +123,14 @@ class TemplateRepository {
     public function list_templates($limit = 50, $offset = 0) {
         global $wpdb;
         $tenant_id = TenantContext::get_tenant_id();
-        return $wpdb->get_results($wpdb->prepare(
+        $sql = $wpdb->prepare(
             "SELECT * FROM {$this->table_name} WHERE tenant_id = %d AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT %d OFFSET %d",
             $tenant_id,
             $limit,
             $offset
-        ));
+        );
+        $results = $wpdb->get_results($sql);
+        \WAS\Core\SystemLogger::logError('SQL list_templates', ['sql' => $sql, 'count' => count($results), 'error' => $wpdb->last_error]);
+        return $results;
     }
 }

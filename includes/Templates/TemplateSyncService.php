@@ -121,11 +121,19 @@ class TemplateSyncService {
         if (!$existing) {
             $data['created_at'] = current_time('mysql', 1);
             $res = $this->repository->create($data);
+            if (!$res) {
+                global $wpdb;
+                \WAS\Core\SystemLogger::logError('Template insert failed', ['error' => $wpdb->last_error, 'data' => $data]);
+            }
             return $res ? 'created_local' : 'errors';
         }
 
         // Se existir, atualiza
         $res = $this->repository->update($existing->id, $data);
+        if ($res === false) {
+            global $wpdb;
+            \WAS\Core\SystemLogger::logError('Template update failed', ['error' => $wpdb->last_error, 'data' => $data, 'id' => $existing->id]);
+        }
         return $res !== false ? 'updated_local' : 'errors';
     }
 }
