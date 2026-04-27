@@ -698,7 +698,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 app_id: document.getElementById('app_id').value,
                 app_secret: document.getElementById('app_secret').value,
                 graph_version: document.getElementById('graph_version').value,
-                verify_token: tokenInput.value
+                verify_token: tokenInput.value,
+                primary_phone_number_id: document.getElementById('primary_phone_number_id').value
             };
 
             try {
@@ -726,5 +727,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (detailsDiv) detailsDiv.style.display = 'block';
             }
         } catch (err) {}
+    }
+});
+}
     }
 });

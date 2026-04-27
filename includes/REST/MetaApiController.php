@@ -33,12 +33,16 @@ class MetaApiController {
             return new WP_REST_Response(null, 200);
         }
 
+        $phone_service = new \WAS\WhatsApp\PhoneNumberService();
+        $tenant_id = \WAS\Auth\TenantContext::get_tenant_id();
+
         return new WP_REST_Response([
             'app_id'        => $app->app_id,
             'app_secret'    => TokenVault::mask(TokenVault::decrypt($app->app_secret)),
             'graph_version' => $app->graph_version,
             'verify_token'  => $app->verify_token,
-            'webhook_url'   => home_url('/was-meta-check-99')
+            'webhook_url'   => home_url('/was-meta-check-99'),
+            'primary_phone_number_id' => $phone_service->get_primary_id($tenant_id)
         ], 200);
     }
 
@@ -61,6 +65,13 @@ class MetaApiController {
 
         if ($result === false) {
             return new WP_REST_Response(['message' => 'Erro ao salvar configuração'], 500);
+        }
+
+        // Salvar Phone Number ID se fornecido
+        if (!empty($params['primary_phone_number_id'])) {
+            $phone_service = new \WAS\WhatsApp\PhoneNumberService();
+            $tenant_id = \WAS\Auth\TenantContext::get_tenant_id();
+            $phone_service->register_phone_number($params['primary_phone_number_id'], $tenant_id);
         }
 
         AuditLogger::log('save_meta_config', 'meta_app', $result, [

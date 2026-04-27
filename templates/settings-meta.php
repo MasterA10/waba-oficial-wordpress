@@ -28,7 +28,14 @@ if (!defined('ABSPATH')) {
                         <th scope="row"><label for="app_secret">App Secret</label></th>
                         <td>
                             <input name="app_secret" type="password" id="app_secret" value="" class="regular-text">
-                            <p class="description">O segredo do seu aplicativo. Será salvo criptografado.</p>
+                            <p class="description">O segredo do seu aplicativo. Necessário para validar a assinatura dos webhooks.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="primary_phone_number_id">Phone Number ID Principal</label></th>
+                        <td>
+                            <input name="primary_phone_number_id" type="text" id="primary_phone_number_id" value="" class="regular-text">
+                            <p class="description">O ID numérico do número de telefone (ex: 792390780632007) encontrado no painel da Meta.</p>
                         </td>
                     </tr>
                     <tr>
