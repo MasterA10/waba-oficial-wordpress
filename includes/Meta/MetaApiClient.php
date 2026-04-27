@@ -32,6 +32,33 @@ class MetaApiClient {
         return $this->parse($response);
     }
 
+    public function get(string $operation, array $pathParams, array $query, string $token) {
+        $url = add_query_arg($query, $this->buildUrl($operation, $pathParams));
+
+        $response = wp_remote_get($url, [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $token,
+            ],
+            'timeout' => 30,
+        ]);
+
+        return $this->parse($response);
+    }
+
+    public function delete(string $operation, array $pathParams, array $query, string $token) {
+        $url = add_query_arg($query, $this->buildUrl($operation, $pathParams));
+
+        $response = wp_remote_request($url, [
+            'method'  => 'DELETE',
+            'headers' => [
+                'Authorization' => 'Bearer ' . $token,
+            ],
+            'timeout' => 30,
+        ]);
+
+        return $this->parse($response);
+    }
+
     private function buildUrl(string $operation, array $pathParams): string {
         $path = MetaEndpointRegistry::resolve($operation, $pathParams);
         return sprintf('%s/%s%s', $this->baseUrl, $this->version, $path);

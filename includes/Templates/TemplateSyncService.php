@@ -1,76 +1,67 @@
 <?php
-
 namespace WAS\Templates;
-
-use WAS\Compliance\AuditLogger;
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-/**
- * Serviço de Sincronização de Templates
- */
 class TemplateSyncService {
     private $repository;
+    private $meta_service;
 
-    public function __construct(TemplateRepository $repository) {
-        $this->repository = $repository;
+    public function __construct() {
+        $this->repository = new TemplateRepository();
+        $this->meta_service = new TemplateMetaService();
     }
 
     /**
-     * Sincroniza templates da Meta para o banco local
+     * Sincroniza templates da Meta para o banco local.
      */
-    public function sync() {
-        if (\WAS\Core\Plugin::is_demo_mode()) {
-            return $this->sync_demo();
+    public function sync($tenant_id) {
+        $response = $this->meta_service->list_from_meta($tenant_id);
+
+        if (!$response['success']) {
+            return $response;
         }
 
-        // 1. Aqui seria a chamada para MetaApiClient::request('WA_LIST_TEMPLATES')
-        return 0; // Ainda não implementado real dispatch
-    }
+        $templates = $response['data'] ?? [];
+        $synced_count = 0;
 
-    private function sync_demo() {
-        $meta_templates = [
-            [
-                'id' => 'tpl_demo_1',
-                'name' => 'confirmacao_pedido',
-                'language' => 'pt_BR',
-                'category' => 'UTILITY',
-                'status' => 'APPROVED',
-                'body' => 'Olá! Seu pedido {{1}} foi confirmado e está sendo preparado.'
-            ],
-            [
-                'id' => 'tpl_demo_2',
-                'name' => 'oferta_exclusiva',
-                'language' => 'pt_BR',
-                'category' => 'MARKETING',
-                'status' => 'APPROVED',
-                'body' => 'Ei! Temos uma oferta especial de {{1}}% para você. Use o cupom {{2}}.'
-            ],
-            [
-                'id' => 'tpl_demo_3',
-                'name' => 'codigo_acesso',
-                'language' => 'pt_BR',
-                'category' => 'AUTHENTICATION',
-                'status' => 'APPROVED',
-                'body' => 'Seu código de segurança é: {{1}}. Não compartilhe com ninguém.'
-            ]
-        ];
+        foreach ($templates as $meta_tpl) {
+            $existing = $this->repository->get_by_name_lang($meta_tpl['name'], $meta_tpl['language']);
 
-        foreach ($meta_templates as $tpl) {
-            $this->repository->createOrUpdate([
-                'meta_template_id' => $tpl['id'],
-                'name'             => $tpl['name'],
-                'language'         => $tpl['language'],
-                'category'         => $tpl['category'],
-                'status'           => $tpl['status'],
-                'body_text'        => $tpl['body'],
-                'updated_at'       => current_time('mysql', 1)
-            ]);
+            $data = [
+                'meta_template_id' => $meta_tpl['id'],
+                'status'           => $meta_tpl['status'],
+                'category'         => $meta_tpl['category'],
+                'rejected_reason'  => $meta_tpl['rejected_reason'] ?? null,
+                'meta_payload'     => json_encode($meta_tpl)
+            ];
+
+            // Extrair corpo e componentes para o banco local
+            foreach ($meta_tpl['components'] as $comp) {
+                if ($comp['type'] === 'BODY') {
+                    $data['body_text'] = $comp['text'];
+                } elseif ($comp['type'] === 'HEADER') {
+                    $data['header_type'] = $comp['format'];
+                    $data['header_text'] = $comp['text'] ?? null;
+                } elseif ($comp['type'] === 'FOOTER') {
+                    $data['footer_text'] = $comp['text'];
+                } elseif ($comp['type'] === 'BUTTONS') {
+                    $data['buttons_json'] = json_encode($comp['buttons']);
+                }
+            }
+
+            if ($existing) {
+                $this->repository->update($existing->id, $data);
+            } else {
+                $data['name'] = $meta_tpl['name'];
+                'language' => $meta_tpl['language'];
+                $this->repository->create($data);
+            }
+            $synced_count++;
         }
 
-        AuditLogger::log('sync_templates', 'waba', 0, ['count' => count($meta_templates), 'mode' => 'demo']);
-        return count($meta_templates);
+        return ['success' => true, 'count' => $synced_count];
     }
 }

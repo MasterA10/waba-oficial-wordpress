@@ -538,16 +538,84 @@ document.addEventListener('DOMContentLoaded', () => {
         const content = document.getElementById(`step-${step}`);
         if (content) content.style.display = 'block';
         document.querySelectorAll('.step-item').forEach(el => el.classList.toggle('active', parseInt(el.dataset.step) === step));
-        document.getElementById('wiz-prev').style.display = step > 1 ? 'inline-block' : 'none';
-        document.getElementById('wiz-next').style.display = step < 5 ? 'inline-block' : 'none';
-        document.getElementById('wiz-submit').style.display = step === 5 ? 'inline-block' : 'none';
-        if (step === 5) renderComplianceCheck();
+        
+        const btnPrev = document.getElementById('wiz-prev');
+        const btnNext = document.getElementById('wiz-next');
+        const btnSubmit = document.getElementById('wiz-submit');
+        
+        if (btnPrev) btnPrev.style.display = step > 1 ? 'inline-block' : 'none';
+        if (btnNext) btnNext.style.display = step < 5 ? 'inline-block' : 'none';
+        if (btnSubmit) btnSubmit.style.display = step === 5 ? 'inline-block' : 'none';
     }
 
     function updatePreview() {
-        const headerType = document.getElementById('wiz-header-type')?.value;
-        const headerText = document.getElementById('wiz-header-text')?.value;
-        const bodyText = document.getElementById('wiz-body-text')?.value;
+        const headerText = document.getElementById('wiz-header-text')?.value || '';
+        const bodyText = document.getElementById('wiz-body-text')?.value || '';
+        const footerText = document.getElementById('wiz-footer-text')?.value || '';
+
+        const preHeader = document.getElementById('pre-header');
+        const preBody = document.getElementById('pre-body');
+        const preFooter = document.getElementById('pre-footer');
+        const btnContainer = document.getElementById('pre-buttons');
+
+        if (preHeader) preHeader.textContent = headerText;
+        if (preBody) preBody.textContent = bodyText;
+        if (preFooter) preFooter.textContent = footerText;
+        
+        if (btnContainer) {
+            btnContainer.innerHTML = (wizardButtons || []).map(b => `<div class="pre-btn">${b.text}</div>`).join('');
+        }
+    }
+
+    function renderWizardButtons() {
+        const container = document.getElementById('wiz-buttons-list');
+        if (!container) return;
+        container.innerHTML = '';
+        (wizardButtons || []).forEach((btn, index) => {
+            const div = document.createElement('div');
+            div.className = 'wiz-button-item';
+            div.style.marginBottom = '10px';
+            div.innerHTML = `
+                <select onchange="updateWizardButton(${index}, 'type', this.value)" style="width:120px;">
+                    <option value="QUICK_REPLY" ${btn.type === 'QUICK_REPLY' ? 'selected' : ''}>Resposta Rápida</option>
+                    <option value="URL" ${btn.type === 'URL' ? 'selected' : ''}>Abrir Site</option>
+                    <option value="PHONE_NUMBER" ${btn.type === 'PHONE_NUMBER' ? 'selected' : ''}>Ligar</option>
+                </select>
+                <input type="text" value="${btn.text}" oninput="updateWizardButton(${index}, 'text', this.value)" placeholder="Texto do botão" style="width:150px;">
+                <button type="button" class="button" onclick="removeWizardButton(${index})">×</button>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    window.updateWizardButton = (index, key, value) => {
+        wizardButtons[index][key] = value;
+        updatePreview();
+    };
+
+    window.removeWizardButton = (index) => {
+        wizardButtons.splice(index, 1);
+        renderWizardButtons();
+        updatePreview();
+    };
+
+    async function openInboxTplModal() {
+        const modal = document.getElementById('was-inbox-tpl-modal');
+        const list = document.getElementById('was-inbox-tpl-list');
+        if (!modal) return;
+        modal.style.display = 'block';
+        list.innerHTML = '<p>Carregando templates...</p>';
+
+        try {
+            const templates = await wasApiFetch('/templates');
+            const approved = (templates || []).filter(t => t.status === 'APPROVED' || t.status === 'approved');
+            list.innerHTML = approved.map(t => `
+                <div class="was-tpl-select-item" onclick="selectTemplateForSend(${t.id})">
+                    <strong>${t.name}</strong><br><small>${(t.body_text || '').substring(0, 80)}...</small>
+                </div>
+            `).join('') || '<p>Nenhum template aprovado.</p>';
+        } catch (err) { list.innerHTML = '<p>Erro ao carregar.</p>'; }
+    }
         const footerText = document.getElementById('wiz-footer-text')?.value;
         const preHeader = document.getElementById('pre-header');
         const preBody = document.getElementById('pre-body');
