@@ -65,8 +65,13 @@ class TemplateApiController {
         if ($response['success']) {
             $this->repository->update($local_id, [
                 'meta_template_id' => $response['id'] ?? null,
-                'status' => 'PENDING',
-                'meta_payload' => json_encode($meta_payload)
+                'status'           => 'PENDING',
+                'meta_payload'     => json_encode($meta_payload)
+            ]);
+
+            \WAS\Compliance\AuditLogger::log('template_create_success', 'template', $local_id, [
+                'name' => $params['name'],
+                'meta_id' => $response['id'] ?? null
             ]);
 
             return new WP_REST_Response([
@@ -79,13 +84,13 @@ class TemplateApiController {
         // Se falhou na Meta, atualiza status local
         $this->repository->update($local_id, [
             'status' => 'failed',
-            'rejected_reason' => $response['error'] ?? 'Erro desconhecido'
+            'rejection_reason' => $response['error'] ?? 'Erro desconhecido'
         ]);
 
-        return new WP_REST_Response([
-            'success' => false,
-            'message' => $response['error'] ?? 'Erro ao criar template na Meta'
-        ], 500);
+        \WAS\Compliance\AuditLogger::log('template_create_error', 'template', $local_id, [
+            'name' => $params['name'],
+            'error' => $response['error'] ?? 'Unknown Meta error'
+        ]);
     }
 
     public function permissions_check() {

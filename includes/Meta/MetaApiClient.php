@@ -19,6 +19,7 @@ class MetaApiClient {
 
     public function postJson(string $operation, array $pathParams, array $body, string $token) {
         $url = $this->buildUrl($operation, $pathParams);
+        $start_time = microtime(true);
 
         $response = wp_remote_post($url, [
             'headers' => [
@@ -29,11 +30,26 @@ class MetaApiClient {
             'timeout' => 30,
         ]);
 
-        return $this->parse($response);
+        $result = $this->parse($response);
+        $duration = (int)((microtime(true) - $start_time) * 1000);
+
+        MetaApiRequestLogger::log(
+            $operation,
+            'POST',
+            $url,
+            $result['code'] ?? wp_remote_retrieve_response_code($response),
+            $result['success'],
+            $result,
+            $duration,
+            !$result['success'] ? ['message' => $result['error'] ?? ''] : []
+        );
+
+        return $result;
     }
 
     public function get(string $operation, array $pathParams, array $query, string $token) {
         $url = add_query_arg($query, $this->buildUrl($operation, $pathParams));
+        $start_time = microtime(true);
 
         $response = wp_remote_get($url, [
             'headers' => [
@@ -42,11 +58,26 @@ class MetaApiClient {
             'timeout' => 30,
         ]);
 
-        return $this->parse($response);
+        $result = $this->parse($response);
+        $duration = (int)((microtime(true) - $start_time) * 1000);
+
+        MetaApiRequestLogger::log(
+            $operation,
+            'GET',
+            $url,
+            $result['code'] ?? wp_remote_retrieve_response_code($response),
+            $result['success'],
+            $result,
+            $duration,
+            !$result['success'] ? ['message' => $result['error'] ?? ''] : []
+        );
+
+        return $result;
     }
 
     public function delete(string $operation, array $pathParams, array $query, string $token) {
         $url = add_query_arg($query, $this->buildUrl($operation, $pathParams));
+        $start_time = microtime(true);
 
         $response = wp_remote_request($url, [
             'method'  => 'DELETE',
@@ -56,7 +87,21 @@ class MetaApiClient {
             'timeout' => 30,
         ]);
 
-        return $this->parse($response);
+        $result = $this->parse($response);
+        $duration = (int)((microtime(true) - $start_time) * 1000);
+
+        MetaApiRequestLogger::log(
+            $operation,
+            'DELETE',
+            $url,
+            $result['code'] ?? wp_remote_retrieve_response_code($response),
+            $result['success'],
+            $result,
+            $duration,
+            !$result['success'] ? ['message' => $result['error'] ?? ''] : []
+        );
+
+        return $result;
     }
 
     private function buildUrl(string $operation, array $pathParams): string {

@@ -15,15 +15,21 @@ class TokenVault {
     /**
      * Busca um token válido para o tenant/waba.
      */
-    public function get_valid_token($tenant_id, $waba_internal_id) {
+    public function get_valid_token($tenant_id, $waba_internal_id = null) {
         global $wpdb;
         $table = \WAS\Core\TableNameResolver::get_table_name('meta_tokens');
 
-        $encrypted = $wpdb->get_var($wpdb->prepare(
-            "SELECT access_token_encrypted FROM $table WHERE tenant_id = %d AND (whatsapp_account_id = %d OR whatsapp_account_id IS NULL) AND status = 'active' ORDER BY whatsapp_account_id DESC LIMIT 1",
-            $tenant_id,
-            $waba_internal_id
-        ));
+        $query = "SELECT access_token_encrypted FROM $table WHERE tenant_id = %d AND status = 'active'";
+        $params = [$tenant_id];
+
+        if ($waba_internal_id) {
+            $query .= " AND (whatsapp_account_id = %d OR whatsapp_account_id IS NULL)";
+            $params[] = $waba_internal_id;
+        }
+
+        $query .= " ORDER BY whatsapp_account_id DESC LIMIT 1";
+
+        $encrypted = $wpdb->get_var($wpdb->prepare($query, ...$params));
 
         if (!$encrypted) {
             return null;

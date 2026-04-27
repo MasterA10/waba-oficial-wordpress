@@ -72,12 +72,14 @@ class WebhookController {
         // 1. Validar assinatura (Segurança)
         if (!\WAS\WhatsApp\WebhookSignatureValidator::is_valid($raw_body, $signature, $app->app_secret)) {
             \WAS\WhatsApp\WebhookLogger::log_event($raw_body, $headers, 403, 'Invalid signature');
+            \WAS\Compliance\AuditLogger::log('webhook_auth_error', 'webhook', 0, ['reason' => 'Invalid signature']);
             return new WP_REST_Response(['message' => 'Invalid signature'], 403);
         }
 
         $payload = json_decode($raw_body, true);
         if (empty($payload)) {
             \WAS\WhatsApp\WebhookLogger::log_event($raw_body, $headers, 400, 'Invalid payload');
+            \WAS\Compliance\AuditLogger::log('webhook_payload_error', 'webhook', 0, ['reason' => 'Empty or malformed JSON']);
             return new WP_REST_Response(['message' => 'Invalid payload'], 400);
         }
 
@@ -87,6 +89,9 @@ class WebhookController {
 
         // Registrar sucesso
         \WAS\WhatsApp\WebhookLogger::log_event($payload, $headers, 200, 'Success');
+        \WAS\Compliance\AuditLogger::log('webhook_event_processed', 'webhook', 0, [
+            'waba_id' => $payload['entry'][0]['id'] ?? 'unknown'
+        ]);
 
         // 3. Responder rápido para a Meta
         return new WP_REST_Response(['success' => true], 200);

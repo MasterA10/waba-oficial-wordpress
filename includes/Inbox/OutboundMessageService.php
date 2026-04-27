@@ -42,6 +42,11 @@ class OutboundMessageService {
         $token = $this->token_service->get_active_token($tenant_id);
 
         if (!$phone_number_id || !$token) {
+            \WAS\Compliance\AuditLogger::log('send_text_error', 'conversation', $conversation_id, [
+                'error' => 'Missing config',
+                'has_phone' => !!$phone_number_id,
+                'has_token' => !!$token
+            ]);
             return ['success' => false, 'error' => 'Configuração de envio (número/token) incompleta'];
         }
 
@@ -66,6 +71,10 @@ class OutboundMessageService {
         if ($response['success']) {
             $wa_message_id = $response['messages'][0]['id'] ?? null;
             
+            \WAS\Compliance\AuditLogger::log('send_text_success', 'conversation', $conversation_id, [
+                'wa_message_id' => $wa_message_id
+            ]);
+
             // Salvar no repositório local
             $this->message_repo->create_outbound([
                 'conversation_id' => $conversation_id,
