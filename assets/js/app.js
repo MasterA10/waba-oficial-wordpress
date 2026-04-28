@@ -1986,23 +1986,28 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const data = await wasApiFetch('/meta/config');
             if (data) {
-                document.getElementById('app_id').value = data.app_id || '';
-                document.getElementById('app_secret').value = data.app_secret || '';
-                document.getElementById('primary_phone_number_id').value = data.primary_phone_number_id || '';
-                document.getElementById('meta_access_token').value = data.meta_access_token || '';
-                document.getElementById('waba_id').value = data.waba_id || '';
-                document.getElementById('verify_token').value = data.verify_token || '';
-                document.getElementById('webhook_url').value = data.webhook_url || '';
-                if (document.getElementById('oauth_callback_url')) document.getElementById('oauth_callback_url').value = data.oauth_callback_url || '';
-                if (document.getElementById('deauthorize_url')) document.getElementById('deauthorize_url').value = data.deauthorize_url || '';
-                if (document.getElementById('data_deletion_url')) document.getElementById('data_deletion_url').value = data.data_deletion_url || '';
-                if (document.getElementById('privacy_policy_url')) document.getElementById('privacy_policy_url').textContent = data.privacy_policy_url || '';
-                if (document.getElementById('terms_of_service_url')) document.getElementById('terms_of_service_url').textContent = data.terms_of_service_url || '';
-                if (document.getElementById('support_url')) document.getElementById('support_url').textContent = data.support_url || '';
-                if (document.getElementById('config_id')) document.getElementById('config_id').value = data.config_id || '';
-                if (document.getElementById('embedded_signup_url')) {
-                    document.getElementById('embedded_signup_url').value = data.embedded_signup_url || '';
-                    if (document.getElementById('was-start-embedded-signup')) document.getElementById('was-start-embedded-signup').href = data.embedded_signup_url || '#';
+                const setValue = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+                const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || ''; };
+
+                setValue('app_id', data.app_id);
+                setValue('app_secret', data.app_secret);
+                setValue('primary_phone_number_id', data.primary_phone_number_id);
+                setValue('meta_access_token', data.meta_access_token);
+                setValue('waba_id', data.waba_id);
+                setValue('verify_token', data.verify_token);
+                setValue('webhook_url', data.webhook_url);
+                setValue('oauth_callback_url', data.oauth_callback_url);
+                setValue('deauthorize_url', data.deauthorize_url);
+                setValue('data_deletion_url', data.data_deletion_url);
+                setValue('config_id', data.config_id);
+                setValue('embedded_signup_url', data.embedded_signup_url);
+                
+                setText('privacy_policy_url', data.privacy_policy_url);
+                setText('terms_of_service_url', data.terms_of_service_url);
+                setText('support_url', data.support_url);
+
+                if (document.getElementById('was-start-embedded-signup')) {
+                    document.getElementById('was-start-embedded-signup').href = data.embedded_signup_url || '#';
                 }
             }
         } catch (err) { console.error('Error fetching meta config:', err); }

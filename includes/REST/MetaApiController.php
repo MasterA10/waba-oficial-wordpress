@@ -30,7 +30,13 @@ class MetaApiController {
         $app = $this->repository->get_active_app(false); // Não descriptografar aqui
 
         if (!$app) {
-            return new WP_REST_Response(null, 200);
+            $app = (object)[
+                'app_id' => '',
+                'app_secret' => '',
+                'config_id' => '',
+                'graph_version' => 'v25.0',
+                'verify_token' => ''
+            ];
         }
 $phone_service = new \WAS\WhatsApp\PhoneNumberService();
 $token_service = new \WAS\Meta\TokenService();
