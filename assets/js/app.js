@@ -1709,7 +1709,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!modal) return;
         document.getElementById('send-tpl-id').value = id;
         document.getElementById('send-tpl-name-display').textContent = name;
-        try {
             const tpl = await wasApiFetch(`/templates/${id}`);
             currentTemplateForSend = tpl;
             
@@ -1718,11 +1717,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const inputsContainer = document.getElementById('was-tpl-variables-inputs');
             
             let html = '';
-            
-            // 1. Variáveis do Corpo
             let varKeys = Object.keys(varMap);
 
-            // Fallback: se não houver varMap mas o corpo tiver {{n}}, extrai as posições
             if (varKeys.length === 0 && tpl.body_text && tpl.body_text.includes('{{')) {
                 const matches = tpl.body_text.match(/{{\s*(\d+)\s*}}/g);
                 if (matches) {
@@ -1731,26 +1727,38 @@ document.addEventListener('DOMContentLoaded', () => {
                     varKeys = Object.keys(varMap);
                 }
             }
+            
+            const isAuth = tpl.category === 'AUTHENTICATION';
 
-            if (varKeys.length > 0) {
-                html += '<h4>Variáveis do Corpo</h4>';
-                varKeys.forEach(k => {
-                    const label = (k === varMap[k]) ? `{{${k}}}` : `{{${k}}} (${varMap[k]})`;
-                    html += `<div style="margin-bottom:10px;"><label><strong>${label}</strong></label><input type="text" class="tpl-var-input regular-text" data-key="${varMap[k]}" style="width:100%; margin-top:4px;" required placeholder="Digite o valor..."></div>`;
+            if (isAuth) {
+                html += '<h4>Autenticação (OTP)</h4>';
+                html += `<div style="margin-bottom:10px;">
+                    <label><strong>Código de Autenticação (OTP)</strong></label>
+                    <input type="text" class="tpl-var-input regular-text" data-key="código" style="width:100%; margin-top:4px;" required placeholder="Ex: 123456" maxlength="15">
+                    <p class="description">Este código será enviado no corpo da mensagem e no botão de copiar.</p>
+                </div>`;
+            } else {
+                // 1. Variáveis do Corpo
+                if (varKeys.length > 0) {
+                    html += '<h4>Variáveis do Corpo</h4>';
+                    varKeys.forEach(k => {
+                        const label = (k === varMap[k]) ? `{{${k}}}` : `{{${k}}} (${varMap[k]})`;
+                        html += `<div style="margin-bottom:10px;"><label><strong>${label}</strong></label><input type="text" class="tpl-var-input regular-text" data-key="${varMap[k]}" style="width:100%; margin-top:4px;" required placeholder="Digite o valor..."></div>`;
+                    });
+                }
+
+                // 2. Variáveis de Botões
+                buttons.forEach((btn, idx) => {
+                    if (btn.type === 'URL' && btn.url && btn.url.includes('{{')) {
+                        const match = btn.url.match(/{{\s*([a-zA-Z0-9_]+)\s*}}/);
+                        const varName = match ? match[1] : `button_${idx}`;
+                        html += `<h4>Variável do Botão: ${btn.text}</h4>`;
+                        html += `<div style="margin-bottom:10px;"><label><strong>{{${varName}}}</strong> (Link Dinâmico)</label><input type="text" class="tpl-var-input regular-text" data-key="${varName}" style="width:100%; margin-top:4px;" required placeholder="ex: código ou slug"></div>`;
+                    }
                 });
             }
 
-            // 2. Variáveis de Botões
-            buttons.forEach((btn, idx) => {
-                if (btn.type === 'URL' && btn.url && btn.url.includes('{{')) {
-                    const match = btn.url.match(/{{\s*([a-zA-Z0-9_]+)\s*}}/);
-                    const varName = match ? match[1] : `button_${idx}`;
-                    html += `<h4>Variável do Botão: ${btn.text}</h4>`;
-                    html += `<div style="margin-bottom:10px;"><label><strong>{{${varName}}}</strong> (Link Dinâmico)</label><input type="text" class="tpl-var-input regular-text" data-key="${varName}" style="width:100%; margin-top:4px;" required placeholder="ex: código ou slug"></div>`;
-                }
-            });
-
-            if (html === '') {
+            if (html === '' && !isAuth) {
                 html = '<p class="description">Este modelo não possui variáveis.</p>';
             }
 
@@ -1822,7 +1830,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Buttons
         if (pbtns) {
             const buttons = t.buttons_json ? JSON.parse(t.buttons_json) : [];
-            pbtns.innerHTML = buttons.map(btn => `<div class="was-wa-btn-item">${btn.text}</div>`).join('');
+            pbtns.innerHTML = buttons.map(btn => {
+                // Se for autenticação, o botão é do tipo OTP. 
+                // A Meta não permite variáveis no texto do botão de OTP, mas ele exibe o código internamente.
+                const btnText = btn.text || 'Copiar código';
+                return `<div class="was-wa-btn-item">${btnText}</div>`;
+            }).join('');
             pbtns.style.display = buttons.length > 0 ? 'block' : 'none';
         }
     }
