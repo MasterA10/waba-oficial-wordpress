@@ -142,7 +142,17 @@ class MetaApiClient {
         }
 
         $body = json_decode($raw, true);
-        $result = array_merge(['success' => ($status < 400 && !isset($body['error'])), 'code' => $status], $body ?: []);
+        $success = ($status < 400 && !isset($body['error']));
+        $errorMessage = '';
+        if (!$success) {
+            $errorMessage = $body['error']['message'] ?? ($body['error'] ?? 'Erro desconhecido na Meta');
+        }
+
+        $result = array_merge([
+            'success' => $success,
+            'code'    => $status,
+            'error'   => $errorMessage
+        ], $body ?: []);
 
         MetaApiRequestLogger::log(
             'media.upload',

@@ -677,17 +677,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 tempDiv.remove();
 
                 if (data.success) {
-                    // Recarregar conversa para pegar a URL real ou renderizar manual se tivermos a URL
-                    // Como não temos a URL local fácil aqui (o blob), vamos recarregar o histórico ou confiar no renderMessage
-                    // Para melhor UX, vamos forçar um reload rápido da conversa
                     loadConversation(currentConversationId, document.getElementById('was-chat-contact-name').textContent);
                 } else {
-                    alert(data.message || 'Erro ao enviar arquivo.');
+                    console.error('Media upload failed:', data);
+                    const errorMsg = data.message || (data.data && data.data.message) || data.error || 'Erro ao enviar arquivo.';
+                    alert(`Falha no envio: ${errorMsg}`);
                 }
 
             } catch (err) {
-                alert('Erro na conexão ao enviar arquivo.');
-                console.error(err);
+                console.error('Connection error during media upload:', err);
+                alert(`Erro na conexão: ${err.message || 'Falha ao processar arquivo.'}`);
             } finally {
                 fileInput.value = '';
             }
@@ -748,9 +747,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 inputField.value = '';
                 scrollToBottom();
             } else {
-                alert(res.message || 'Erro ao enviar.');
+                const errorMsg = res.message || (res.data && res.data.message) || 'Erro ao enviar.';
+                alert(`Falha no envio: ${errorMsg}`);
             }
-        } catch (err) { alert('Erro ao enviar.'); }
+        } catch (err) { alert(`Erro na conexão: ${err.message || 'Erro desconhecido'}`); }
         finally { inputField.disabled = false; sendBtn.disabled = false; inputField.focus(); }
     }
 

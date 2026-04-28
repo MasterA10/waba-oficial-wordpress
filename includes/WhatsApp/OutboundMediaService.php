@@ -131,6 +131,7 @@ class OutboundMediaService {
         }
 
         \WAS\Core\SystemLogger::logError('Falha ao enviar mensagem de mídia.', [
+            'tenant_id' => $tenant_id,
             'media_id' => $media_id,
             'payload'  => $payload,
             'response' => $sendResponse
