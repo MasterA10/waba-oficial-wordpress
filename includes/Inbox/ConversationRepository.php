@@ -16,6 +16,27 @@ class ConversationRepository {
     }
 
     /**
+     * Atualiza uma conversa.
+     */
+    public function update(int $id, array $data) {
+        global $wpdb;
+        $tenant_id = TenantContext::get_tenant_id();
+        return $wpdb->update($this->table_name, $data, ['id' => $id, 'tenant_id' => $tenant_id]);
+    }
+
+    /**
+     * Busca uma conversa vinculada ao tenant.
+     */
+    public function findForTenant(int $id, int $tenantId) {
+        global $wpdb;
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->table_name} WHERE id = %d AND tenant_id = %d",
+            $id,
+            $tenantId
+        ));
+    }
+
+    /**
      * Busca uma conversa aberta para um contato ou cria se não existir.
      * 
      * @param int $contact_id ID do contato.
