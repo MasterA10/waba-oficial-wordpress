@@ -21,12 +21,29 @@ class ConversationWindowService {
      */
     public function refreshFromInboundMessage(int $tenantId, int $conversationId, string $waMessageId, int $timestamp): void {
         // Se o timestamp não for fornecido ou for inválido, usa o atual
-        $messageTime = $timestamp > 0 ? $timestamp : time();
-        
+        $messageTime = $timestamp > 0 ? (int) $timestamp : time();
+
         $lastCustomerMessageAt = gmdate('Y-m-d H:i:s', $messageTime);
         $expiresAt = gmdate('Y-m-d H:i:s', $messageTime + (24 * 60 * 60));
 
-        $this->repository->update($conversationId, [
+        // 1. Validar se a mensagem é realmente mais recente que a última (evita webhooks fora de ordem encurtarem a janela)
+        $conversation = $this->repository->findForTenant($conversationId, $tenantId);
+        if ($conversation && !empty($conversation->last_customer_message_at)) {
+            $currentLast = strtotime($conversation->last_customer_message_at . ' UTC');
+            if ($messageTime <= $currentLast) {
+                \WAS\Core\SystemLogger::logInfo('WindowService: Renovação ignorada (mensagem duplicada ou antiga).', [
+                    'conversation_id' => $conversationId,
+                    'current_last'    => $conversation->last_customer_message_at,
+                    'new_timestamp'   => $lastCustomerMessageAt
+                ]);
+                return;
+            }
+        }
+
+        // 2. Atualizar banco de dados
+        \WAS\Auth\TenantContext::set_tenant_id($tenantId);
+        
+        $result = $this->repository->update($conversationId, [
             'last_customer_message_at'           => $lastCustomerMessageAt,
             'customer_service_window_expires_at' => $expiresAt,
             'customer_service_window_status'     => 'open',
@@ -34,10 +51,19 @@ class ConversationWindowService {
             'updated_at'                         => current_time('mysql', true)
         ]);
 
-        \WAS\Core\SystemLogger::logInfo('WindowService: Janela de atendimento renovada.', [
+        if (false === $result) {
+            \WAS\Core\SystemLogger::logError('WindowService: Falha ao atualizar janela no banco de dados.', [
+                'tenant_id'       => $tenantId,
+                'conversation_id' => $conversationId,
+                'data'            => ['expires_at' => $expiresAt]
+            ]);
+            return;
+        }
+
+        \WAS\Core\SystemLogger::logInfo('WindowService: Janela de atendimento renovada com sucesso.', [
             'tenant_id'       => $tenantId,
             'conversation_id' => $conversationId,
-            'message_time'    => gmdate('Y-m-d H:i:s', $messageTime),
+            'message_time'    => $lastCustomerMessageAt,
             'expires_at'      => $expiresAt,
             'wa_message_id'   => $waMessageId
         ]);

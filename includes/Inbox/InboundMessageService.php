@@ -153,11 +153,16 @@ class InboundMessageService {
             }
 
             // 7. Atualizar timestamp da conversa e janela de atendimento
+            \WAS\Core\SystemLogger::logInfo('InboundMessageService: Finalizando processamento, atualizando janela.', [
+                'conversation_id' => $conversation->id,
+                'wa_message_id'   => $dto['wa_message_id']
+            ]);
+
             $this->conversation_repo->update_last_message_at($conversation->id);
             
             $window_service = new \WAS\Inbox\ConversationWindowService();
             $window_service->refreshFromInboundMessage(
-                $tenant_id,
+                (int) $dto['tenant_id'],
                 $conversation->id,
                 $dto['wa_message_id'],
                 $dto['timestamp'] ?? time()
