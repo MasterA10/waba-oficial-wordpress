@@ -1063,3 +1063,21 @@ body.was-app-shell .wrap h1 {
     animation: was-highlight-fade 2s ease-in-out;
 }
 
+
+/* --- Template Wizard & Preview --- */
+.was-cat-card input { display:none; }
+.was-cat-card-inner { border:2px solid #ddd; padding:20px; border-radius:8px; cursor:pointer; background:white; transition:all 0.2s; text-align:center; }
+.was-cat-card-inner .cat-icon { font-size:24px; display:block; margin-bottom:10px; }
+.was-cat-card input:checked + .was-cat-card-inner { border-color: var(--primary); background: var(--primary-light); box-shadow:0 0 0 1px var(--primary); }
+.step-item { padding:12px; border-radius:6px; margin-bottom:5px; color: var(--slate-600); font-weight:500; }
+.step-item.active { background: var(--primary-light); color: var(--primary); }
+
+.wiz-btn-edit-item { background: var(--slate-50); border:1px solid var(--slate-200); border-radius:6px; padding:15px; margin-bottom:10px; position:relative; }
+.wiz-btn-edit-item .remove-btn { position:absolute; right:10px; top:10px; cursor:pointer; color: var(--danger); font-weight:bold; }
+
+.was-wa-preview-card { background:white; width:280px; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.1); padding:10px; position:relative; }
+.was-wa-header { font-weight:bold; margin-bottom:5px; font-size:0.9rem; color:#111; }
+.was-wa-body { white-space:pre-wrap; font-size:0.9rem; color:#111; line-height:1.4; }
+.was-wa-footer { color: #667781; font-size:0.75rem; margin-top:5px; }
+.was-wa-buttons { margin-top:10px; border-top:1px solid #f0f2f5; margin-left:-10px; margin-right:-10px; margin-bottom:-10px; }
+.was-wa-btn-item { padding:10px; text-align:center; color: #00a884; font-weight:500; font-size:0.85rem; border-top:1px solid #f0f2f5; }

@@ -1757,8 +1757,24 @@ document.addEventListener('DOMContentLoaded', () => {
     window.openSendModal = async function(id, name) {
         const modal = document.getElementById('was-send-template-modal');
         if (!modal) return;
+        
         document.getElementById('send-tpl-id').value = id;
         document.getElementById('send-tpl-name-display').textContent = name;
+        
+        // Auto-preencher destinatário se estiver na Inbox
+        const toInput = document.getElementById('send-tpl-to');
+        const toContainer = document.getElementById('was-tpl-to-container');
+        
+        if (currentConversationId) {
+            const phone = document.getElementById('was-chat-contact-phone')?.textContent || '';
+            if (toInput) toInput.value = phone.replace('+', '');
+            if (toContainer) toContainer.style.display = 'none';
+        } else {
+            if (toContainer) toContainer.style.display = 'block';
+        }
+
+        modal.style.display = 'block';
+        
         try {
             const tpl = await wasApiFetch(`/templates/${id}`);
             currentTemplateForSend = tpl;
@@ -2044,22 +2060,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.sendTemplateFromInbox = async (id) => {
-        if (!confirm('Enviar este template?')) return;
-        try {
-            const res = await wasApiFetch(`/templates/${id}/send`, 'POST', { conversation_id: currentConversationId });
-            if (res.success) {
-                alert('Enviado!'); 
-                document.getElementById('was-inbox-tpl-modal').style.display = 'none';
-                const snapshot = {
-                    header: res.rendered_header,
-                    body: res.rendered_body,
-                    footer: res.rendered_footer,
-                    buttons: res.buttons
-                };
-                renderMessage(res.rendered_body || 'Modelo enviado', 'outbound', 'template', snapshot);
-                scrollToBottom();
-            }
-        } catch (err) { alert(err.message); }
+        const modal = document.getElementById('was-inbox-tpl-modal');
+        if (modal) modal.style.display = 'none';
+        
+        // Abre o modal aprimorado
+        // Precisamos do nome para o modal, vamos buscar na lista
+        const tplItem = document.querySelector(`.was-tpl-select-item[onclick="sendTemplateFromInbox(${id})"] strong`);
+        const name = tplItem ? tplItem.textContent : 'Modelo';
+        
+        openSendModal(id, name);
     };
 
     /**
