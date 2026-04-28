@@ -704,8 +704,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } finally {
                 fileInput.value = '';
             }
-                fileInput.value = '';
-            }
         });
     }
 

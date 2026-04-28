@@ -129,6 +129,18 @@ class AdminMasterApiController {
 			]
 		] );
 
+		register_rest_route( 'was/v1', '/admin/tokens/(?P<id>\d+)/test', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'test_token' ],
+			'permission_callback' => [ $this, 'permissions_check' ],
+		] );
+
+		register_rest_route( 'was/v1', '/admin/templates/(?P<id>\d+)/payload', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'get_template_payload' ],
+			'permission_callback' => [ $this, 'permissions_check' ],
+		] );
+
         register_rest_route( 'was/v1', '/admin/meta-apps', [
             [
                 'methods'             => 'GET',
@@ -509,15 +521,138 @@ class AdminMasterApiController {
         $id = $request->get_param('id');
         $action = $request->get_param('action');
         
-        // Simulating heavy actions
-        return new WP_REST_Response(['success' => true, 'message' => "Ação '$action' executada com sucesso."], 200);
+        global $wpdb;
+        $table = TableNameResolver::get_table_name( 'whatsapp_accounts' );
+        $waba = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
+
+        if (!$waba) {
+            return new WP_REST_Response(['success' => false, 'message' => 'WABA não encontrada.'], 404);
+        }
+
+        if ($action === 'sync-templates') {
+            $sync_service = new \WAS\Templates\TemplateSyncService();
+            $result = $sync_service->syncWaba((int)$waba->tenant_id, $waba->waba_id);
+            if ($result['success']) {
+                $summary = $result['summary'];
+                $msg = "Sincronização concluída.\nTemplates Criados: {$summary['created_local']}\nAtualizados: {$summary['updated_local']}";
+                return new WP_REST_Response(['success' => true, 'message' => $msg], 200);
+            }
+            return new WP_REST_Response(['success' => false, 'message' => 'Erro: ' . ($result['error'] ?? 'Unknown')], 500);
+        }
+
+        if ($action === 'subscribe-webhooks') {
+            $token_service = new \WAS\Meta\TokenService();
+            $token = $token_service->get_active_token($waba->tenant_id);
+            if (!$token) return new WP_REST_Response(['success' => false, 'message' => 'Token não encontrado.'], 400);
+
+            $sub_service = new \WAS\WhatsApp\WebhookSubscriptionService();
+            $res = $sub_service->subscribeWaba($waba->waba_id, $token);
+
+            if ($res['success']) {
+                $wpdb->update($table, ['webhook_subscription_status' => 'subscribed'], ['id' => $id]);
+                return new WP_REST_Response(['success' => true, 'message' => 'Inscrito com sucesso!'], 200);
+            }
+            return new WP_REST_Response(['success' => false, 'message' => 'Erro Meta: ' . ($res['error'] ?? 'Erro desconhecido')], 500);
+        }
+        
+        return new WP_REST_Response(['success' => false, 'message' => "Ação '$action' não suportada."], 400);
     }
 
     /**
      * Test Phone message.
      */
     public function test_phone_message( $request ) {
-        return new WP_REST_Response(['success' => true, 'message' => 'Mensagem de teste enviada.'], 200);
+        $id = $request->get_param('id');
+        $params = $request->get_json_params();
+        $to = sanitize_text_field($params['to'] ?? '');
+
+        if (empty($to)) return new WP_REST_Response(['success' => false, 'message' => 'Número de destino é obrigatório.'], 400);
+
+        global $wpdb;
+        $table = TableNameResolver::get_table_name( 'whatsapp_phone_numbers' );
+        $phone = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
+
+        if (!$phone) return new WP_REST_Response(['success' => false, 'message' => 'Número não encontrado.'], 404);
+
+        $token_service = new \WAS\Meta\TokenService();
+        $token = $token_service->get_active_token($phone->tenant_id);
+        if (!$token) return new WP_REST_Response(['success' => false, 'message' => 'Token não encontrado.'], 400);
+
+        $api = new \WAS\Meta\MetaApiClient();
+        $payload = [
+            'messaging_product' => 'whatsapp',
+            'to' => $to,
+            'type' => 'text',
+            'text' => ['body' => 'Mensagem de teste do Painel Master Admin.']
+        ];
+
+        $res = $api->postJson('messages.send', ['phone_number_id' => $phone->phone_number_id], $payload, $token);
+
+        if ($res['success']) {
+            return new WP_REST_Response(['success' => true, 'message' => 'Mensagem enviada com sucesso! ID: ' . ($res['messages'][0]['id'] ?? '')], 200);
+        }
+        return new WP_REST_Response(['success' => false, 'message' => 'Erro Meta: ' . ($res['error'] ?? 'Desconhecido')], 500);
+    }
+
+    /**
+     * Get Template Payload.
+     */
+    public function get_template_payload( $request ) {
+        $id = $request->get_param('id');
+        global $wpdb;
+        $table = TableNameResolver::get_table_name( 'message_templates' );
+        $tpl = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
+
+        if (!$tpl) return new WP_REST_Response(['success' => false, 'message' => 'Template não encontrado.'], 404);
+
+        return new WP_REST_Response([
+            'success' => true,
+            'template_id' => $tpl->id,
+            'name' => $tpl->name,
+            'friendly_payload' => json_decode($tpl->friendly_payload ?: '{}'),
+            'meta_payload' => json_decode($tpl->meta_payload ?: '{}'),
+            'components_json' => json_decode($tpl->components_json ?: '[]'),
+        ], 200);
+    }
+
+    /**
+     * Test Token.
+     */
+    public function test_token( $request ) {
+        $id = $request->get_param('id');
+        global $wpdb;
+        $table = TableNameResolver::get_table_name( 'meta_tokens' );
+        $token_row = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
+
+        if (!$token_row) return new WP_REST_Response(['success' => false, 'message' => 'Token não encontrado.'], 404);
+
+        $vault = new \WAS\Meta\TokenVault();
+        try {
+            $raw_token = $vault->decrypt($token_row->access_token_encrypted);
+        } catch (\Exception $e) {
+            return new WP_REST_Response(['success' => false, 'message' => 'Falha ao descriptografar: ' . $e->getMessage()], 500);
+        }
+
+        $debug_service = new \WAS\Meta\TokenDebugService();
+        $res = $debug_service->debugToken($raw_token);
+
+        if ($res['success']) {
+            $data = $res['data'];
+            $msg = "Token Válido: " . ($data['is_valid'] ? 'SIM' : 'NÃO') . "\n";
+            $msg .= "Expira em: " . (isset($data['expires_at']) ? date('Y-m-d H:i', $data['expires_at']) : 'Nunca') . "\n";
+            $msg .= "Escopos: " . implode(', ', $data['scopes'] ?? []);
+            
+            // Atualizar banco com infos
+            $wpdb->update($table, [
+                'expires_at' => isset($data['expires_at']) ? date('Y-m-d H:i:s', $data['expires_at']) : null,
+                'scopes' => implode(',', $data['scopes'] ?? []),
+                'last_error' => $data['is_valid'] ? '' : 'Token inválido via debug'
+            ], ['id' => $id]);
+
+            return new WP_REST_Response(['success' => true, 'message' => $msg], 200);
+        }
+
+        return new WP_REST_Response(['success' => false, 'message' => 'Erro: ' . ($res['error'] ?? 'Desconhecido')], 500);
     }
 
     /**
