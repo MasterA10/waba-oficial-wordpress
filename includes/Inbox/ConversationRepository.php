@@ -80,6 +80,82 @@ class ConversationRepository {
     }
 
     /**
+     * Atualiza o ID da última mensagem recebida do cliente.
+     */
+    public function update_last_inbound_wa_message_id($conversation_id, $wa_message_id) {
+        global $wpdb;
+        $tenant_id = TenantContext::get_tenant_id();
+
+        return $wpdb->update(
+            $this->table_name,
+            [
+                'last_inbound_wa_message_id' => $wa_message_id,
+                'updated_at'                 => current_time('mysql', 1)
+            ],
+            ['id' => $conversation_id, 'tenant_id' => $tenant_id],
+            ['%s', '%s'],
+            ['%d', '%d']
+        );
+    }
+
+    /**
+     * Atualiza o ID da última mensagem enviada pelo atendente.
+     */
+    public function update_last_outbound_wa_message_id($conversation_id, $wa_message_id) {
+        global $wpdb;
+        $tenant_id = TenantContext::get_tenant_id();
+
+        return $wpdb->update(
+            $this->table_name,
+            [
+                'last_outbound_wa_message_id' => $wa_message_id,
+                'updated_at'                  => current_time('mysql', 1)
+            ],
+            ['id' => $conversation_id, 'tenant_id' => $tenant_id],
+            ['%s', '%s'],
+            ['%d', '%d']
+        );
+    }
+
+    /**
+     * Marca o momento em que um indicador de digitação foi enviado.
+     */
+    public function mark_typing_sent($conversation_id) {
+        global $wpdb;
+        $tenant_id = TenantContext::get_tenant_id();
+
+        return $wpdb->update(
+            $this->table_name,
+            [
+                'last_typing_sent_at' => current_time('mysql', 1),
+                'updated_at'          => current_time('mysql', 1)
+            ],
+            ['id' => $conversation_id, 'tenant_id' => $tenant_id],
+            ['%s', '%s'],
+            ['%d', '%d']
+        );
+    }
+
+    /**
+     * Marca o momento em que uma mensagem de saída foi enviada.
+     */
+    public function mark_outbound_sent($conversation_id) {
+        global $wpdb;
+        $tenant_id = TenantContext::get_tenant_id();
+
+        return $wpdb->update(
+            $this->table_name,
+            [
+                'last_outbound_sent_at' => current_time('mysql', 1),
+                'updated_at'            => current_time('mysql', 1)
+            ],
+            ['id' => $conversation_id, 'tenant_id' => $tenant_id],
+            ['%s', '%s'],
+            ['%d', '%d']
+        );
+    }
+
+    /**
      * Atribui uma conversa a um usuário (atendente).
      */
     public function assign($conversation_id, $user_id) {

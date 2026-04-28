@@ -10,7 +10,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentConversationId = null;
     let lastMessageId = 0;
     let lastInboundMessageId = null;
+    let lastOutboundMessageId = null;
     let lastTypingSentAt = 0;
+    let lastMessageSentAt = 0;
+    let typingTimer = null;
     let replyToMessageId = null;
     let chatPollTimer = null;
     let convListPollTimer = null;
@@ -687,8 +690,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (inputField && sendBtn) {
             inputField.addEventListener('input', () => {
                 sendBtn.disabled = inputField.value.trim() === '';
+                
+                // Typing Indicator Inteligente
                 if (inputField.value.trim().length > 0) {
-                    sendTypingIndicator();
+                    clearTimeout(typingTimer);
+                    typingTimer = setTimeout(() => {
+                        sendTypingIndicator();
+                    }, 800);
                 }
             });
             inputField.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
@@ -841,6 +849,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentConversationId = id;
         lastMessageId = 0;
         lastInboundMessageId = null;
+        lastOutboundMessageId = null;
         lastTypingSentAt = 0;
         document.getElementById('was-no-conversation-selected').style.display = 'none';
         document.getElementById('was-active-chat').style.display = 'flex';
@@ -859,6 +868,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (msg.id && parseInt(msg.id) > lastMessageId) lastMessageId = parseInt(msg.id);
                 // Rastrear última inbound para typing indicator
                 if (msg.direction === 'inbound') lastInboundMessageId = msg.id;
+                if (msg.direction === 'outbound') lastOutboundMessageId = msg.id;
             });
             scrollToBottom();
 
@@ -932,6 +942,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!body) return;
         inputField.disabled = true; sendBtn.disabled = true;
         try {
+            // Reset Typing State
+            lastMessageSentAt = Date.now();
+            lastTypingSentAt = 0;
+            
             const res = await wasApiFetch(`/conversations/${currentConversationId}/messages/text`, 'POST', { 
                 text: body,
                 reply_to_message_id: replyToMessageId
@@ -1863,16 +1877,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function sendTypingIndicator() {
-        if (!currentConversationId || !lastInboundMessageId) return;
+        const targetId = lastInboundMessageId || lastOutboundMessageId;
+        if (!currentConversationId || !targetId) return;
 
         const now = Date.now();
-        // Throttle: enviar apenas a cada 15 segundos
-        if (now - lastTypingSentAt < 15000) return;
+
+        // 1. Não enviar se acabou de mandar mensagem (cooldown de 3s)
+        if (now - lastMessageSentAt < 3000) return;
+
+        // 2. Throttle: enviar apenas a cada 10 segundos
+        if (now - lastTypingSentAt < 10000) return;
 
         lastTypingSentAt = now;
 
         try {
-            await wasApiFetch(`/conversations/${currentConversationId}/messages/${lastInboundMessageId}/typing`, 'POST');
+            const targetId = lastInboundMessageId || lastOutboundMessageId;
+            await wasApiFetch(`/conversations/${currentConversationId}/messages/${targetId}/typing`, 'POST');
         } catch (err) {
             console.error('Falha ao enviar typing indicator:', err);
         }

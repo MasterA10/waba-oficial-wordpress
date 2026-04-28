@@ -144,6 +144,8 @@ class OutboundMessageService {
             ]);
 
             $this->conversation_repo->update_last_message_at($conversation_id);
+            $this->conversation_repo->mark_outbound_sent($conversation_id);
+            $this->conversation_repo->update_last_outbound_wa_message_id($conversation_id, $wa_message_id);
             
             return [
                 'success'       => true, 

@@ -151,8 +151,9 @@ class InboundMessageService {
                 }
             }
 
-            // 7. Atualizar timestamp da conversa
+            // 7. Atualizar timestamp da conversa e ID da última mensagem inbound
             $this->conversation_repo->update_last_message_at($conversation->id);
+            $this->conversation_repo->update_last_inbound_wa_message_id($conversation->id, $dto['wa_message_id']);
             return true;
         }
 

@@ -500,7 +500,7 @@ class InboxApiController {
      */
     public function send_typing_indicator($request) {
         $conversation_id = (int) $request['id'];
-        $message_id      = (int) $request['message_id'];
+        $message_id      = $request->get_param('message_id') ? (int) $request->get_param('message_id') : null;
 
         try {
             $service = new \WAS\WhatsApp\TypingIndicatorService();
