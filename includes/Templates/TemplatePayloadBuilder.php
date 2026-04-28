@@ -2,6 +2,7 @@
 namespace WAS\Templates;
 
 use RuntimeException;
+use WAS\Core\SystemLogger;
 
 if (!defined('ABSPATH')) {
     exit;
@@ -15,18 +16,37 @@ final class TemplatePayloadBuilder
 {
     public function build(array $friendly): array
     {
+        SystemLogger::logInfo('PayloadBuilder: Iniciando build do template.', [
+            'name'     => $friendly['name'] ?? null,
+            'category' => $friendly['category'] ?? null,
+            'language' => $friendly['language'] ?? null,
+            'has_header'  => !empty($friendly['header']),
+            'has_footer'  => !empty($friendly['footer']['text']),
+            'has_buttons' => !empty($friendly['buttons']),
+        ]);
+
         $components = [];
         $variableMap = [];
 
         // 1. HEADER
         if (!empty($friendly['header']) && $this->shouldAddHeader($friendly['header'])) {
-            $components[] = $this->buildHeader($friendly['header']);
+            $headerComponent = $this->buildHeader($friendly['header']);
+            $components[] = $headerComponent;
+            SystemLogger::logInfo('PayloadBuilder: Header adicionado.', [
+                'format' => $headerComponent['format'] ?? 'N/A',
+            ]);
         }
 
         // 2. BODY (Obrigatório)
         $bodyResult = $this->buildBody($friendly['body'] ?? []);
         $components[] = $bodyResult['component'];
         $variableMap = $bodyResult['variable_map'];
+
+        SystemLogger::logInfo('PayloadBuilder: Body construído.', [
+            'variables_count' => count($variableMap),
+            'has_examples'    => !empty($bodyResult['component']['example']),
+            'text_preview'    => mb_substr($bodyResult['component']['text'] ?? '', 0, 100),
+        ]);
 
         // 3. FOOTER
         if (!empty(trim($friendly['footer']['text'] ?? ''))) {
@@ -45,15 +65,31 @@ final class TemplatePayloadBuilder
                     'type' => 'BUTTONS',
                     'buttons' => $buttons,
                 ];
+                SystemLogger::logInfo('PayloadBuilder: Botões adicionados.', [
+                    'count' => count($buttons),
+                    'types' => array_column($buttons, 'type'),
+                ]);
             }
         }
 
         $metaPayload = [
-            'name' => $this->normalizeName($friendly['name'] ?? ''),
-            'category' => strtoupper($friendly['category'] ?? 'UTILITY'),
-            'language' => $friendly['language'] ?? 'pt_BR',
-            'components' => $components,
+            'name'             => $this->normalizeName($friendly['name'] ?? ''),
+            'category'         => strtoupper($friendly['category'] ?? 'UTILITY'),
+            'language'         => $friendly['language'] ?? 'pt_BR',
+            'components'       => $components,
         ];
+
+        // Meta exige parameter_format quando há variáveis no template
+        if (!empty($variableMap)) {
+            $metaPayload['parameter_format'] = 'positional';
+        }
+
+        SystemLogger::logInfo('PayloadBuilder: Payload final montado.', [
+            'payload_name'      => $metaPayload['name'],
+            'components_count'  => count($components),
+            'parameter_format'  => $metaPayload['parameter_format'] ?? 'none',
+            'variable_map'      => $variableMap,
+        ]);
 
         return [
             'meta_payload' => $metaPayload,
