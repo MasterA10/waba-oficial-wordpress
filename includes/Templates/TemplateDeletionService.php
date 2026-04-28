@@ -45,11 +45,14 @@ class TemplateDeletionService {
             return ['success' => false, 'error' => 'Token não configurado para este tenant.'];
         }
 
-        // Tenta deletar na Meta se já foi submetido
-        if ($template->meta_template_id || strtolower($template->status) !== 'draft') {
+        // Tenta deletar na Meta apenas se o template chegou a existir lá
+        $status = strtoupper($template->status);
+        $existsOnMeta = !empty($template->meta_template_id) || !in_array($status, ['DRAFT', 'FAILED', 'CREATE_FAILED']);
+
+        if ($existsOnMeta) {
             $metaResponse = null;
             if ($template->meta_template_id) {
-                $metaResponse = $this->metaService->deleteById($template->meta_template_id, $token);
+                $metaResponse = $this->metaService->deleteById($template->waba_id, $template->name, $template->meta_template_id, $token);
             } else {
                 $metaResponse = $this->metaService->deleteByName($template->waba_id, $template->name, $token);
             }

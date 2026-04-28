@@ -79,15 +79,9 @@ final class TemplatePayloadBuilder
             'components'       => $components,
         ];
 
-        // Meta exige parameter_format quando há variáveis no template
-        if (!empty($variableMap)) {
-            $metaPayload['parameter_format'] = 'positional';
-        }
-
         SystemLogger::logInfo('PayloadBuilder: Payload final montado.', [
             'payload_name'      => $metaPayload['name'],
             'components_count'  => count($components),
-            'parameter_format'  => $metaPayload['parameter_format'] ?? 'none',
             'variable_map'      => $variableMap,
         ]);
 

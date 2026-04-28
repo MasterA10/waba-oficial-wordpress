@@ -111,7 +111,7 @@ class TemplateMetaService {
             'name'    => $name,
         ]);
         $result = $this->api_client->delete(
-            'templates.delete_by_name',
+            'templates.delete',
             ['waba_id' => $wabaId],
             ['name' => $name],
             $token
@@ -124,12 +124,16 @@ class TemplateMetaService {
         return $result;
     }
 
-    public function deleteById(string $templateId, string $token): array {
-        \WAS\Core\SystemLogger::logInfo('TemplateMetaService: Deletando template por ID.', ['meta_template_id' => $templateId]);
+    public function deleteById(string $wabaId, string $name, string $templateId, string $token): array {
+        \WAS\Core\SystemLogger::logInfo('TemplateMetaService: Deletando template por ID e Nome.', [
+            'waba_id' => $wabaId,
+            'name'    => $name,
+            'hsm_id'  => $templateId
+        ]);
         $result = $this->api_client->delete(
-            'templates.delete_by_id',
-            ['template_id' => $templateId],
-            [],
+            'templates.delete',
+            ['waba_id' => $wabaId],
+            ['name' => $name, 'hsm_id' => $templateId],
             $token
         );
         if (!($result['success'] ?? false)) {

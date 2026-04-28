@@ -10,10 +10,9 @@ class MetaEndpointRegistry {
         $map = [
             'templates.create' => '/{waba_id}/message_templates',
             'templates.list'   => '/{waba_id}/message_templates',
-            'templates.delete_by_name' => '/{waba_id}/message_templates',
+            'templates.delete' => '/{waba_id}/message_templates',
             'templates.get'    => '/{template_id}',
             'templates.update' => '/{template_id}',
-            'templates.delete_by_id' => '/{template_id}',
 
             'messages.send'    => '/{phone_number_id}/messages',
 
