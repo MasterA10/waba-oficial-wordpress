@@ -79,7 +79,24 @@ class InboundMessageService {
         ]);
 
         if ($message_id) {
-            // 6. Atualizar timestamp da conversa
+            // 6. Se for mídia, baixar arquivo
+            if (in_array($type, ['image', 'video', 'audio', 'document']) && !empty($dto['media_data']['id'])) {
+                try {
+                    $media_service = new \WAS\WhatsApp\InboundMediaService();
+                    $media_service->handle_inbound_media(
+                        $dto['tenant_id'],
+                        $conversation->id,
+                        $message_id,
+                        $dto['media_data']['id'],
+                        $type,
+                        $dto['media_data']['mime_type'] ?? ''
+                    );
+                } catch (\Throwable $e) {
+                    \WAS\Core\SystemLogger::logException($e, ['context' => 'InboundMessageService::handle_media', 'message_id' => $message_id]);
+                }
+            }
+
+            // 7. Atualizar timestamp da conversa
             $this->conversation_repo->update_last_message_at($conversation->id);
             return true;
         }

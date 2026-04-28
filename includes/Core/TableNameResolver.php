@@ -47,6 +47,18 @@ class TableNameResolver {
         return self::get_table_name( 'onboarding_sessions' );
     }
 
+    public static function getHealthChecksTable() {
+        return self::get_table_name( 'health_checks' );
+    }
+
+    public static function getAdminAuditLogsTable() {
+        return self::get_table_name( 'admin_audit_logs' );
+    }
+
+    public static function getAppReviewChecklistTable() {
+        return self::get_table_name( 'app_review_checklist' );
+    }
+
 	/**
 	 * List of all plugin tables.
 	 *
@@ -71,6 +83,9 @@ class TableNameResolver {
 			'audit_logs',
 			'settings',
 			'onboarding_sessions',
+			'health_checks',
+			'admin_audit_logs',
+			'app_review_checklist',
 		];
 	}
 }

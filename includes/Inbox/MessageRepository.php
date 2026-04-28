@@ -75,14 +75,20 @@ class MessageRepository {
     }
 
     /**
-     * Lista mensagens de uma conversa.
+     * Lista mensagens de uma conversa com join de mídia.
      */
     public function list_by_conversation($conversation_id, $limit = 50, $offset = 0) {
         global $wpdb;
         $tenant_id = TenantContext::get_tenant_id();
+        $media_table = TableNameResolver::get_table_name('media');
 
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$this->table_name} WHERE conversation_id = %d AND tenant_id = %d ORDER BY created_at ASC LIMIT %d OFFSET %d",
+            "SELECT m.*, med.public_url as media_url, med.filename as media_filename, med.file_size as media_size 
+             FROM {$this->table_name} m
+             LEFT JOIN {$media_table} med ON m.id = med.message_id
+             WHERE m.conversation_id = %d AND m.tenant_id = %d 
+             ORDER BY m.created_at ASC 
+             LIMIT %d OFFSET %d",
             $conversation_id,
             $tenant_id,
             $limit,

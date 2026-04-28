@@ -33,6 +33,8 @@ class Capabilities {
 			'was_view_logs',
 			'was_manage_billing',
 			'was_manage_compliance',
+			'was_platform_admin',
+			'was_view_master_dashboard',
 		];
 	}
 
@@ -60,6 +62,22 @@ class Capabilities {
 	private static function add_saas_roles() {
 		// Platform Owner - all caps.
 		add_role( 'platform_owner', 'Platform Owner', array_fill_keys( self::get_capabilities(), true ) );
+
+		// Platform Admin.
+		add_role( 'platform_admin', 'Platform Admin', [
+			'was_access_app'           => true,
+			'was_platform_admin'       => true,
+			'was_view_master_dashboard' => true,
+			'was_view_logs'            => true,
+			'was_manage_compliance'    => true,
+		] );
+
+		// Platform Support.
+		add_role( 'platform_support', 'Platform Support', [
+			'was_access_app'           => true,
+			'was_view_master_dashboard' => true,
+			'was_view_logs'            => true,
+		] );
 
 		// Tenant Admin.
 		add_role( 'tenant_admin', 'Tenant Admin', [

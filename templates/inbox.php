@@ -56,9 +56,21 @@ if (!defined('ABSPATH')) {
 
             <footer class="was-chat-footer">
                 <div id="was-chat-input-container">
-                    <button id="was-open-templates-inbox" class="was-btn-secondary" title="Enviar Modelo">
-                        <span class="dashicons dashicons-layout"></span>
-                    </button>
+                    <div class="was-chat-input-actions">
+                        <button id="was-open-templates-inbox" class="was-btn-secondary" title="Enviar Modelo">
+                            <span class="dashicons dashicons-layout"></span>
+                        </button>
+                        <button id="was-attach-media" class="was-btn-secondary" title="Anexar">
+                            <span class="dashicons dashicons-paperclip"></span>
+                        </button>
+                        <input type="file" id="was-media-input" style="display:none;" accept="image/*,audio/*,video/*,application/pdf">
+                        <div id="was-attachment-menu" class="was-attachment-menu" style="display:none;">
+                            <div class="was-attach-item" data-type="image"><span class="dashicons dashicons-format-image"></span> Imagem</div>
+                            <div class="was-attach-item" data-type="audio"><span class="dashicons dashicons-controls-volumeon"></span> Áudio</div>
+                            <div class="was-attach-item" data-type="video"><span class="dashicons dashicons-format-video"></span> Vídeo</div>
+                            <div class="was-attach-item" data-type="document"><span class="dashicons dashicons-media-document"></span> Documento</div>
+                        </div>
+                    </div>
                     <textarea id="was-message-input" placeholder="Digite uma mensagem..."></textarea>
                     <button id="was-send-message" class="was-btn-primary" disabled>
                         <span class="dashicons dashicons-send"></span>

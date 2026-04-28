@@ -5,6 +5,8 @@ use WAS\Meta\MetaApiClient;
 use WAS\Meta\TokenService;
 use WAS\WhatsApp\PhoneNumberService;
 use WAS\Inbox\MessageRepository;
+use WAS\Inbox\ContactRepository;
+use WAS\Inbox\ConversationRepository;
 use WAS\Auth\TenantContext;
 
 if (!defined('ABSPATH')) {
@@ -15,21 +17,19 @@ class TemplateSendService {
     private $api_client;
     private $token_service;
     private $message_repo;
+    private $contact_repo;
+    private $conversation_repo;
 
     public function __construct() {
         $this->api_client = new MetaApiClient();
         $this->token_service = new TokenService();
         $this->message_repo = new MessageRepository();
+        $this->contact_repo = new ContactRepository();
+        $this->conversation_repo = new ConversationRepository();
     }
 
     /**
      * Envia um template aprovado.
-     * 
-     * @param int|null $conversation_id ID da conversa local (opcional se to_phone for informado)
-     * @param int $template_id ID do template local
-     * @param array $variables Variáveis amigáveis [ 'nome' => 'Ana' ]
-     * @param array $button_variables Variáveis de botão (se houver)
-     * @param string|null $to_phone Número de destino
      */
     public function send($conversation_id, $template_id, $variables = [], $button_variables = [], $to_phone = null) {
         $tenant_id = TenantContext::get_tenant_id();
@@ -39,15 +39,33 @@ class TemplateSendService {
         if (!$template) return ['success' => false, 'error' => 'Template não encontrado'];
 
         $to = $to_phone;
+        
+        // Resolve conversa se necessário
         if (!$to && $conversation_id) {
-            global $wpdb;
-            $prefix = \WAS\Core\TableNameResolver::get_table_name("");
-            $contact_id = $wpdb->get_var($wpdb->prepare("SELECT contact_id FROM {$prefix}conversations WHERE id = %d", $conversation_id));
-            $to = $wpdb->get_var($wpdb->prepare("SELECT wa_id FROM {$prefix}contacts WHERE id = %d", $contact_id));
+            $conversation = $this->conversation_repo->get_by_id($conversation_id);
+            if ($conversation) {
+                $contact = $this->contact_repo->get_by_id($conversation->contact_id);
+                if ($contact) $to = $contact->wa_id;
+            }
         }
 
         if (!$to) return ['success' => false, 'error' => 'Destinatário não informado'];
         $to = preg_replace('/\D/', '', $to);
+
+        if (!$conversation_id && $to) {
+            $contact = $this->contact_repo->find_by_wa_id($to);
+            if (!$contact) {
+                $contact_id = $this->contact_repo->create(['wa_id' => $to, 'profile_name' => 'Novo Contato']);
+            } else {
+                $contact_id = $contact->id;
+            }
+            $conversation = $this->conversation_repo->find_open_by_contact($contact_id);
+            if (!$conversation) {
+                $conversation_id = $this->conversation_repo->create(['contact_id' => $contact_id, 'status' => 'open']);
+            } else {
+                $conversation_id = $conversation->id;
+            }
+        }
 
         $phone_service = new PhoneNumberService();
         $phone_number_id = $phone_service->get_primary_id($tenant_id);
@@ -55,37 +73,33 @@ class TemplateSendService {
 
         if (!$phone_number_id || !$token) return ['success' => false, 'error' => 'Configuração de envio incompleta.'];
 
-        // Mapa de variáveis: [ "1" => "nome", "2" => "pedido" ]
+        // Mapa de variáveis
         $variable_map = [];
-        try {
-            if ($template->variable_map) {
-                $variable_map = json_decode($template->variable_map, true);
-            }
-        } catch (\Exception $e) {}
+        try { if ($template->variable_map) $variable_map = json_decode($template->variable_map, true); } catch (\Exception $e) {}
 
-        // Montar componentes de envio conforme o mapa
+        // Montar componentes e renderizar prévia
         $components = [];
+        $rendered_body = $template->body_text;
+        $rendered_header = $template->header_type === 'TEXT' ? $template->header_text : '';
+        $rendered_footer = $template->footer_text;
 
-        // 1. BODY Parameters
+        // Processa variáveis do BODY
         if (!empty($variable_map)) {
             $body_params = [];
-            // Itera pelas posições 1, 2, 3... conforme o mapa salvo
             ksort($variable_map);
             foreach ($variable_map as $pos => $friendlyName) {
                 $val = $variables[$friendlyName] ?? $variables[$pos] ?? ''; 
                 $body_params[] = ['type' => 'text', 'text' => (string)$val];
+                $rendered_body = str_replace("{{{$friendlyName}}}", (string)$val, $rendered_body);
             }
             if (!empty($body_params)) {
-                $components[] = [
-                    'type' => 'body',
-                    'parameters' => $body_params
-                ];
+                $components[] = ['type' => 'body', 'parameters' => $body_params];
             }
         }
 
-        // 2. BUTTON Parameters (Futuro/Avançado)
-        // Se houver lógica de botão dinâmico no friendly_payload, ela deve ser tratada aqui.
-        // Por enquanto, o MVP foca no body.
+        // Processa variáveis do HEADER (Se houver)
+        // Atualmente o builder salva header_text fixo, mas se no futuro tiver {{var}} no header:
+        // foreach($variables as $k => $v) { $rendered_header = str_replace("{{$k}}", $v, $rendered_header); }
 
         $payload = [
             'messaging_product' => 'whatsapp',
@@ -98,25 +112,39 @@ class TemplateSendService {
             ]
         ];
 
-        $response = $this->api_client->postJson(
-            'messages.send',
-            ['phone_number_id' => $phone_number_id],
-            $payload,
-            $token
-        );
+        $response = $this->api_client->postJson('messages.send', ['phone_number_id' => $phone_number_id], $payload, $token);
 
         if ($response['success']) {
-            // Registrar mensagem outbound
+            // Salva um snapshot renderizado para o Inbox
+            $history_snapshot = [
+                'name' => $template->name,
+                'header' => $rendered_header,
+                'body' => $rendered_body,
+                'footer' => $rendered_footer,
+                'buttons' => json_decode($template->buttons_json, true) ?: []
+            ];
+
             $this->message_repo->create_outbound([
                 'conversation_id' => $conversation_id,
                 'wa_message_id'   => $response['messages'][0]['id'] ?? null,
                 'message_type'    => 'template',
-                'text_body'       => $template->body_text, 
+                'text_body'       => $rendered_body, 
                 'status'          => 'sent',
-                'raw_payload'     => json_encode($payload),
+                'raw_payload'     => json_encode($history_snapshot), // Salva o snapshot amigável
                 'tenant_id'       => $tenant_id
             ]);
-            return ['success' => true, 'wa_message_id' => $response['messages'][0]['id']];
+
+            $this->conversation_repo->update_last_message_at($conversation_id);
+
+            return [
+                'success' => true, 
+                'wa_message_id' => $response['messages'][0]['id'],
+                'conversation_id' => $conversation_id,
+                'rendered_body' => $rendered_body,
+                'rendered_header' => $rendered_header,
+                'rendered_footer' => $rendered_footer,
+                'buttons' => $history_snapshot['buttons']
+            ];
         }
 
         return $response;

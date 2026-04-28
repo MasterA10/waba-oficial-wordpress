@@ -617,5 +617,40 @@ body.was-app-shell .wrap h1 {
 .was-tpl-btn-item:last-child { border-bottom: none; }
 .was-tpl-btn-item:hover { background: #f8fafc; }
 .was-tpl-btn-item::before { font-family: "dashicons"; font-size: 14px; }
+.was-tpl-btn-item:hover { background: #f8fafc; }
+.was-tpl-btn-item::before { font-family: "dashicons"; font-size: 14px; }
 .was-btn-secondary { background: transparent; color: #54656f; border: none; padding: 8px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.2s; }
 .was-btn-secondary:hover { color: #111b21; background: rgba(0,0,0,0.04); }
+
+/* Media Specific Chat Styles */
+.was-message-content img { max-width: 100%; border-radius: 4px; display: block; margin-bottom: 4px; }
+.was-message-content video { max-width: 100%; border-radius: 4px; display: block; }
+.was-message-content audio { max-width: 100%; min-width: 200px; display: block; }
+.was-doc-card { display: flex; align-items: center; gap: 12px; background: rgba(0,0,0,0.05); padding: 10px; border-radius: 6px; text-decoration: none; color: inherit; }
+.was-doc-card .dashicons { font-size: 24px; width: 24px; height: 24px; color: var(--slate-600); }
+.was-doc-info { display: flex; flex-direction: column; overflow: hidden; }
+.was-doc-name { font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.was-doc-size { font-size: 0.75rem; color: var(--slate-600); }
+
+/* Attachment Menu */
+.was-chat-input-actions { display: flex; align-items: center; gap: 4px; position: relative; }
+.was-attachment-menu { position: absolute; bottom: 50px; left: 0; background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 8px; z-index: 1000; min-width: 150px; }
+.was-attach-item { padding: 10px 12px; display: flex; align-items: center; gap: 10px; cursor: pointer; border-radius: 6px; font-size: 0.9rem; color: var(--slate-700); }
+.was-attach-item:hover { background: var(--slate-100); color: var(--primary); }
+.was-attach-item .dashicons { font-size: 18px; }
+
+.was-loading-media { display: flex; align-items: center; gap: 8px; padding: 10px; font-size: 0.85rem; color: var(--slate-600); }
+
+/* Timestamp styling */
+.was-message-content { position: relative; padding-bottom: 20px !important; min-width: 60px; }
+.was-message-time { 
+    position: absolute; 
+    bottom: 4px; 
+    right: 8px; 
+    font-size: 10px; 
+    color: #667781; 
+    font-weight: 400;
+}
+.was-message-out .was-message-time { color: #667781; }
+.was-message-in .was-message-time { color: #667781; }
+

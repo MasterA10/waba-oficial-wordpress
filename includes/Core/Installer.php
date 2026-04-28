@@ -92,16 +92,33 @@ class Installer {
 		$table_meta_apps = TableNameResolver::get_table_name( 'meta_apps' );
 		$sql_meta_apps = "CREATE TABLE $table_meta_apps (
 			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			name varchar(190) NOT NULL DEFAULT 'Meta App',
 			app_id varchar(100) NOT NULL,
 			app_secret text NOT NULL,
+			app_secret_encrypted text DEFAULT NULL,
 			config_id varchar(100) NULL,
 			graph_version varchar(20) DEFAULT 'v25.0',
-			webhook_verify_token varchar(255) NULL,
+			embedded_signup_config_id varchar(190) DEFAULT NULL,
+			webhook_callback_url text DEFAULT NULL,
+			webhook_verify_token varchar(190) DEFAULT NULL,
 			verify_token varchar(255) NULL,
+			privacy_policy_url text DEFAULT NULL,
+			terms_url text DEFAULT NULL,
+			data_deletion_url text DEFAULT NULL,
+			environment varchar(50) DEFAULT 'production',
+			app_mode varchar(50) DEFAULT 'development',
+			app_review_status varchar(50) DEFAULT 'not_submitted',
+			business_verification_status varchar(50) DEFAULT 'unknown',
+			access_verification_status varchar(50) DEFAULT 'unknown',
+			is_default tinyint(1) DEFAULT 0,
 			status varchar(50) DEFAULT 'active',
+			last_healthcheck_at datetime DEFAULT NULL,
+			last_error text DEFAULT NULL,
 			created_at datetime NOT NULL,
 			updated_at datetime NULL,
 			PRIMARY KEY  (id),
+			UNIQUE KEY app_id (app_id),
+			KEY environment (environment),
 			KEY status (status)
 		) $charset_collate;";
 		dbDelta( $sql_meta_apps );
@@ -111,15 +128,27 @@ class Installer {
 		$sql_wa_accounts = "CREATE TABLE $table_wa_accounts (
 			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
 			tenant_id bigint(20) UNSIGNED NOT NULL,
+			meta_app_id bigint(20) UNSIGNED DEFAULT NULL,
 			meta_business_id varchar(100) NULL,
 			waba_id varchar(100) NOT NULL,
 			name varchar(255) NULL,
-			status varchar(50) DEFAULT 'active',
+			currency varchar(20) DEFAULT NULL,
+			timezone varchar(80) DEFAULT NULL,
+			status varchar(50) DEFAULT 'connected',
+			webhook_subscription_status varchar(50) DEFAULT 'unknown',
+			last_template_sync_at datetime DEFAULT NULL,
+			last_webhook_event_at datetime DEFAULT NULL,
+			connected_at datetime DEFAULT NULL,
+			disconnected_at datetime DEFAULT NULL,
+			last_error text DEFAULT NULL,
 			created_at datetime NOT NULL,
+			updated_at datetime NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY tenant_waba (tenant_id, waba_id),
 			KEY waba_id (waba_id),
-			KEY tenant_id (tenant_id)
+			KEY tenant_id (tenant_id),
+			KEY meta_app_id (meta_app_id),
+			KEY status (status)
 		) $charset_collate;";
 		dbDelta( $sql_wa_accounts );
 
@@ -132,6 +161,8 @@ class Installer {
 			phone_number_id varchar(100) NOT NULL,
 			display_phone_number varchar(50) NULL,
 			verified_name varchar(255) NULL,
+			quality_rating varchar(50) DEFAULT NULL,
+			messaging_limit_tier varchar(50) DEFAULT NULL,
 			status varchar(50) DEFAULT 'active',
 			is_default tinyint(1) DEFAULT 0,
 			created_at datetime NOT NULL,
@@ -149,8 +180,12 @@ class Installer {
 			tenant_id bigint(20) UNSIGNED NOT NULL,
 			whatsapp_account_id bigint(20) UNSIGNED NULL,
 			access_token_encrypted text NOT NULL,
+			token_prefix varchar(20) DEFAULT NULL,
+			token_length int(10) DEFAULT NULL,
 			scopes text NULL,
 			expires_at datetime NULL,
+			last_used_at datetime NULL,
+			last_error text DEFAULT NULL,
 			status varchar(50) DEFAULT 'active',
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
@@ -294,16 +329,32 @@ class Installer {
 		$sql_media = "CREATE TABLE $table_media (
 			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
 			tenant_id bigint(20) UNSIGNED NOT NULL,
-			meta_media_id varchar(255) NULL,
+			conversation_id bigint(20) UNSIGNED DEFAULT NULL,
+			message_id bigint(20) UNSIGNED DEFAULT NULL,
+			meta_media_id varchar(190) NULL,
 			wp_attachment_id bigint(20) UNSIGNED NULL,
-			mime_type varchar(100) NULL,
-			filename varchar(255) NULL,
-			direction varchar(20) NULL,
-			status varchar(50) DEFAULT 'active',
+			media_type varchar(50) NOT NULL,
+			mime_type varchar(100) DEFAULT NULL,
+			filename varchar(190) DEFAULT NULL,
+			original_filename varchar(190) DEFAULT NULL,
+			file_size bigint(20) UNSIGNED DEFAULT NULL,
+			sha256 varchar(190) DEFAULT NULL,
+			storage_provider varchar(50) DEFAULT 'wordpress',
+			storage_path text DEFAULT NULL,
+			public_url text DEFAULT NULL,
+			direction varchar(20) DEFAULT NULL,
+			status varchar(50) DEFAULT 'created',
+			meta_payload longtext DEFAULT NULL,
+			error_message text DEFAULT NULL,
 			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
 			PRIMARY KEY  (id),
+			KEY tenant_id (tenant_id),
+			KEY conversation_id (conversation_id),
+			KEY message_id (message_id),
 			KEY meta_media_id (meta_media_id),
-			KEY tenant_id (tenant_id)
+			KEY media_type (media_type),
+			KEY status (status)
 		) $charset_collate;";
 		dbDelta( $sql_media );
 
@@ -311,12 +362,19 @@ class Installer {
 		$table_webhooks = TableNameResolver::get_table_name( 'webhook_events' );
 		$sql_webhooks = "CREATE TABLE $table_webhooks (
 			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			tenant_id bigint(20) UNSIGNED DEFAULT NULL,
+			waba_id varchar(100) DEFAULT NULL,
+			phone_number_id varchar(100) DEFAULT NULL,
+			event_type varchar(100) DEFAULT 'unknown',
 			payload longtext NOT NULL,
 			processing_status varchar(50) DEFAULT 'pending',
 			signature_valid tinyint(1) DEFAULT 0,
+			error_message text DEFAULT NULL,
 			received_at datetime NOT NULL,
 			processed_at datetime NULL,
 			PRIMARY KEY  (id),
+			KEY tenant_id (tenant_id),
+			KEY waba_id (waba_id),
 			KEY processing_status (processing_status),
 			KEY received_at (received_at)
 		) $charset_collate;";
@@ -378,6 +436,65 @@ class Installer {
 			KEY status (status)
 		) $charset_collate;";
 		dbDelta( $sql_onboarding );
+
+		// WAS-028: Health Checks table.
+		$table_health = TableNameResolver::get_table_name( 'health_checks' );
+		$sql_health = "CREATE TABLE $table_health (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			check_type varchar(100) NOT NULL,
+			entity_type varchar(100) DEFAULT NULL,
+			entity_id bigint(20) UNSIGNED DEFAULT NULL,
+			tenant_id bigint(20) UNSIGNED DEFAULT NULL,
+			status varchar(50) NOT NULL,
+			message text DEFAULT NULL,
+			metadata longtext DEFAULT NULL,
+			checked_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY tenant_id (tenant_id),
+			KEY check_type (check_type),
+			KEY status (status),
+			KEY checked_at (checked_at)
+		) $charset_collate;";
+		dbDelta( $sql_health );
+
+		// WAS-029: Admin Audit Logs table.
+		$table_admin_audit = TableNameResolver::get_table_name( 'admin_audit_logs' );
+		$sql_admin_audit = "CREATE TABLE $table_admin_audit (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			user_id bigint(20) UNSIGNED DEFAULT NULL,
+			tenant_id bigint(20) UNSIGNED DEFAULT NULL,
+			action varchar(190) NOT NULL,
+			entity_type varchar(100) DEFAULT NULL,
+			entity_id varchar(100) DEFAULT NULL,
+			ip_address varchar(100) DEFAULT NULL,
+			user_agent text DEFAULT NULL,
+			metadata longtext DEFAULT NULL,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY user_id (user_id),
+			KEY tenant_id (tenant_id),
+			KEY action (action),
+			KEY created_at (created_at)
+		) $charset_collate;";
+		dbDelta( $sql_admin_audit );
+
+		// WAS-030: App Review Checklist table.
+		$table_review = TableNameResolver::get_table_name( 'app_review_checklist' );
+		$sql_review = "CREATE TABLE $table_review (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			meta_app_id bigint(20) UNSIGNED NOT NULL,
+			item_key varchar(190) NOT NULL,
+			label varchar(190) NOT NULL,
+			status varchar(50) DEFAULT 'pending',
+			evidence_url text DEFAULT NULL,
+			notes text DEFAULT NULL,
+			updated_by bigint(20) UNSIGNED DEFAULT NULL,
+			updated_at datetime DEFAULT NULL,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY app_item (meta_app_id, item_key)
+		) $charset_collate;";
+		dbDelta( $sql_review );
 
 		// Meta API Logs table.
 		$table_meta_logs = TableNameResolver::get_table_name( 'meta_api_logs' );

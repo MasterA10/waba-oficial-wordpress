@@ -107,6 +107,66 @@ class MetaApiClient {
         return $result;
     }
 
+    public function uploadMedia(string $phoneNumberId, string $filePath, string $mimeType, string $accessToken) {
+        $url = $this->baseUrl . '/' . $this->version . '/' . rawurlencode($phoneNumberId) . '/media';
+        
+        if (!file_exists($filePath)) {
+            return ['success' => false, 'error' => 'Arquivo não encontrado para upload.'];
+        }
+
+        $ch = curl_init();
+        $postFields = [
+            'messaging_product' => 'whatsapp',
+            'type' => $mimeType,
+            'file' => curl_file_create($filePath, $mimeType, basename($filePath)),
+        ];
+
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $postFields,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $this->normalizeAccessToken($accessToken),
+            ],
+            CURLOPT_TIMEOUT => 60,
+        ]);
+
+        $raw = curl_exec($ch);
+        $error = curl_error($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($raw === false) {
+            return ['success' => false, 'error' => 'Erro cURL: ' . $error];
+        }
+
+        $body = json_decode($raw, true);
+        $result = array_merge(['success' => ($status < 400 && !isset($body['error'])), 'code' => $status], $body ?: []);
+
+        MetaApiRequestLogger::log(
+            'media.upload',
+            'POST',
+            $url,
+            $status,
+            $result['success'],
+            $raw,
+            0, // Duration could be tracked if needed
+            !$result['success'] ? ['message' => $result['error'] ?? ''] : [],
+            ['filename' => basename($filePath), 'mime' => $mimeType]
+        );
+
+        return $result;
+    }
+
+    private function normalizeAccessToken(string $token): string {
+        $token = trim($token);
+        if (stripos($token, 'Bearer ') === 0) {
+            $token = trim(substr($token, 7));
+        }
+        return $token;
+    }
+
     private function buildUrl(string $operation, array $pathParams): string {
         $path = MetaEndpointRegistry::resolve($operation, $pathParams);
         return sprintf('%s/%s%s', $this->baseUrl, $this->version, $path);

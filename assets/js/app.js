@@ -14,6 +14,28 @@ document.addEventListener('DOMContentLoaded', () => {
     let wizardVariables = {}; // Ex: { 'nome': 'Fulano' }
     let activeSendTemplate = null;
 
+    // Safety: Ensure window helpers are defined early
+    window.updateVariableExample = (key, val) => {
+        wizardVariables[key] = val;
+        updatePreview();
+        renderChecklist();
+    };
+
+    window.updateWizardButton = (i, field, val) => { 
+        if (!wizardButtons[i]) return;
+        wizardButtons[i][field] = val; 
+        if (field === 'url') renderWizardButtons(); // Re-render to show/hide dynamic URL example field
+        updatePreview(); 
+        renderChecklist();
+    };
+
+    window.removeWizardButton = (i) => { 
+        wizardButtons.splice(i, 1); 
+        renderWizardButtons(); 
+        updatePreview(); 
+        renderChecklist();
+    };
+
     /**
      * Helper to make authenticated API requests to WP REST API
      */
@@ -45,6 +67,359 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     if (document.getElementById('stat-wa-accounts')) {
         initDashboard();
+    }
+
+    /**
+     * Master Admin Dashboard
+     */
+    if (document.getElementById('master-stat-tenants')) {
+        initMasterDashboard();
+    }
+
+    if (document.getElementById('master-tenants-list')) {
+        initMasterTenants();
+    }
+
+    if (document.getElementById('master-apps-list')) {
+        initMasterApps();
+    }
+
+    if (document.getElementById('master-wabas-list')) {
+        initMasterWabas();
+    }
+
+    if (document.getElementById('master-phones-list')) {
+        initMasterPhones();
+    }
+
+    if (document.getElementById('master-onboardings-list')) {
+        initMasterOnboardings();
+    }
+
+    if (document.getElementById('master-templates-list')) {
+        initMasterTemplates();
+    }
+
+    if (document.getElementById('master-webhooks-list')) {
+        initMasterWebhooks();
+    }
+
+    if (document.getElementById('master-tokens-list')) {
+        initMasterTokens();
+    }
+
+    if (document.getElementById('master-review-checklist')) {
+        initMasterReview();
+    }
+
+    if (document.getElementById('master-audit-list')) {
+        initMasterAudit();
+    }
+
+    if (document.getElementById('was-master-settings-form')) {
+        initMasterSettings();
+    }
+
+    async function initMasterAudit() {
+        const tb = document.getElementById('master-audit-list');
+        if (!tb) return;
+        try {
+            const data = await wasApiFetch('/admin/audit-logs');
+            tb.innerHTML = (data || []).map(l => `
+                <tr>
+                    <td>${l.created_at}</td>
+                    <td>${l.user_login || 'Sistema'}</td>
+                    <td>${l.tenant_name || '-'}</td>
+                    <td>${l.action}</td>
+                    <td>${l.entity_type}</td>
+                    <td><small>IP: ${l.ip_address || '-'}</small></td>
+                    <td><small>${l.metadata}</small></td>
+                </tr>
+            `).join('') || '<tr><td colspan="7">Nenhum log encontrado.</td></tr>';
+        } catch (err) { tb.innerHTML = '<tr><td colspan="7">Erro ao carregar logs.</td></tr>'; }
+    }
+
+    async function initMasterSettings() {
+        const form = document.getElementById('was-master-settings-form');
+        const btn = document.getElementById('was-btn-save-master-settings');
+        if (!form || !btn) return;
+
+        try {
+            const data = await wasApiFetch('/admin/settings');
+            if (data) {
+                document.getElementById('master_graph_version').value = data.master_graph_version || 'v25.0';
+                document.getElementById('master_msg_rate_limit').value = data.master_msg_rate_limit || 60;
+                document.getElementById('master_log_retention').value = data.master_log_retention || 90;
+            }
+        } catch (err) { console.error('Error loading master settings:', err); }
+
+        btn.addEventListener('click', async () => {
+            const payload = {
+                master_graph_version: document.getElementById('master_graph_version').value,
+                master_msg_rate_limit: document.getElementById('master_msg_rate_limit').value,
+                master_log_retention: document.getElementById('master_log_retention').value
+            };
+            try {
+                await wasApiFetch('/admin/settings', 'POST', payload);
+                alert('Configurações master salvas com sucesso!');
+            } catch (err) { alert(err.message); }
+        });
+    }
+
+    async function initMasterReview() {
+        const list = document.getElementById('master-review-checklist');
+        if (!list) return;
+        try {
+            const data = await wasApiFetch('/admin/app-review/checklist');
+            list.innerHTML = (data || []).map(i => `
+                <li>
+                    <span>${i.label}</span>
+                    <span class="status-indicator status-${i.status === 'done' ? 'done' : 'pending'}">
+                        ${i.status.toUpperCase()}
+                    </span>
+                </li>
+            `).join('');
+        } catch (err) { list.innerHTML = 'Erro ao carregar checklist.'; }
+    }
+
+    async function initMasterTokens() {
+        const tb = document.getElementById('master-tokens-list');
+        if (!tb) return;
+        try {
+            const data = await wasApiFetch('/admin/tokens');
+            tb.innerHTML = (data || []).map(k => `
+                <tr>
+                    <td><strong>${k.tenant_name}</strong></td>
+                    <td><code>${k.prefix}</code></td>
+                    <td>${k.length} chars</td>
+                    <td><span class="was-status-badge" style="background: ${k.status === 'active' ? '#dcfce7' : '#fee2e2'}; color: ${k.status === 'active' ? '#166534' : '#991b1b'};">
+                        ${k.status.toUpperCase()}
+                    </span></td>
+                    <td>${k.expires_at || 'NEVER'}</td>
+                    <td><span style="color: var(--danger); font-size: 0.8rem;">${k.last_error || '-'}</span></td>
+                    <td>
+                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Testar Token</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="7">Nenhum token encontrado.</td></tr>';
+        } catch (err) { tb.innerHTML = '<tr><td colspan="7">Erro ao carregar tokens.</td></tr>'; }
+    }
+
+    async function initMasterWebhooks() {
+        const tb = document.getElementById('master-webhooks-list');
+        if (!tb) return;
+        try {
+            const data = await wasApiFetch('/admin/webhooks');
+            tb.innerHTML = (data || []).map(w => `
+                <tr>
+                    <td>${w.received_at}</td>
+                    <td><strong>${w.tenant_name || 'Sistema'}</strong></td>
+                    <td><code>${w.event_type || 'UNKNOWN'}</code></td>
+                    <td>${w.signature_valid ? '✅ Válida' : '❌ Inválida'}</td>
+                    <td><span class="was-status-badge" style="background: ${w.processing_status === 'processed' ? '#dcfce7' : '#fee2e2'}; color: ${w.processing_status === 'processed' ? '#166534' : '#991b1b'};">
+                        ${w.processing_status.toUpperCase()}
+                    </span></td>
+                    <td>
+                        <button class="button" onclick="alert('Ver payload bruto: ${btoa(w.payload || '')}')">Payload</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="6">Nenhum evento recebido.</td></tr>';
+        } catch (err) { tb.innerHTML = '<tr><td colspan="6">Erro ao carregar webhooks.</td></tr>'; }
+    }
+
+    async function initMasterTemplates() {
+        const tb = document.getElementById('master-templates-list');
+        if (!tb) return;
+        try {
+            const data = await wasApiFetch('/admin/templates');
+            tb.innerHTML = (data || []).map(m => `
+                <tr>
+                    <td><strong>${m.tenant_name}</strong></td>
+                    <td>${m.name}<br><small>Meta ID: ${m.meta_template_id || '-'}</small></td>
+                    <td>${m.category}</td>
+                    <td>${m.language}</td>
+                    <td><span class="was-status-badge" style="background: ${m.status === 'APPROVED' ? '#dcfce7' : '#fee2e2'}; color: ${m.status === 'APPROVED' ? '#166534' : '#991b1b'};">
+                        ${m.status.toUpperCase()}
+                    </span></td>
+                    <td>
+                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Ver Payload</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="6">Nenhum template encontrado.</td></tr>';
+        } catch (err) { tb.innerHTML = '<tr><td colspan="6">Erro ao carregar templates.</td></tr>'; }
+    }
+
+    async function initMasterOnboardings() {
+        const tb = document.getElementById('master-onboardings-list');
+        if (!tb) return;
+        try {
+            const data = await wasApiFetch('/admin/onboardings');
+            tb.innerHTML = (data || []).map(s => `
+                <tr>
+                    <td><strong>${s.tenant_name}</strong><br><small>Por: ${s.user_login}</small></td>
+                    <td><span class="was-status-badge" style="background: #e2e8f0; color: #475569;">
+                        ${s.status.toUpperCase()}
+                    </span></td>
+                    <td>
+                        <small>WABA: ${s.waba_id || '-'}</small><br>
+                        <small>Phone: ${s.phone_number_id || '-'}</small>
+                    </td>
+                    <td><span style="color: var(--danger); font-size: 0.8rem;">${s.error_message || '-'}</span></td>
+                    <td>${s.started_at}</td>
+                    <td>
+                        <button class="button" onclick="alert('Ver payload bruto: ${btoa(s.raw_session_payload || '')}')">Logs</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="6">Nenhuma sessão encontrada.</td></tr>';
+        } catch (err) { tb.innerHTML = '<tr><td colspan="6">Erro ao carregar onboardings.</td></tr>'; }
+    }
+
+    async function initMasterPhones() {
+        const tb = document.getElementById('master-phones-list');
+        if (!tb) return;
+        try {
+            const data = await wasApiFetch('/admin/phone-numbers');
+            tb.innerHTML = (data || []).map(p => `
+                <tr>
+                    <td><strong>${p.tenant_name}</strong><br><small>ID: ${p.tenant_id}</small></td>
+                    <td><code>${p.phone_number_id}</code></td>
+                    <td>${p.display_phone_number || '-'}</td>
+                    <td>${p.verified_name || '-'}</td>
+                    <td><span class="was-status-badge" style="background: ${p.status === 'active' ? '#dcfce7' : '#fee2e2'}; color: ${p.status === 'active' ? '#166534' : '#991b1b'};">
+                        ${p.status.toUpperCase()}
+                    </span></td>
+                    <td>${p.quality_rating || 'UNKNOWN'}</td>
+                    <td>${p.is_default ? '✅' : '-'}</td>
+                    <td>
+                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Testar Envio</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="8">Nenhum número encontrado.</td></tr>';
+        } catch (err) { tb.innerHTML = '<tr><td colspan="8">Erro ao carregar números.</td></tr>'; }
+    }
+
+    async function initMasterWabas() {
+        const tb = document.getElementById('master-wabas-list');
+        if (!tb) return;
+        try {
+            const data = await wasApiFetch('/admin/wabas');
+            tb.innerHTML = (data || []).map(w => `
+                <tr>
+                    <td><strong>${w.tenant_name}</strong><br><small>ID: ${w.tenant_id}</small></td>
+                    <td><code>${w.waba_id}</code></td>
+                    <td>${w.name || '-'}</td>
+                    <td><span class="was-status-badge" style="background: ${w.status === 'connected' ? '#dcfce7' : '#fee2e2'}; color: ${w.status === 'connected' ? '#166534' : '#991b1b'};">
+                        ${w.status.toUpperCase()}
+                    </span></td>
+                    <td>${w.webhook_subscription_status || 'UNKNOWN'}</td>
+                    <td>${w.created_at}</td>
+                    <td>
+                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Sync Templates</button>
+                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Inscrever Webhook</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="7">Nenhuma WABA encontrada.</td></tr>';
+        } catch (err) { tb.innerHTML = '<tr><td colspan="7">Erro ao carregar WABAs.</td></tr>'; }
+    }
+
+    async function initMasterApps() {
+        const tb = document.getElementById('master-apps-list');
+        if (!tb) return;
+        try {
+            const data = await wasApiFetch('/admin/meta-apps');
+            tb.innerHTML = (data || []).map(a => `
+                <tr>
+                    <td><strong>${a.name}</strong></td>
+                    <td><code>${a.app_id}</code></td>
+                    <td>${a.graph_version}</td>
+                    <td>${a.config_id || '-'}</td>
+                    <td>${a.environment.toUpperCase()}</td>
+                    <td><span class="was-status-badge" style="background: ${a.status === 'active' ? '#dcfce7' : '#fee2e2'}; color: ${a.status === 'active' ? '#166534' : '#991b1b'};">
+                        ${a.status.toUpperCase()}
+                    </span></td>
+                    <td>
+                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Editar</button>
+                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Testar</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="7">Nenhum app cadastrado.</td></tr>';
+        } catch (err) { tb.innerHTML = '<tr><td colspan="7">Erro ao carregar apps.</td></tr>'; }
+    }
+
+    async function initMasterTenants() {
+        const tb = document.getElementById('master-tenants-list');
+        if (!tb) return;
+        try {
+            const data = await wasApiFetch('/admin/tenants');
+            tb.innerHTML = (data || []).map(t => `
+                <tr>
+                    <td><strong>${t.name}</strong><br><small>ID: ${t.id}</small></td>
+                    <td><code>${t.slug}</code></td>
+                    <td>${t.plan.toUpperCase()}</td>
+                    <td><span class="was-status-badge" style="background: ${t.status === 'active' ? '#dcfce7' : '#fee2e2'}; color: ${t.status === 'active' ? '#166534' : '#991b1b'};">
+                        ${t.status.toUpperCase()}
+                    </span></td>
+                    <td>${t.created_at}</td>
+                    <td>
+                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Editar</button>
+                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Ver WABAs</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="6">Nenhum cliente encontrado.</td></tr>';
+        } catch (err) { tb.innerHTML = '<tr><td colspan="6">Erro ao carregar clientes.</td></tr>'; }
+    }
+
+    async function initMasterDashboard() {
+        try {
+            const data = await wasApiFetch('/admin/overview');
+            const mapping = {
+                'master-stat-tenants': data.tenants,
+                'master-stat-wabas': data.wabas,
+                'master-stat-phones': data.phones,
+                'master-stat-templates': data.templates,
+                'master-stat-webhooks': data.webhooks_today,
+                'master-stat-onboarding-failures': data.onboarding_failures
+            };
+            for (const [id, value] of Object.entries(mapping)) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = value ?? 0;
+            }
+
+            // Load Master Apps
+            const appsData = await wasApiFetch('/admin/meta-apps');
+            const appsList = document.getElementById('master-active-apps-list');
+            if (appsList && appsData) {
+                appsList.innerHTML = appsData.map(app => `
+                    <div style="padding: 10px; border-bottom: 1px solid #eee;">
+                        <strong>${app.name}</strong><br>
+                        <small>ID: ${app.app_id} | ${app.environment}</small><br>
+                        <span class="was-status-badge" style="background: ${app.status === 'active' ? '#dcfce7' : '#fee2e2'}; color: ${app.status === 'active' ? '#166534' : '#991b1b'}; font-size: 0.7rem; padding: 2px 6px;">
+                            ${app.status.toUpperCase()}
+                        </span>
+                    </div>
+                `).join('') || '<p>Nenhum app cadastrado.</p>';
+            }
+
+            // Mocked Alerts for NOC feel
+            const alertsList = document.getElementById('master-alerts-list');
+            if (alertsList) {
+                alertsList.innerHTML = `
+                    <tr>
+                        <td><span style="color: var(--danger);">CRÍTICO</span></td>
+                        <td>Webhooks</td>
+                        <td>Nenhum evento recebido nas últimas 2h.</td>
+                        <td><button class="button">Verificar</button></td>
+                    </tr>
+                    <tr>
+                        <td><span style="color: var(--warning);">AVISO</span></td>
+                        <td>Templates</td>
+                        <td>3 templates rejeitados recentemente.</td>
+                        <td><button class="button">Ver Logs</button></td>
+                    </tr>
+                `;
+            }
+
+        } catch (err) { console.error('Master Dashboard Error:', err); }
     }
 
     async function initDashboard() {
@@ -84,8 +459,102 @@ document.addEventListener('DOMContentLoaded', () => {
             sendBtn.addEventListener('click', sendMessage);
         }
         if (openTplBtn) openTplBtn.addEventListener('click', () => { if (!currentConversationId) return alert('Selecione uma conversa.'); openInboxTplModal(); });
+        
+        const closeTplBtn = document.getElementById('was-close-inbox-tpl-modal');
+        if (closeTplBtn) closeTplBtn.addEventListener('click', () => {
+            const modal = document.getElementById('was-inbox-tpl-modal');
+            if (modal) modal.style.display = 'none';
+        });
 
+        window.addEventListener('click', (e) => {
+            const modal = document.getElementById('was-inbox-tpl-modal');
+            if (e.target === modal) modal.style.display = 'none';
+        });
+
+        initAttachmentLogic();
         fetchConversations();
+    }
+
+    function initAttachmentLogic() {
+        const attachBtn = document.getElementById('was-attach-media');
+        const menu = document.getElementById('was-attachment-menu');
+        const fileInput = document.getElementById('was-media-input');
+
+        if (!attachBtn || !menu || !fileInput) return;
+
+        attachBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        });
+
+        document.addEventListener('click', () => menu.style.display = 'none');
+
+        document.querySelectorAll('.was-attach-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const type = item.dataset.type;
+                fileInput.dataset.targetType = type;
+                
+                // Ajustar accept do input
+                if (type === 'image') fileInput.accept = 'image/*';
+                else if (type === 'audio') fileInput.accept = 'audio/*';
+                else if (type === 'video') fileInput.accept = 'video/*';
+                else fileInput.accept = '.pdf,.doc,.docx,.xls,.xlsx,.txt';
+
+                fileInput.click();
+            });
+        });
+
+        fileInput.addEventListener('change', async (e) => {
+            if (!fileInput.files.length || !currentConversationId) return;
+            
+            const file = fileInput.files[0];
+            const mediaType = fileInput.dataset.targetType;
+            let caption = '';
+
+            if (mediaType !== 'audio') {
+                caption = prompt('Adicionar uma legenda? (Opcional)', '');
+            }
+
+            try {
+                // Feedback visual temporário
+                const history = document.getElementById('was-messages-history');
+                const tempId = 'temp-' + Date.now();
+                const tempDiv = document.createElement('div');
+                tempDiv.id = tempId;
+                tempDiv.className = 'was-message was-message-out';
+                tempDiv.innerHTML = `<div class="was-message-content"><div class="was-loading-media">Enviando ${mediaType}...</div></div>`;
+                history.appendChild(tempDiv);
+                scrollToBottom();
+
+                const formData = new FormData();
+                formData.append('file', file);
+                if (caption) formData.append('caption', caption);
+
+                const res = await fetch(`${wasConfig.restUrl}/conversations/${currentConversationId}/messages/${mediaType}`, {
+                    method: 'POST',
+                    headers: { 'X-WP-Nonce': wasConfig.nonce },
+                    body: formData
+                });
+
+                const data = await res.json();
+                tempDiv.remove();
+
+                if (data.success) {
+                    // Recarregar conversa para pegar a URL real ou renderizar manual se tivermos a URL
+                    // Como não temos a URL local fácil aqui (o blob), vamos recarregar o histórico ou confiar no renderMessage
+                    // Para melhor UX, vamos forçar um reload rápido da conversa
+                    loadConversation(currentConversationId, document.getElementById('was-chat-contact-name').textContent);
+                } else {
+                    alert(data.message || 'Erro ao enviar arquivo.');
+                }
+
+            } catch (err) {
+                alert('Erro na conexão ao enviar arquivo.');
+                console.error(err);
+            } finally {
+                fileInput.value = '';
+            }
+        });
     }
 
     async function fetchConversations() {
@@ -122,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
             messages.forEach(msg => {
                 const text = msg.text_body || msg.body || '';
                 const payload = (msg.message_type === 'template' && msg.raw_payload) ? JSON.parse(msg.raw_payload) : null;
-                renderMessage(text, msg.direction, msg.message_type, payload);
+                renderMessage(text, msg.direction, msg.message_type, payload, msg.media_url, msg.media_filename, msg.created_at);
             });
             scrollToBottom();
         } catch (err) { historyContainer.innerHTML = 'Erro ao carregar histórico.'; }
@@ -137,30 +606,89 @@ document.addEventListener('DOMContentLoaded', () => {
         inputField.disabled = true; sendBtn.disabled = true;
         try {
             const res = await wasApiFetch(`/conversations/${currentConversationId}/messages/text`, 'POST', { text: body });
-            if (res.wa_message_id) {
-                renderMessage(body, 'outbound', 'text');
+            if (res.success) {
+                renderMessage(body, 'outbound', 'text', null, null, null, new Date().toISOString());
                 inputField.value = '';
                 scrollToBottom();
+            } else {
+                alert(res.message || 'Erro ao enviar.');
             }
         } catch (err) { alert('Erro ao enviar.'); }
         finally { inputField.disabled = false; sendBtn.disabled = false; inputField.focus(); }
     }
 
-    function renderMessage(text, direction, type = 'text', payload = null) {
+    function renderMessage(text, direction, type = 'text', payload = null, mediaUrl = null, mediaFilename = null, timestamp = null) {
         const history = document.getElementById('was-messages-history');
         if (!history) return;
+
+        // Formatar hora
+        let timeStr = '';
+        if (timestamp) {
+            const date = new Date(timestamp);
+            timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else {
+            timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
         const msgDiv = document.createElement('div');
         msgDiv.className = `was-message ${direction === 'outbound' || direction === 'sent' ? 'was-message-out' : 'was-message-in'}`;
         const contentDiv = document.createElement('div');
         contentDiv.className = 'was-message-content';
         
         if (type === 'template') {
-            const header = payload?.header ? `<div class="was-tpl-header">${payload.header}</div>` : '';
-            const footer = payload?.footer ? `<div class="was-tpl-footer">${payload.footer}</div>` : '';
-            contentDiv.innerHTML = `<div class="was-template-card">${header}<div class="was-tpl-body">${text}</div>${footer}</div>`;
+            let header = '';
+            let footer = '';
+            let body = text;
+            let buttons = [];
+
+            // Tenta extrair dados do snapshot amigável
+            try {
+                if (payload) {
+                    header = payload.header || '';
+                    footer = payload.footer || '';
+                    body = payload.body || text;
+                    buttons = payload.buttons || [];
+                }
+            } catch(e) {}
+
+            let buttonsHtml = '';
+            if (buttons && buttons.length > 0) {
+                buttonsHtml = `<div class="was-tpl-btns">
+                    ${buttons.map(btn => `<div class="was-tpl-btn-item">${btn.text}</div>`).join('')}
+                </div>`;
+            }
+
+            contentDiv.innerHTML = `<div class="was-template-card">
+                ${header ? `<div class="was-tpl-header">${header}</div>` : ''}
+                <div class="was-tpl-body">${body}</div>
+                ${footer ? `<div class="was-tpl-footer">${footer}</div>` : ''}
+                ${buttonsHtml}
+            </div>`;
+        } else if (type === 'image' && mediaUrl) {
+            contentDiv.innerHTML = `<img src="${mediaUrl}" alt="Imagem" loading="lazy">
+                                    ${text ? `<div style="padding-top:4px;">${text}</div>` : ''}`;
+        } else if (type === 'audio' && mediaUrl) {
+            contentDiv.innerHTML = `<audio controls src="${mediaUrl}"></audio>`;
+        } else if (type === 'video' && mediaUrl) {
+            contentDiv.innerHTML = `<video controls src="${mediaUrl}"></video>
+                                    ${text ? `<div style="padding-top:4px;">${text}</div>` : ''}`;
+        } else if (type === 'document' && mediaUrl) {
+            contentDiv.innerHTML = `<a href="${mediaUrl}" target="_blank" class="was-doc-card">
+                                        <span class="dashicons dashicons-media-document"></span>
+                                        <div class="was-doc-info">
+                                            <span class="was-doc-name">${mediaFilename || 'Documento'}</span>
+                                        </div>
+                                    </a>
+                                    ${text ? `<div style="padding-top:4px;">${text}</div>` : ''}`;
         } else {
             contentDiv.textContent = text;
         }
+
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'was-message-time';
+        timeSpan.textContent = timeStr;
+        contentDiv.appendChild(timeSpan);
+
         msgDiv.appendChild(contentDiv);
         history.appendChild(msgDiv);
     }
@@ -229,7 +757,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updatePreview();
         });
 
-        ['wiz-body-text', 'wiz-header-text', 'wiz-footer-text'].forEach(id => {
+        ['wiz-body-text', 'wiz-header-text', 'wiz-footer-text', 'wiz-tpl-lang'].forEach(id => {
             document.getElementById(id)?.addEventListener('input', () => {
                 if (id === 'wiz-body-text') syncVariablesFromText();
                 updatePreview();
@@ -265,6 +793,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (wizardForm) wizardForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const submitBtn = document.getElementById('wiz-submit');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Enviando...';
+
             const payload = {
                 name: document.getElementById('wiz-tpl-name').value,
                 category: wizardForm.querySelector('input[name="category"]:checked').value,
@@ -292,6 +824,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (err) { 
                 alert(err.message || 'Erro ao salvar template'); 
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Enviar para Aprovação';
             }
         });
 
@@ -445,7 +979,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pb) {
             let processedBody = b;
             Object.entries(wizardVariables).forEach(([k, v]) => {
-                processedBody = processedBody.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), `<span style="color:#2563eb; font-weight:bold;">${v}</span>`);
+                // Escape para usar no RegExp
+                const safeKey = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                processedBody = processedBody.replace(new RegExp(`{{\\s*${safeKey}\\s*}}`, 'g'), `<span style="color:#2563eb; font-weight:bold;">${v}</span>`);
             });
             pb.innerHTML = processedBody || 'Sua mensagem aparecerá aqui...';
         }
@@ -514,11 +1050,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    window.updateVariableExample = (key, val) => {
-        wizardVariables[key] = val;
-        updatePreview();
-    };
-
     function renderWizardButtons() {
         const container = document.getElementById('wiz-buttons-list');
         if (!container) return;
@@ -544,27 +1075,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
     }
 
-    window.updateWizardButton = (i, field, val) => { 
-        wizardButtons[i][field] = val; 
-        if (field === 'url') renderWizardButtons(); // Re-render to show/hide dynamic URL example field
-        updatePreview(); 
-    };
-    window.removeWizardButton = (i) => { wizardButtons.splice(i, 1); renderWizardButtons(); updatePreview(); };
-
     function renderChecklist() {
         const list = document.getElementById('was-checklist-items');
         if (!list) return;
-        const name = document.getElementById('wiz-tpl-name').value;
-        const body = document.getElementById('wiz-body-text').value;
-        const hType = document.getElementById('wiz-header-type').value;
-        const hText = document.getElementById('wiz-header-text').value;
+        const name = document.getElementById('wiz-tpl-name')?.value || '';
+        const body = document.getElementById('wiz-body-text')?.value || '';
+        const hType = document.getElementById('wiz-header-type')?.value || 'NONE';
+        const hText = document.getElementById('wiz-header-text')?.value || '';
 
         const checks = [
             { label: 'Nome válido', pass: /^[a-z0-9_]+$/.test(name) },
             { label: 'Mensagem principal preenchida', pass: body.trim().length > 0 },
-            { label: 'Variáveis possuem exemplos', pass: Object.values(wizardVariables).every(v => v.trim().length > 0) },
+            { label: 'Variáveis possuem exemplos', pass: Object.values(wizardVariables).every(v => v && v.toString().trim().length > 0) },
             { label: 'Cabeçalho válido', pass: hType === 'NONE' || hText.trim().length > 0 },
-            { label: 'Botões válidos', pass: wizardButtons.every(b => b.text.trim().length > 0 && (b.type !== 'URL' || b.url.startsWith('https://'))) }
+            { label: 'Botões válidos', pass: wizardButtons.every(b => {
+                const textOk = (b.text || '').trim().length > 0;
+                if (!textOk) return false;
+                if (b.type === 'URL') return (b.url || '').startsWith('https://');
+                if (b.type === 'PHONE_NUMBER') return (b.phone_number || '').startsWith('+');
+                return true;
+            }) }
         ];
 
         list.innerHTML = checks.map(c => `<li style="margin-bottom:8px; display:flex; align-items:center; gap:10px;">
@@ -614,9 +1144,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const originalText = submitBtn.textContent;
             submitBtn.textContent = 'Enviando...'; submitBtn.disabled = true;
             try {
-                await wasApiFetch(`/templates/${id}/send`, 'POST', { to_phone: to, variables: variables });
-                alert('Template enviado com sucesso!');
-                document.getElementById('was-send-template-modal').style.display = 'none';
+                const res = await wasApiFetch(`/templates/${id}/send`, 'POST', { to_phone: to, variables: variables });
+                if (res.success) {
+                    alert('Template enviado com sucesso!');
+                    document.getElementById('was-send-template-modal').style.display = 'none';
+                    
+                    // Se a conversa aberta for a mesma que recebeu o template, renderiza na tela
+                    if (res.conversation_id && currentConversationId == res.conversation_id) {
+                        const snapshot = {
+                            header: res.rendered_header,
+                            body: res.rendered_body,
+                            footer: res.rendered_footer,
+                            buttons: res.buttons
+                        };
+                        renderMessage(res.rendered_body || 'Modelo enviado', 'outbound', 'template', snapshot);
+                        scrollToBottom();
+                    } else if (!currentConversationId) {
+                        // Se não tem conversa aberta, talvez queira atualizar a lista lateral
+                        fetchConversations();
+                    }
+                }
             } catch(err) { alert(err.message || 'Erro ao enviar template'); }
             finally { submitBtn.textContent = originalText; submitBtn.disabled = false; }
         });
@@ -703,9 +1250,19 @@ document.addEventListener('DOMContentLoaded', () => {
     window.sendTemplateFromInbox = async (id) => {
         if (!confirm('Enviar este template?')) return;
         try {
-            await wasApiFetch(`/templates/${id}/send`, 'POST', { conversation_id: currentConversationId });
-            alert('Enviado!'); document.getElementById('was-inbox-tpl-modal').style.display = 'none';
-            loadConversation(currentConversationId, document.getElementById('was-chat-contact-name').textContent);
+            const res = await wasApiFetch(`/templates/${id}/send`, 'POST', { conversation_id: currentConversationId });
+            if (res.success) {
+                alert('Enviado!'); 
+                document.getElementById('was-inbox-tpl-modal').style.display = 'none';
+                const snapshot = {
+                    header: res.rendered_header,
+                    body: res.rendered_body,
+                    footer: res.rendered_footer,
+                    buttons: res.buttons
+                };
+                renderMessage(res.rendered_body || 'Modelo enviado', 'outbound', 'template', snapshot);
+                scrollToBottom();
+            }
         } catch (err) { alert(err.message); }
     };
 });

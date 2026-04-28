@@ -59,6 +59,16 @@ class WebhookProcessor {
                     'event_id'        => $event_id
                 ]);
             }
+        } elseif ($this->is_status_event($payload)) {
+            try {
+                $this->handle_status_event($payload, $tenant_id, $event_id);
+            } catch (\Throwable $e) {
+                \WAS\Core\SystemLogger::logException($e, [
+                    'context'         => 'WebhookProcessor::status_update',
+                    'tenant_id'       => $tenant_id,
+                    'event_id'        => $event_id
+                ]);
+            }
         } elseif ($this->is_template_status_event($payload)) {
             try {
                 $this->handle_template_status_event($payload, $tenant_id, $waba_id);
@@ -104,6 +114,10 @@ class WebhookProcessor {
 
     private function is_message_event($payload) {
         return isset($payload['entry'][0]['changes'][0]['value']['messages']);
+    }
+
+    private function is_status_event($payload) {
+        return isset($payload['entry'][0]['changes'][0]['value']['statuses']);
     }
 
     private function is_template_status_event($payload) {
@@ -153,16 +167,32 @@ class WebhookProcessor {
         $contact = $value['contacts'][0] ?? [];
 
         // Normalizar DTO para o InboundMessageService
+        $type = $message['type'] ?? 'text';
+        $body = $message['text']['body'] ?? '';
+        $media_data = [];
+
+        if ($type !== 'text' && isset($message[$type])) {
+            $media_obj = $message[$type];
+            $body = $media_obj['caption'] ?? $media_obj['filename'] ?? '';
+            $media_data = [
+                'id'        => $media_obj['id'] ?? null,
+                'mime_type' => $media_obj['mime_type'] ?? null,
+                'sha256'    => $media_obj['sha256'] ?? null,
+            ];
+        }
+
         $dto = [
             'tenant_id'       => $tenant_id,
             'phone_number_id' => $phone_number_id,
             'wa_message_id'   => $message['id'],
             'from'            => $message['from'],
             'profile_name'    => $contact['profile']['name'] ?? '',
-            'message_type'    => $message['type'],
-            'text_body'       => $message['text']['body'] ?? '',
+            'message_type'    => $type,
+            'text_body'       => $body,
+            'media_data'      => $media_data,
             'timestamp'       => $message['timestamp'],
             'raw_event_id'    => $event_id,
+            'raw_message'     => $message, // Para debug
         ];
 
         // Injetar dependências manualmente para o serviço
@@ -173,5 +203,15 @@ class WebhookProcessor {
         );
 
         return $service->handle($dto);
+    }
+
+    private function handle_status_event($payload, $tenant_id, $event_id) {
+        $value = $payload['entry'][0]['changes'][0]['value'];
+        $status_item = $value['statuses'][0];
+        $wa_message_id = $status_item['id'];
+        $status = $status_item['status']; // sent, delivered, read, failed, deleted
+
+        $message_repo = new MessageRepository();
+        return $message_repo->update_status($wa_message_id, $status);
     }
 }

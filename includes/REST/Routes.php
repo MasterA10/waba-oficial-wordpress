@@ -20,12 +20,16 @@ class Routes {
         $dashboardController = new DashboardApiController();
         $inboxController = new InboxApiController();
         $embeddedSignupController = new EmbeddedSignupController();
+        $adminMasterController = new AdminMasterApiController();
 
         // Inbox (Conversations)
         $inboxController->register_routes();
 
         // Onboarding
         $embeddedSignupController->register_routes();
+
+        // Admin Master
+        $adminMasterController->register_routes();
 
         // Auth
         register_rest_route(WAS_REST_NAMESPACE, '/me', [

@@ -58,6 +58,14 @@ class InboxApiController {
                 'permission_callback' => [$this, 'check_send_permission'],
             ],
         ]);
+
+        register_rest_route(WAS_REST_NAMESPACE, '/conversations/(?P<id>\d+)/messages/(?P<media_type>image|audio|document|video)', [
+            [
+                'methods'             => \WP_REST_Server::CREATABLE,
+                'callback'            => [$this, 'send_media_message'],
+                'permission_callback' => [$this, 'check_send_permission'],
+            ],
+        ]);
     }
 
     public function check_permission() {
@@ -110,6 +118,50 @@ class InboxApiController {
             return $auth;
         }
         return current_user_can('was_assign_conversations');
+    }
+
+    /**
+     * Envia uma mensagem de mídia (imagem, áudio, etc).
+     */
+    public function send_media_message($request) {
+        $id = $request['id'];
+        $mediaType = $request['media_type'];
+        $caption = $request->get_param('caption') ?: '';
+        $filename = $request->get_param('filename') ?: '';
+
+        if (empty($_FILES['file'])) {
+            return new \WP_REST_Response(['success' => false, 'message' => 'Nenhum arquivo enviado'], 400);
+        }
+
+        $file = $_FILES['file'];
+        
+        try {
+            $service = new \WAS\WhatsApp\OutboundMediaService();
+            $result = $service->send_media(
+                $id, 
+                $file['tmp_name'], 
+                $file['type'], 
+                $mediaType, 
+                $caption, 
+                $filename ?: $file['name']
+            );
+
+            if ($result['success']) {
+                return new \WP_REST_Response($result, 200);
+            }
+
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => $result['error'] ?? 'Erro ao enviar mídia'
+            ], 500);
+
+        } catch (\Throwable $e) {
+            \WAS\Core\SystemLogger::logException($e, ['context' => 'InboxApiController::send_media_message', 'conversation_id' => $id, 'media_type' => $mediaType]);
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
