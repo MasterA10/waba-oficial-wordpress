@@ -1993,6 +1993,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('waba_id').value = data.waba_id || '';
                 document.getElementById('verify_token').value = data.verify_token || '';
                 document.getElementById('webhook_url').value = data.webhook_url || '';
+                if (document.getElementById('oauth_callback_url')) document.getElementById('oauth_callback_url').value = data.oauth_callback_url || '';
+                if (document.getElementById('deauthorize_url')) document.getElementById('deauthorize_url').value = data.deauthorize_url || '';
+                if (document.getElementById('data_deletion_url')) document.getElementById('data_deletion_url').value = data.data_deletion_url || '';
+                if (document.getElementById('privacy_policy_url')) document.getElementById('privacy_policy_url').textContent = data.privacy_policy_url || '';
+                if (document.getElementById('terms_of_service_url')) document.getElementById('terms_of_service_url').textContent = data.terms_of_service_url || '';
+                if (document.getElementById('support_url')) document.getElementById('support_url').textContent = data.support_url || '';
                 if (document.getElementById('config_id')) document.getElementById('config_id').value = data.config_id || '';
                 if (document.getElementById('embedded_signup_url')) {
                     document.getElementById('embedded_signup_url').value = data.embedded_signup_url || '';

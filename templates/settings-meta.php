@@ -60,10 +60,40 @@ if (!defined('ABSPATH')) {
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row"><label for="webhook_url">Callback URL</label></th>
+                        <th scope="row"><label for="webhook_url">Webhook Callback URL</label></th>
                         <td>
                             <input type="text" id="webhook_url" value="Carregando..." class="large-text" readonly onclick="this.select();">
-                            <p class="description">Copie esta URL e cole no campo "URL de retorno de chamada" no painel da Meta Developers.</p>
+                            <p class="description">URL para configuração do Webhook (mensagens e status).</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="oauth_callback_url">OAuth Redirect URI</label></th>
+                        <td>
+                            <input type="text" id="oauth_callback_url" value="Carregando..." class="large-text" readonly onclick="this.select();">
+                            <p class="description">URL para configuração do "Redirect URI" no login do Facebook.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="deauthorize_url">Deauthorize Callback</label></th>
+                        <td>
+                            <input type="text" id="deauthorize_url" value="Carregando..." class="large-text" readonly onclick="this.select();">
+                            <p class="description">URL de desautorização do aplicativo.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="data_deletion_url">Data Deletion Callback</label></th>
+                        <td>
+                            <input type="text" id="data_deletion_url" value="Carregando..." class="large-text" readonly onclick="this.select();">
+                            <p class="description">URL para solicitações de exclusão de dados.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">URLs de Compliance</th>
+                        <td>
+                            <p><strong>Privacidade:</strong> <code id="privacy_policy_url">...</code></p>
+                            <p><strong>Termos:</strong> <code id="terms_of_service_url">...</code></p>
+                            <p><strong>Suporte:</strong> <code id="support_url">...</code></p>
+                            <p class="description">Use estas URLs nos campos correspondentes da aba "Básico" e "App Review" na Meta.</p>
                         </td>
                     </tr>
                     <tr>
