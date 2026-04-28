@@ -70,12 +70,34 @@ class ConversationWindowService {
     }
 
     /**
-     * Retorna o estado detalhado da janela de uma conversa.
+     * Retorna o estado detalhado da janela de uma conversa com auto-correção.
      */
     public function getWindowState(object $conversation, bool $debugLog = false): array {
-        if (empty($conversation->customer_service_window_expires_at)) {
+        $expiresAtStr = $conversation->customer_service_window_expires_at ?? null;
+        $lastCustomerAtStr = $conversation->last_customer_message_at ?? null;
+
+        // 1. Auto-correção: Se não temos expiração mas temos última mensagem, calculamos agora
+        if (empty($expiresAtStr) && !empty($lastCustomerAtStr)) {
+            $lastTime = strtotime($lastCustomerAtStr . ' UTC');
+            $expiresAtStr = gmdate('Y-m-d H:i:s', $lastTime + (24 * 60 * 60));
+            
+            // Tenta atualizar o banco para persistir a correção
+            $this->repository->update($conversation->id, [
+                'customer_service_window_expires_at' => $expiresAtStr,
+                'customer_service_window_status'     => (time() < ($lastTime + 86400)) ? 'open' : 'closed'
+            ]);
+
             if ($debugLog) {
-                \WAS\Core\SystemLogger::logInfo('WindowService_Debug: Conversa sem data de expiração.', [
+                \WAS\Core\SystemLogger::logInfo('WindowService: Auto-correção aplicada via getWindowState.', [
+                    'conversation_id' => $conversation->id,
+                    'calculated_expires' => $expiresAtStr
+                ]);
+            }
+        }
+
+        if (empty($expiresAtStr)) {
+            if ($debugLog) {
+                \WAS\Core\SystemLogger::logInfo('WindowService_Debug: Conversa sem data de expiração e sem histórico de cliente.', [
                     'conversation_id' => $conversation->id ?? 'unknown'
                 ]);
             }
@@ -91,14 +113,14 @@ class ConversationWindowService {
         }
 
         $now = time();
-        $expiresAt = strtotime($conversation->customer_service_window_expires_at . ' UTC');
+        $expiresAt = strtotime($expiresAtStr . ' UTC');
         $remaining = max(0, $expiresAt - $now);
 
         if ($remaining <= 0) {
             return [
                 'status'            => 'closed',
                 'is_open'           => false,
-                'expires_at'        => $conversation->customer_service_window_expires_at,
+                'expires_at'        => $expiresAtStr,
                 'seconds_remaining' => 0,
                 'human_remaining'   => 'expirada',
                 'can_send_freeform' => false,
@@ -112,7 +134,7 @@ class ConversationWindowService {
         $state = [
             'status'            => $status,
             'is_open'           => true,
-            'expires_at'        => $conversation->customer_service_window_expires_at,
+            'expires_at'        => $expiresAtStr,
             'seconds_remaining' => $remaining,
             'human_remaining'   => $this->formatHumanRemaining($remaining),
             'can_send_freeform' => true,
@@ -122,10 +144,8 @@ class ConversationWindowService {
         if ($debugLog) {
             \WAS\Core\SystemLogger::logInfo('WindowService_Debug: Cálculo de janela realizado.', [
                 'conversation_id' => $conversation->id ?? 'unknown',
-                'raw_expires_at'  => $conversation->customer_service_window_expires_at,
+                'raw_expires_at'  => $expiresAtStr,
                 'time_now_utc'    => gmdate('Y-m-d H:i:s', $now),
-                'now_epoch'       => $now,
-                'expires_epoch'   => $expiresAt,
                 'remaining'       => $remaining,
                 'final_status'    => $status
             ]);
