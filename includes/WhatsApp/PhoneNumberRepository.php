@@ -79,6 +79,8 @@ class PhoneNumberRepository {
             $wpdb->insert($this->table_name, $prepared);
             return $wpdb->insert_id;
         }
+    }
+
     /**
      * Atualiza dados do número com base no diagnóstico da Meta.
      */
