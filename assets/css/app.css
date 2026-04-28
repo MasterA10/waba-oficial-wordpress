@@ -634,9 +634,9 @@ body.was-app-shell .wrap h1 {
 
 /* Attachment Menu */
 .was-chat-input-actions { display: flex; align-items: center; gap: 4px; position: relative; }
-.was-attachment-menu { position: absolute; bottom: 50px; left: 0; background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 8px; z-index: 1000; min-width: 150px; }
-.was-attach-item { padding: 10px 12px; display: flex; align-items: center; gap: 10px; cursor: pointer; border-radius: 6px; font-size: 0.9rem; color: var(--slate-700); }
-.was-attach-item:hover { background: var(--slate-100); color: var(--primary); }
+.was-attachment-menu { position: absolute; bottom: 56px; left: 0; background: white; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.2); padding: 8px; z-index: 10000; min-width: 160px; border: 1px solid rgba(0,0,0,0.05); }
+.was-attach-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-radius: 8px; font-size: 0.95rem; color: var(--slate-700); transition: background 0.2s; }
+.was-attach-item:hover { background: #f0f2f5; color: var(--primary); }
 .was-attach-item .dashicons { font-size: 18px; }
 
 .was-loading-media { display: flex; align-items: center; gap: 8px; padding: 10px; font-size: 0.85rem; color: var(--slate-600); }

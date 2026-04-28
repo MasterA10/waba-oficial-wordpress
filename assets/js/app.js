@@ -169,17 +169,35 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initMasterReview() {
         const list = document.getElementById('master-review-checklist');
         if (!list) return;
-        try {
-            const data = await wasApiFetch('/admin/app-review/checklist');
-            list.innerHTML = (data || []).map(i => `
-                <li>
-                    <span>${i.label}</span>
-                    <span class="status-indicator status-${i.status === 'done' ? 'done' : 'pending'}">
-                        ${i.status.toUpperCase()}
-                    </span>
-                </li>
-            `).join('');
-        } catch (err) { list.innerHTML = 'Erro ao carregar checklist.'; }
+
+        const loadChecklist = async () => {
+            try {
+                const data = await wasApiFetch('/admin/app-review/checklist');
+                list.innerHTML = (data || []).map(i => `
+                    <li class="review-item" data-key="${i.item_key}" data-label="${i.label}" data-status="${i.status}" style="cursor:pointer;">
+                        <span>${i.label}</span>
+                        <span class="status-indicator status-${i.status === 'done' ? 'done' : 'pending'}">
+                            ${i.status.toUpperCase()}
+                        </span>
+                    </li>
+                `).join('');
+
+                document.querySelectorAll('.review-item').forEach(li => li.addEventListener('click', async (e) => {
+                    const item = e.currentTarget.dataset;
+                    const newStatus = item.status === 'done' ? 'pending' : 'done';
+                    try {
+                        await wasApiFetch('/admin/app-review/checklist', 'POST', {
+                            item_key: item.key,
+                            label: item.label,
+                            status: newStatus
+                        });
+                        loadChecklist();
+                    } catch (err) { alert(err.message); }
+                }));
+
+            } catch (err) { list.innerHTML = 'Erro ao carregar checklist.'; }
+        };
+        loadChecklist();
     }
 
     async function initMasterTokens() {
@@ -325,48 +343,165 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initMasterApps() {
         const tb = document.getElementById('master-apps-list');
         if (!tb) return;
-        try {
-            const data = await wasApiFetch('/admin/meta-apps');
-            tb.innerHTML = (data || []).map(a => `
-                <tr>
-                    <td><strong>${a.name}</strong></td>
-                    <td><code>${a.app_id}</code></td>
-                    <td>${a.graph_version}</td>
-                    <td>${a.config_id || '-'}</td>
-                    <td>${a.environment.toUpperCase()}</td>
-                    <td><span class="was-status-badge" style="background: ${a.status === 'active' ? '#dcfce7' : '#fee2e2'}; color: ${a.status === 'active' ? '#166534' : '#991b1b'};">
-                        ${a.status.toUpperCase()}
-                    </span></td>
-                    <td>
-                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Editar</button>
-                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Testar</button>
-                    </td>
-                </tr>
-            `).join('') || '<tr><td colspan="7">Nenhum app cadastrado.</td></tr>';
-        } catch (err) { tb.innerHTML = '<tr><td colspan="7">Erro ao carregar apps.</td></tr>'; }
+
+        const modal = document.getElementById('was-master-app-modal');
+        const form = document.getElementById('was-master-app-form');
+        const addBtn = document.getElementById('master-btn-add-app');
+        const cancelBtn = document.getElementById('was-master-app-cancel');
+
+        const loadApps = async () => {
+            try {
+                const data = await wasApiFetch('/admin/meta-apps');
+                tb.innerHTML = (data || []).map(a => `
+                    <tr>
+                        <td><strong>${a.name}</strong></td>
+                        <td><code>${a.app_id}</code></td>
+                        <td>${a.graph_version}</td>
+                        <td>${a.config_id || '-'}</td>
+                        <td>${a.environment.toUpperCase()}</td>
+                        <td><span class="was-status-badge" style="background: ${a.status === 'active' ? '#dcfce7' : '#fee2e2'}; color: ${a.status === 'active' ? '#166534' : '#991b1b'};">
+                            ${a.status.toUpperCase()}
+                        </span></td>
+                        <td>
+                            <button class="button edit-app" data-app='${JSON.stringify(a)}'>Editar</button>
+                            <button class="button test-app" data-id="${a.id}">Testar</button>
+                            <button class="button delete-app" data-id="${a.id}" style="color:red;">Apagar</button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="7">Nenhum app cadastrado.</td></tr>';
+
+                document.querySelectorAll('.edit-app').forEach(b => b.addEventListener('click', (e) => {
+                    const app = JSON.parse(e.target.dataset.app);
+                    document.getElementById('master-app-modal-title').textContent = 'Editar App Meta';
+                    document.getElementById('master-app-id').value = app.id;
+                    document.getElementById('master-app-name').value = app.name;
+                    document.getElementById('master-app-appid').value = app.app_id;
+                    document.getElementById('master-app-secret').value = '';
+                    document.getElementById('master-app-env').value = app.environment;
+                    modal.style.display = 'block';
+                }));
+
+                document.querySelectorAll('.test-app').forEach(b => b.addEventListener('click', async (e) => {
+                    try {
+                        const res = await wasApiFetch(`/admin/meta-apps/${e.target.dataset.id}`, 'POST', { action: 'test' });
+                        alert(res.message);
+                    } catch (err) { alert(err.message); }
+                }));
+
+                document.querySelectorAll('.delete-app').forEach(b => b.addEventListener('click', async (e) => {
+                    if (!confirm('Deseja realmente apagar este app?')) return;
+                    try {
+                        await wasApiFetch(`/admin/meta-apps/${e.target.dataset.id}`, 'DELETE');
+                        loadApps();
+                    } catch (err) { alert(err.message); }
+                }));
+
+            } catch (err) { tb.innerHTML = '<tr><td colspan="7">Erro ao carregar apps.</td></tr>'; }
+        };
+
+        if (addBtn) addBtn.addEventListener('click', () => {
+            document.getElementById('master-app-modal-title').textContent = 'Novo App Meta';
+            form.reset();
+            document.getElementById('master-app-id').value = '';
+            modal.style.display = 'block';
+        });
+
+        if (cancelBtn) cancelBtn.addEventListener('click', () => modal.style.display = 'none');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                id: document.getElementById('master-app-id').value,
+                name: document.getElementById('master-app-name').value,
+                app_id: document.getElementById('master-app-appid').value,
+                app_secret: document.getElementById('master-app-secret').value,
+                environment: document.getElementById('master-app-env').value
+            };
+            try {
+                await wasApiFetch('/admin/meta-apps', 'POST', payload);
+                modal.style.display = 'none';
+                loadApps();
+            } catch (err) { alert(err.message); }
+        });
+
+        loadApps();
     }
 
     async function initMasterTenants() {
         const tb = document.getElementById('master-tenants-list');
         if (!tb) return;
-        try {
-            const data = await wasApiFetch('/admin/tenants');
-            tb.innerHTML = (data || []).map(t => `
-                <tr>
-                    <td><strong>${t.name}</strong><br><small>ID: ${t.id}</small></td>
-                    <td><code>${t.slug}</code></td>
-                    <td>${t.plan.toUpperCase()}</td>
-                    <td><span class="was-status-badge" style="background: ${t.status === 'active' ? '#dcfce7' : '#fee2e2'}; color: ${t.status === 'active' ? '#166534' : '#991b1b'};">
-                        ${t.status.toUpperCase()}
-                    </span></td>
-                    <td>${t.created_at}</td>
-                    <td>
-                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Editar</button>
-                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Ver WABAs</button>
-                    </td>
-                </tr>
-            `).join('') || '<tr><td colspan="6">Nenhum cliente encontrado.</td></tr>';
-        } catch (err) { tb.innerHTML = '<tr><td colspan="6">Erro ao carregar clientes.</td></tr>'; }
+
+        const modal = document.getElementById('was-master-tenant-modal');
+        const form = document.getElementById('was-master-tenant-form');
+        const addBtn = document.getElementById('master-btn-add-tenant');
+        const cancelBtn = document.getElementById('was-master-tenant-cancel');
+
+        const loadTenants = async () => {
+            try {
+                const data = await wasApiFetch('/admin/tenants');
+                tb.innerHTML = (data || []).map(t => `
+                    <tr>
+                        <td><strong>${t.name}</strong><br><small>ID: ${t.id}</small></td>
+                        <td><code>${t.slug}</code></td>
+                        <td>${t.plan.toUpperCase()}</td>
+                        <td><span class="was-status-badge" style="background: ${t.status === 'active' ? '#dcfce7' : '#fee2e2'}; color: ${t.status === 'active' ? '#166534' : '#991b1b'};">
+                            ${t.status.toUpperCase()}
+                        </span></td>
+                        <td>${t.created_at}</td>
+                        <td>
+                            <button class="button edit-tenant" data-tenant='${JSON.stringify(t)}'>Editar</button>
+                            <button class="button toggle-status" data-id="${t.id}" data-status="${t.status}">${t.status === 'active' ? 'Bloquear' : 'Ativar'}</button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="6">Nenhum cliente encontrado.</td></tr>';
+
+                document.querySelectorAll('.edit-tenant').forEach(b => b.addEventListener('click', (e) => {
+                    const t = JSON.parse(e.target.dataset.tenant);
+                    document.getElementById('master-tenant-modal-title').textContent = 'Editar Cliente';
+                    document.getElementById('master-tenant-id').value = t.id;
+                    document.getElementById('master-tenant-name').value = t.name;
+                    document.getElementById('master-tenant-slug').value = t.slug;
+                    document.getElementById('master-tenant-plan').value = t.plan;
+                    modal.style.display = 'block';
+                }));
+
+                document.querySelectorAll('.toggle-status').forEach(b => b.addEventListener('click', async (e) => {
+                    const newStatus = e.target.dataset.status === 'active' ? 'blocked' : 'active';
+                    if (!confirm(`Deseja realmente ${newStatus === 'active' ? 'ativar' : 'bloquear'} este cliente?`)) return;
+                    try {
+                        await wasApiFetch(`/admin/tenants/${e.target.dataset.id}/status`, 'POST', { status: newStatus });
+                        loadTenants();
+                    } catch (err) { alert(err.message); }
+                }));
+
+            } catch (err) { tb.innerHTML = '<tr><td colspan="6">Erro ao carregar clientes.</td></tr>'; }
+        };
+
+        if (addBtn) addBtn.addEventListener('click', () => {
+            document.getElementById('master-tenant-modal-title').textContent = 'Novo Cliente';
+            form.reset();
+            document.getElementById('master-tenant-id').value = '';
+            modal.style.display = 'block';
+        });
+
+        if (cancelBtn) cancelBtn.addEventListener('click', () => modal.style.display = 'none');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                id: document.getElementById('master-tenant-id').value,
+                name: document.getElementById('master-tenant-name').value,
+                slug: document.getElementById('master-tenant-slug').value,
+                plan: document.getElementById('master-tenant-plan').value
+            };
+            try {
+                await wasApiFetch('/admin/tenants', 'POST', payload);
+                modal.style.display = 'none';
+                loadTenants();
+            } catch (err) { alert(err.message); }
+        });
+
+        loadTenants();
     }
 
     async function initMasterDashboard() {
@@ -483,8 +618,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!attachBtn || !menu || !fileInput) return;
 
         attachBtn.addEventListener('click', (e) => {
+            e.preventDefault();
             e.stopPropagation();
-            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+            const isHidden = menu.style.display === 'none' || menu.style.display === '';
+            menu.style.display = isHidden ? 'block' : 'none';
         });
 
         document.addEventListener('click', () => menu.style.display = 'none');

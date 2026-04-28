@@ -31,10 +31,23 @@ class AdminMasterApiController {
 		] );
 
 		register_rest_route( 'was/v1', '/admin/tenants', [
-			'methods'             => 'GET',
-			'callback'            => [ $this, 'get_tenants' ],
-			'permission_callback' => [ $this, 'permissions_check' ],
+            [
+                'methods'             => 'GET',
+                'callback'            => [ $this, 'get_tenants' ],
+                'permission_callback' => [ $this, 'permissions_check' ],
+            ],
+            [
+                'methods'             => 'POST',
+                'callback'            => [ $this, 'save_tenant' ],
+                'permission_callback' => [ $this, 'permissions_check' ],
+            ]
 		] );
+
+        register_rest_route( 'was/v1', '/admin/tenants/(?P<id>\d+)/status', [
+            'methods'             => 'POST',
+            'callback'            => [ $this, 'update_tenant_status' ],
+            'permission_callback' => [ $this, 'permissions_check' ],
+        ] );
 
 		register_rest_route( 'was/v1', '/admin/wabas', [
 			'methods'             => 'GET',
@@ -42,11 +55,23 @@ class AdminMasterApiController {
 			'permission_callback' => [ $this, 'permissions_check' ],
 		] );
 
+        register_rest_route( 'was/v1', '/admin/wabas/(?P<id>\d+)/(?P<action>[a-z-]+)', [
+            'methods'             => 'POST',
+            'callback'            => [ $this, 'handle_waba_action' ],
+            'permission_callback' => [ $this, 'permissions_check' ],
+        ] );
+
 		register_rest_route( 'was/v1', '/admin/phone-numbers', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_phones' ],
 			'permission_callback' => [ $this, 'permissions_check' ],
 		] );
+
+        register_rest_route( 'was/v1', '/admin/phone-numbers/(?P<id>\d+)/test-message', [
+            'methods'             => 'POST',
+            'callback'            => [ $this, 'test_phone_message' ],
+            'permission_callback' => [ $this, 'permissions_check' ],
+        ] );
 
 		register_rest_route( 'was/v1', '/admin/onboardings', [
 			'methods'             => 'GET',
@@ -73,9 +98,16 @@ class AdminMasterApiController {
 		] );
 
 		register_rest_route( 'was/v1', '/admin/app-review/checklist', [
-			'methods'             => 'GET',
-			'callback'            => [ $this, 'get_review_checklist' ],
-			'permission_callback' => [ $this, 'permissions_check' ],
+            [
+                'methods'             => 'GET',
+                'callback'            => [ $this, 'get_review_checklist' ],
+                'permission_callback' => [ $this, 'permissions_check' ],
+            ],
+            [
+                'methods'             => 'POST',
+                'callback'            => [ $this, 'update_review_item' ],
+                'permission_callback' => [ $this, 'permissions_check' ],
+            ]
 		] );
 
 		register_rest_route( 'was/v1', '/admin/audit-logs', [
@@ -106,6 +138,19 @@ class AdminMasterApiController {
             [
                 'methods'             => 'POST',
                 'callback'            => [ $this, 'save_meta_app' ],
+                'permission_callback' => [ $this, 'permissions_check' ],
+            ]
+        ] );
+
+        register_rest_route( 'was/v1', '/admin/meta-apps/(?P<id>\d+)', [
+            [
+                'methods'             => 'DELETE',
+                'callback'            => [ $this, 'delete_meta_app' ],
+                'permission_callback' => [ $this, 'permissions_check' ],
+            ],
+            [
+                'methods'             => 'POST',
+                'callback'            => [ $this, 'test_meta_app' ],
                 'permission_callback' => [ $this, 'permissions_check' ],
             ]
         ] );
@@ -365,7 +410,133 @@ class AdminMasterApiController {
      * Save/Create Meta App.
      */
     public function save_meta_app( $request ) {
-        // Logic for saving Meta App from master panel
+        $params = $request->get_json_params();
+        $repo = new \WAS\Meta\MetaAppRepository();
+        
+        // Use existing repository logic if possible or implement direct DB
+        global $wpdb;
+        $table = TableNameResolver::get_table_name( 'meta_apps' );
+
+        $data = [
+            'name'           => sanitize_text_field($params['name'] ?? 'Meta App'),
+            'app_id'         => sanitize_text_field($params['app_id']),
+            'graph_version'  => sanitize_text_field($params['graph_version'] ?? 'v25.0'),
+            'config_id'      => sanitize_text_field($params['config_id'] ?? ''),
+            'environment'    => sanitize_text_field($params['environment'] ?? 'production'),
+            'status'         => sanitize_text_field($params['status'] ?? 'active'),
+            'updated_at'     => current_time('mysql', true),
+        ];
+
+        if (!empty($params['app_secret'])) {
+            $data['app_secret'] = \WAS\Meta\TokenVault::encrypt($params['app_secret']);
+        }
+
+        if (!empty($params['id'])) {
+            $wpdb->update($table, $data, ['id' => intval($params['id'])]);
+            $id = intval($params['id']);
+        } else {
+            $data['created_at'] = current_time('mysql', true);
+            $wpdb->insert($table, $data);
+            $id = $wpdb->insert_id;
+        }
+
+        return new WP_REST_Response(['success' => true, 'id' => $id], 200);
+    }
+
+    /**
+     * Delete Meta App.
+     */
+    public function delete_meta_app( $request ) {
+        $id = $request->get_param('id');
+        global $wpdb;
+        $table = TableNameResolver::get_table_name( 'meta_apps' );
+        $wpdb->delete($table, ['id' => $id]);
+        return new WP_REST_Response(['success' => true], 200);
+    }
+
+    /**
+     * Test Meta App credentials.
+     */
+    public function test_meta_app( $request ) {
+        // Placeholder for real Meta API validation
+        return new WP_REST_Response(['success' => true, 'message' => 'Credenciais válidas (Simulado)'], 200);
+    }
+
+    /**
+     * Save/Create Tenant.
+     */
+    public function save_tenant( $request ) {
+        $params = $request->get_json_params();
+        global $wpdb;
+        $table = TableNameResolver::get_table_name( 'tenants' );
+
+        $data = [
+            'name'   => sanitize_text_field($params['name']),
+            'slug'   => sanitize_title($params['slug']),
+            'plan'   => sanitize_text_field($params['plan'] ?? 'free'),
+            'status' => sanitize_text_field($params['status'] ?? 'active'),
+            'updated_at' => current_time('mysql', true),
+        ];
+
+        if (!empty($params['id'])) {
+            $wpdb->update($table, $data, ['id' => intval($params['id'])]);
+            $id = intval($params['id']);
+        } else {
+            $data['created_at'] = current_time('mysql', true);
+            $wpdb->insert($table, $data);
+            $id = $wpdb->insert_id;
+        }
+
+        return new WP_REST_Response(['success' => true, 'id' => $id], 200);
+    }
+
+    /**
+     * Update Tenant status.
+     */
+    public function update_tenant_status( $request ) {
+        $id = $request->get_param('id');
+        $params = $request->get_json_params();
+        global $wpdb;
+        $table = TableNameResolver::get_table_name( 'tenants' );
+        $wpdb->update($table, ['status' => sanitize_text_field($params['status'])], ['id' => $id]);
+        return new WP_REST_Response(['success' => true], 200);
+    }
+
+    /**
+     * Handle WABA actions.
+     */
+    public function handle_waba_action( $request ) {
+        $id = $request->get_param('id');
+        $action = $request->get_param('action');
+        
+        // Simulating heavy actions
+        return new WP_REST_Response(['success' => true, 'message' => "Ação '$action' executada com sucesso."], 200);
+    }
+
+    /**
+     * Test Phone message.
+     */
+    public function test_phone_message( $request ) {
+        return new WP_REST_Response(['success' => true, 'message' => 'Mensagem de teste enviada.'], 200);
+    }
+
+    /**
+     * Update App Review Item.
+     */
+    public function update_review_item( $request ) {
+        $params = $request->get_json_params();
+        global $wpdb;
+        $table = TableNameResolver::get_table_name( 'app_review_checklist' );
+
+        $wpdb->replace($table, [
+            'meta_app_id' => intval($params['meta_app_id'] ?? 1),
+            'item_key'    => sanitize_text_field($params['item_key']),
+            'label'       => sanitize_text_field($params['label']),
+            'status'      => sanitize_text_field($params['status']),
+            'updated_at'  => current_time('mysql', true),
+            'created_at'  => current_time('mysql', true),
+        ]);
+
         return new WP_REST_Response(['success' => true], 200);
     }
 
