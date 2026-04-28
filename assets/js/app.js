@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let replyToMessageId = null;
     let chatPollTimer = null;
     let convListPollTimer = null;
+    let currentTemplateForSend = null;
     const CHAT_POLL_INTERVAL = window.wasApp.pollingInterval || 3000;
     const CONV_LIST_POLL_INTERVAL = (window.wasApp.pollingInterval * 3) || 10000;
     let wizardStep = 1;
@@ -1515,6 +1516,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('send-tpl-name-display').textContent = name;
         try {
             const tpl = await wasApiFetch(`/templates/${id}`);
+            currentTemplateForSend = tpl;
+            
             const varMap = tpl.variable_map ? JSON.parse(tpl.variable_map) : {};
             const buttons = tpl.buttons_json ? JSON.parse(tpl.buttons_json) : [];
             const inputsContainer = document.getElementById('was-tpl-variables-inputs');
@@ -1543,9 +1546,66 @@ document.addEventListener('DOMContentLoaded', () => {
                 inputsContainer.innerHTML = '<p class="description">Este modelo não possui variáveis.</p>';
             }
 
+            // Inicializa o preview
+            updateSendPreview();
+
+            // Adiciona listeners para atualizar preview em tempo real
+            setTimeout(() => {
+                document.querySelectorAll('.tpl-var-input').forEach(inp => {
+                    inp.addEventListener('input', updateSendPreview);
+                });
+            }, 100);
+
             modal.style.display = 'block';
         } catch (err) { alert('Erro ao carregar detalhes do template para envio.'); }
     };
+
+    function updateSendPreview() {
+        if (!currentTemplateForSend) return;
+        
+        const t = currentTemplateForSend;
+        const ph = document.getElementById('send-pre-header');
+        const pb = document.getElementById('send-pre-body');
+        const pf = document.getElementById('send-pre-footer');
+        const pbtns = document.getElementById('send-pre-buttons');
+
+        // Coleta valores atuais das variáveis
+        const varInputs = document.querySelectorAll('.tpl-var-input');
+        const currentVars = Array.from(varInputs).reduce((acc, inp) => {
+            acc[inp.dataset.key] = inp.value;
+            return acc;
+        }, {});
+
+        // Header
+        if (ph) {
+            ph.textContent = t.header_text || '';
+            ph.style.display = (t.header_format === 'TEXT' && t.header_text) ? 'block' : 'none';
+        }
+
+        // Body
+        if (pb) {
+            let processedBody = t.body_text || '';
+            Object.entries(currentVars).forEach(([k, v]) => {
+                const displayValue = v || `{{${k}}}`;
+                const safeKey = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                processedBody = processedBody.replace(new RegExp(`{{\\s*${safeKey}\\s*}}`, 'g'), `<span style="color:#25d366; font-weight:bold;">${displayValue}</span>`);
+            });
+            pb.innerHTML = processedBody || '...';
+        }
+
+        // Footer
+        if (pf) {
+            pf.textContent = t.footer_text || '';
+            pf.style.display = t.footer_text ? 'block' : 'none';
+        }
+
+        // Buttons
+        if (pbtns) {
+            const buttons = t.buttons_json ? JSON.parse(t.buttons_json) : [];
+            pbtns.innerHTML = buttons.map(btn => `<div class="was-wa-btn-item">${btn.text}</div>`).join('');
+            pbtns.style.display = buttons.length > 0 ? 'block' : 'none';
+        }
+    }
 
     const closeSendModal = document.getElementById('was-close-send-modal');
     if (closeSendModal) closeSendModal.addEventListener('click', () => { document.getElementById('was-send-template-modal').style.display = 'none'; });

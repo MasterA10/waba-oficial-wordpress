@@ -52,6 +52,12 @@ class TemplateSendService {
         if (!$to) return ['success' => false, 'error' => 'Destinatário não informado'];
         $to = preg_replace('/\D/', '', $to);
 
+        $phone_service = new PhoneNumberService();
+        $phone_number_id = $phone_service->get_primary_id($tenant_id);
+        $token = $this->token_service->get_active_token($tenant_id);
+
+        if (!$phone_number_id || !$token) return ['success' => false, 'error' => 'Configuração de envio incompleta.'];
+
         if (!$conversation_id && $to) {
             $contact = $this->contact_repo->find_or_create_by_wa_id($to, 'Novo Contato', $to);
             if (!$contact) {
@@ -61,20 +67,13 @@ class TemplateSendService {
                 ]);
                 return ['success' => false, 'error' => 'Não foi possível encontrar ou criar o contato.'];
             }
-            $contact_id = $contact->id;
-            $conversation = $this->conversation_repo->find_open_by_contact($contact_id);
+            
+            $conversation = $this->conversation_repo->find_or_create_open_conversation($contact->id, $phone_number_id);
             if (!$conversation) {
-                $conversation_id = $this->conversation_repo->create(['contact_id' => $contact_id, 'status' => 'open']);
-            } else {
-                $conversation_id = $conversation->id;
+                return ['success' => false, 'error' => 'Não foi possível iniciar uma conversa para o envio.'];
             }
+            $conversation_id = $conversation->id;
         }
-
-        $phone_service = new PhoneNumberService();
-        $phone_number_id = $phone_service->get_primary_id($tenant_id);
-        $token = $this->token_service->get_active_token($tenant_id);
-
-        if (!$phone_number_id || !$token) return ['success' => false, 'error' => 'Configuração de envio incompleta.'];
 
         // Mapa de variáveis
         $variable_map = [];

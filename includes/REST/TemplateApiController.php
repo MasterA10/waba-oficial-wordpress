@@ -350,7 +350,15 @@ class TemplateApiController {
                     'to_phone'        => $to_phone,
                     'wa_message_id'   => $result['wa_message_id'] ?? null
                 ]);
-                return new WP_REST_Response(['success' => true, 'wa_message_id' => $result['wa_message_id'] ?? null], 200);
+                return new WP_REST_Response([
+                    'success'         => true, 
+                    'wa_message_id'   => $result['wa_message_id'] ?? null,
+                    'conversation_id' => $result['conversation_id'] ?? $conversation_id,
+                    'rendered_header' => $result['rendered_header'] ?? '',
+                    'rendered_body'   => $result['rendered_body'] ?? '',
+                    'rendered_footer' => $result['rendered_footer'] ?? '',
+                    'buttons'         => $result['buttons'] ?? []
+                ], 200);
             }
 
             $send_error = $result['error'] ?? 'Erro ao enviar template.';
