@@ -265,6 +265,9 @@ if (!defined('ABSPATH')) {
         <h2>10. PRIVACIDADE E DADOS (LGPD)</h2>
         <p>10.1. A Dominai Cloud é Controladora apenas dos dados cadastrais do licenciante. O Cliente é o Controlador dos dados de seus próprios usuários e leads.</p>
 
+        <h2>11. DISPOSIÇÕES GERAIS</h2>
+        <p>11.1. A tolerância de uma das partes quanto ao descumprimento de qualquer obrigação pela outra não implicará em renúncia ao direito de exigir o cumprimento da obrigação.</p>
+
         <h2>12. FORO E LEGISLAÇÃO APLICÁVEL</h2>
         <p>12.1. Regido pelas leis da República Federativa do Brasil. Foro eleito: Comarca de Alfenas - MG.</p>
 

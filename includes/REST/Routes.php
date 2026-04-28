@@ -63,6 +63,33 @@ class Routes {
             ]
         ]);
 
+        // Meta Callbacks (Públicos para a Meta)
+        $metaCallbackController = new MetaCallbackController();
+
+        register_rest_route(WAS_REST_NAMESPACE, '/meta/oauth/callback', [
+            [
+                'methods'             => ['GET', 'POST'],
+                'callback'            => [$metaCallbackController, 'oauth_callback'],
+                'permission_callback' => '__return_true',
+            ]
+        ]);
+
+        register_rest_route(WAS_REST_NAMESPACE, '/meta/deauthorize', [
+            [
+                'methods'             => ['GET', 'POST'],
+                'callback'            => [$metaCallbackController, 'deauthorize_callback'],
+                'permission_callback' => '__return_true',
+            ]
+        ]);
+
+        register_rest_route(WAS_REST_NAMESPACE, '/meta/data-deletion', [
+            [
+                'methods'             => ['GET', 'POST'],
+                'callback'            => [$metaCallbackController, 'data_deletion_callback'],
+                'permission_callback' => '__return_true',
+            ]
+        ]);
+
         // Meta Config
         register_rest_route(WAS_REST_NAMESPACE, '/meta/config', [
             [

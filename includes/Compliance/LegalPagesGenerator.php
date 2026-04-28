@@ -14,9 +14,12 @@ class LegalPagesGenerator {
         'privacy-policy'         => 'Política de Privacidade',
         'terms-of-service'      => 'Termos de Serviço',
         'data-deletion'          => 'Exclusão de Dados',
+        'data-deletion-status'   => 'Status da Exclusão',
         'acceptable-use-policy' => 'Política de Uso Aceitável',
         'security'               => 'Segurança',
-        'contact'                => 'Contato'
+        'contact'                => 'Contato',
+        'support'                => 'Suporte',
+        'docs'                   => 'Documentação'
     ];
 
     /**

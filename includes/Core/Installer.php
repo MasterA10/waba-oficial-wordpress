@@ -628,6 +628,70 @@ class Installer {
 			KEY wa_message_id (wa_message_id)
 		) $charset_collate;";
 		dbDelta( $sql_auth_attempts );
+
+		// WAS-033: Meta OAuth Logs table.
+		$table_oauth_logs = TableNameResolver::get_table_name( 'meta_oauth_logs' );
+		$sql_oauth_logs = "CREATE TABLE $table_oauth_logs (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			tenant_id bigint(20) UNSIGNED DEFAULT NULL,
+			session_uuid varchar(100) DEFAULT NULL,
+			state varchar(190) DEFAULT NULL,
+			code_preview varchar(40) DEFAULT NULL,
+			error_code varchar(100) DEFAULT NULL,
+			error_message text DEFAULT NULL,
+			raw_payload longtext DEFAULT NULL,
+			ip_address varchar(100) DEFAULT NULL,
+			user_agent text DEFAULT NULL,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY tenant_id (tenant_id),
+			KEY session_uuid (session_uuid),
+			KEY state (state),
+			KEY created_at (created_at)
+		) $charset_collate;";
+		dbDelta( $sql_oauth_logs );
+
+		// WAS-034: Meta Deauthorize Logs table.
+		$table_deauthorize_logs = TableNameResolver::get_table_name( 'meta_deauthorize_logs' );
+		$sql_deauthorize_logs = "CREATE TABLE $table_deauthorize_logs (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			tenant_id bigint(20) UNSIGNED DEFAULT NULL,
+			user_id bigint(20) UNSIGNED DEFAULT NULL,
+			signed_request text DEFAULT NULL,
+			raw_payload longtext DEFAULT NULL,
+			ip_address varchar(100) DEFAULT NULL,
+			user_agent text DEFAULT NULL,
+			processed_status varchar(50) DEFAULT 'received',
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY tenant_id (tenant_id),
+			KEY processed_status (processed_status),
+			KEY created_at (created_at)
+		) $charset_collate;";
+		dbDelta( $sql_deauthorize_logs );
+
+		// WAS-035: Data Deletion Requests table.
+		$table_deletion_requests = TableNameResolver::get_table_name( 'data_deletion_requests' );
+		$sql_deletion_requests = "CREATE TABLE $table_deletion_requests (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			request_uuid varchar(100) NOT NULL,
+			tenant_id bigint(20) UNSIGNED DEFAULT NULL,
+			user_id bigint(20) UNSIGNED DEFAULT NULL,
+			meta_user_id varchar(190) DEFAULT NULL,
+			signed_request text DEFAULT NULL,
+			raw_payload longtext DEFAULT NULL,
+			status varchar(50) DEFAULT 'pending',
+			confirmation_code varchar(100) DEFAULT NULL,
+			status_url text DEFAULT NULL,
+			processed_at datetime DEFAULT NULL,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY request_uuid (request_uuid),
+			KEY tenant_id (tenant_id),
+			KEY status (status),
+			KEY meta_user_id (meta_user_id)
+		) $charset_collate;";
+		dbDelta( $sql_deletion_requests );
 	}
 
 	/**

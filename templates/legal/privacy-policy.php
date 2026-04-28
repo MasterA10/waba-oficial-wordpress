@@ -243,7 +243,7 @@ if (!defined('ABSPATH')) {
         <h2>8. POR QUANTO TEMPO ARMAZENAMOS?</h2>
         <p>Os dados serão armazenados enquanto seu cadastro estiver ativo. Após a solicitação de exclusão, os dados são deletados permanentemente, exceto quando a manutenção é obrigatória por lei.</p>
 
-        <h2>10. CANAL DE COMUNICAÇÃO</h2>
+        <h2>9. CANAL DE COMUNICAÇÃO</h2>
         <p>Para exercer seus direitos ou tirar dúvidas, utilize nosso canal oficial:</p>
         <p><strong>E-mail:</strong> nasalexalves@gmail.com<br>
         <strong>Site:</strong> https://dominai.cloud/contato</p>

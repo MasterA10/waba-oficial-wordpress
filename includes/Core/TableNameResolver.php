@@ -96,6 +96,9 @@ class TableNameResolver {
 			'app_review_checklist',
 			'message_referrals',
 			'auth_code_attempts',
+			'meta_oauth_logs',
+			'meta_deauthorize_logs',
+			'data_deletion_requests',
 		];
 	}
 }
