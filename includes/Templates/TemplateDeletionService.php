@@ -26,11 +26,22 @@ class TemplateDeletionService {
         $template = $this->repository->findForTenant($templateId, $tenantId);
 
         if (!$template) {
+            \WAS\Core\SystemLogger::logWarning('TemplateDeletion: Template não encontrado.', [
+                'template_id' => $templateId, 'tenant_id' => $tenantId,
+            ]);
             return ['success' => false, 'error' => 'Template não encontrado.'];
         }
 
+        \WAS\Core\SystemLogger::logInfo('TemplateDeletion: Iniciando exclusão.', [
+            'template_id' => $templateId,
+            'name'        => $template->name,
+            'meta_id'     => $template->meta_template_id,
+            'status'      => $template->status,
+        ]);
+
         $token = $this->tokenService->get_active_token($tenantId);
         if (!$token) {
+            \WAS\Core\SystemLogger::logError('TemplateDeletion: Token não encontrado.', ['tenant_id' => $tenantId]);
             return ['success' => false, 'error' => 'Token não configurado para este tenant.'];
         }
 
@@ -38,21 +49,33 @@ class TemplateDeletionService {
         if ($template->meta_template_id || strtolower($template->status) !== 'draft') {
             $metaResponse = null;
             if ($template->meta_template_id) {
-                // Se temos o ID real, deleta por ID (mais seguro)
                 $metaResponse = $this->metaService->deleteById($template->meta_template_id, $token);
             } else {
-                // Tenta por nome no waba_id
                 $metaResponse = $this->metaService->deleteByName($template->waba_id, $template->name, $token);
             }
 
             if (!($metaResponse['success'] ?? false) && !str_contains(strtolower($metaResponse['error'] ?? ''), 'does not exist')) {
-                return ['success' => false, 'error' => 'Erro na Meta ao excluir: ' . ($metaResponse['error'] ?? 'Desconhecido')];
+                $meta_error = $metaResponse['error'] ?? 'Desconhecido';
+                \WAS\Core\SystemLogger::logError('TemplateDeletion: Meta rejeitou exclusão.', [
+                    'template_id'   => $templateId,
+                    'name'          => $template->name,
+                    'meta_error'    => $meta_error,
+                    'full_response' => $metaResponse,
+                ]);
+                \WAS\Compliance\AuditLogger::log('template_delete_failed', 'template', $templateId, [
+                    'name'       => $template->name,
+                    'meta_error' => $meta_error,
+                ]);
+                return ['success' => false, 'error' => 'Erro na Meta ao excluir: ' . $meta_error];
             }
         }
 
         // Executa o soft delete localmente
         $this->repository->softDelete($templateId);
 
+        \WAS\Core\SystemLogger::logInfo('TemplateDeletion: Template excluído com sucesso.', [
+            'template_id' => $templateId, 'name' => $template->name,
+        ]);
         \WAS\Compliance\AuditLogger::log('template_delete_success', 'template', $templateId, [
             'name' => $template->name,
             'waba_id' => $template->waba_id
