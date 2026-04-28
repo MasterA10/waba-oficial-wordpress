@@ -239,6 +239,11 @@ class Installer {
 			phone_number_id varchar(100) NOT NULL,
 			assigned_user_id bigint(20) UNSIGNED NULL,
 			status varchar(50) DEFAULT 'open',
+			origin_type varchar(50) DEFAULT NULL,
+			origin_source varchar(50) DEFAULT NULL,
+			ctwa_clid varchar(255) DEFAULT NULL,
+			first_referral_id bigint(20) UNSIGNED DEFAULT NULL,
+			last_referral_id bigint(20) UNSIGNED DEFAULT NULL,
 			last_message_at datetime NULL,
 			created_at datetime NOT NULL,
 			updated_at datetime NULL,
@@ -271,6 +276,13 @@ class Installer {
 			interactive_id varchar(190) DEFAULT NULL,
 			interactive_title text DEFAULT NULL,
 			interactive_description text DEFAULT NULL,
+			latitude decimal(10, 7) DEFAULT NULL,
+			longitude decimal(10, 7) DEFAULT NULL,
+			location_name text DEFAULT NULL,
+			location_address text DEFAULT NULL,
+			contacts_json longtext DEFAULT NULL,
+			order_json longtext DEFAULT NULL,
+			referral_id bigint(20) UNSIGNED DEFAULT NULL,
 			raw_payload longtext NULL,
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
@@ -279,9 +291,39 @@ class Installer {
 			KEY tenant_id (tenant_id),
 			KEY reply_to_message_id (reply_to_message_id),
 			KEY reply_to_wa_message_id (reply_to_wa_message_id),
+			KEY referral_id (referral_id),
 			KEY created_at (created_at)
 		) $charset_collate;";
 		dbDelta( $sql_messages );
+
+		// WAS-031: Message Referrals table.
+		$table_referrals = TableNameResolver::get_table_name( 'message_referrals' );
+		$sql_referrals = "CREATE TABLE $table_referrals (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			tenant_id bigint(20) UNSIGNED NOT NULL,
+			conversation_id bigint(20) UNSIGNED DEFAULT NULL,
+			message_id bigint(20) UNSIGNED DEFAULT NULL,
+			source_type varchar(50) DEFAULT NULL,
+			source_id varchar(190) DEFAULT NULL,
+			source_url text DEFAULT NULL,
+			headline text DEFAULT NULL,
+			body text DEFAULT NULL,
+			media_type varchar(50) DEFAULT NULL,
+			image_url text DEFAULT NULL,
+			video_url text DEFAULT NULL,
+			thumbnail_url text DEFAULT NULL,
+			ctwa_clid varchar(255) DEFAULT NULL,
+			raw_referral longtext DEFAULT NULL,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY tenant_id (tenant_id),
+			KEY conversation_id (conversation_id),
+			KEY message_id (message_id),
+			KEY source_type (source_type),
+			KEY source_id (source_id),
+			KEY ctwa_clid (ctwa_clid)
+		) $charset_collate;";
+		dbDelta( $sql_referrals );
 
 		// WAS-021: Message Statuses table.
 		$table_msg_statuses = TableNameResolver::get_table_name( 'message_statuses' );
@@ -325,6 +367,15 @@ class Installer {
 			paused_at datetime NULL,
 			deleted_at datetime NULL,
 			synced_at datetime NULL,
+			template_family varchar(50) DEFAULT NULL,
+			authentication_type varchar(50) DEFAULT NULL,
+			code_expiration_minutes int(11) DEFAULT NULL,
+			add_security_recommendation tinyint(1) DEFAULT 1,
+			otp_type varchar(50) DEFAULT NULL,
+			package_name varchar(190) DEFAULT NULL,
+			signature_hash varchar(190) DEFAULT NULL,
+			autofill_text varchar(190) DEFAULT NULL,
+			zero_tap_terms_accepted tinyint(1) DEFAULT 0,
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
 			PRIMARY KEY  (id),
@@ -531,6 +582,27 @@ class Installer {
 			KEY created_at (created_at)
 		) $charset_collate;";
 		dbDelta( $sql_meta_logs );
+
+		// WAS-032: Auth Code Attempts table.
+		$table_auth_attempts = TableNameResolver::get_table_name( 'auth_code_attempts' );
+		$sql_auth_attempts = "CREATE TABLE $table_auth_attempts (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			tenant_id bigint(20) UNSIGNED NOT NULL,
+			contact_phone varchar(50) NOT NULL,
+			template_id bigint(20) UNSIGNED NOT NULL,
+			code_hash varchar(255) DEFAULT NULL,
+			purpose varchar(50) DEFAULT NULL,
+			wa_message_id varchar(190) DEFAULT NULL,
+			status varchar(50) DEFAULT 'sent_to_meta',
+			expires_at datetime DEFAULT NULL,
+			sent_at datetime NOT NULL,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY tenant_id (tenant_id),
+			KEY contact_phone (contact_phone),
+			KEY wa_message_id (wa_message_id)
+		) $charset_collate;";
+		dbDelta( $sql_auth_attempts );
 	}
 
 	/**

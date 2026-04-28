@@ -395,7 +395,7 @@ class InboxApiController {
 
         $messages = $this->message_repo->list_by_conversation($id);
 
-        // Formatar reply_preview
+        // Formatar reply_preview e referral
         $reply_count = 0;
         foreach ($messages as $msg) {
             if ($msg->reply_to_message_id) {
@@ -409,10 +409,23 @@ class InboxApiController {
             } else {
                 $msg->reply_preview = null;
             }
+
+            if ($msg->referral_id) {
+                $msg->referral = [
+                    'headline'   => $msg->referral_headline,
+                    'body'       => $msg->referral_body,
+                    'source_url' => $msg->referral_url,
+                    'media_type' => $msg->referral_media_type,
+                    'image_url'  => $msg->referral_image,
+                    'video_url'  => $msg->referral_video,
+                ];
+            } else {
+                $msg->referral = null;
+            }
+
             // Limpar campos de join para o JSON ficar limpo
-            unset($msg->reply_text);
-            unset($msg->reply_direction);
-            unset($msg->reply_type);
+            unset($msg->reply_text, $msg->reply_direction, $msg->reply_type);
+            unset($msg->referral_headline, $msg->referral_body, $msg->referral_url, $msg->referral_media_type, $msg->referral_image, $msg->referral_video);
         }
 
         if ($reply_count > 0) {
@@ -457,9 +470,22 @@ class InboxApiController {
                 } else {
                     $msg->reply_preview = null;
                 }
-                unset($msg->reply_text);
-                unset($msg->reply_direction);
-                unset($msg->reply_type);
+
+                if ($msg->referral_id) {
+                    $msg->referral = [
+                        'headline'   => $msg->referral_headline,
+                        'body'       => $msg->referral_body,
+                        'source_url' => $msg->referral_url,
+                        'media_type' => $msg->referral_media_type,
+                        'image_url'  => $msg->referral_image,
+                        'video_url'  => $msg->referral_video,
+                    ];
+                } else {
+                    $msg->referral = null;
+                }
+
+                unset($msg->reply_text, $msg->reply_direction, $msg->reply_type);
+                unset($msg->referral_headline, $msg->referral_body, $msg->referral_url, $msg->referral_media_type, $msg->referral_image, $msg->referral_video);
             }
         }
 

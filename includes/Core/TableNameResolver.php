@@ -59,6 +59,14 @@ class TableNameResolver {
         return self::get_table_name( 'app_review_checklist' );
     }
 
+    public static function getMessageReferralsTable() {
+        return self::get_table_name( 'message_referrals' );
+    }
+
+    public static function getAuthCodeAttemptsTable() {
+        return self::get_table_name( 'auth_code_attempts' );
+    }
+
 	/**
 	 * List of all plugin tables.
 	 *
@@ -86,6 +94,8 @@ class TableNameResolver {
 			'health_checks',
 			'admin_audit_logs',
 			'app_review_checklist',
+			'message_referrals',
+			'auth_code_attempts',
 		];
 	}
 }

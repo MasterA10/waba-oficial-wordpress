@@ -854,7 +854,7 @@ document.addEventListener('DOMContentLoaded', () => {
             messages.forEach(msg => {
                 const text = msg.text_body || msg.body || '';
                 const payload = (msg.message_type === 'template' && msg.raw_payload) ? JSON.parse(msg.raw_payload) : null;
-                renderMessage(text, msg.direction, msg.message_type, payload, msg.media_url, msg.media_filename, msg.created_at, msg.reply_preview, msg.id);
+                renderMessage(text, msg.direction, msg.message_type, payload, msg.media_url, msg.media_filename, msg.created_at, msg.reply_preview, msg.id, msg.referral);
                 // Rastrear último ID para polling
                 if (msg.id && parseInt(msg.id) > lastMessageId) lastMessageId = parseInt(msg.id);
                 // Rastrear última inbound para typing indicator
@@ -892,7 +892,7 @@ document.addEventListener('DOMContentLoaded', () => {
             newMsgs.forEach(msg => {
                 const text = msg.text_body || msg.body || '';
                 const payload = (msg.message_type === 'template' && msg.raw_payload) ? JSON.parse(msg.raw_payload) : null;
-                renderMessage(text, msg.direction, msg.message_type, payload, msg.media_url, msg.media_filename, msg.created_at, msg.reply_preview, msg.id);
+                renderMessage(text, msg.direction, msg.message_type, payload, msg.media_url, msg.media_filename, msg.created_at, msg.reply_preview, msg.id, msg.referral);
                 if (msg.id && parseInt(msg.id) > lastMessageId) lastMessageId = parseInt(msg.id);
                 if (msg.direction === 'inbound') lastInboundMessageId = msg.id;
             });
@@ -956,6 +956,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 clearReplyContext();
                 scrollToBottom();
+                lastTypingSentAt = 0; // Reset typing indicator throttle after sending
+                pollNewMessages();    // Immediate poll after send to keep state synced
             } else {
                 const errorMsg = res.message || (res.data && res.data.message) || 'Erro ao enviar.';
                 alert(`Falha no envio: ${errorMsg}`);
@@ -993,7 +995,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderMessage(text, direction, type = 'text', payload = null, mediaUrl = null, mediaFilename = null, timestamp = null, replyPreview = null, messageId = null) {
+    function renderMessage(text, direction, type = 'text', payload = null, mediaUrl = null, mediaFilename = null, timestamp = null, replyPreview = null, messageId = null, referral = null) {
         const history = document.getElementById('was-messages-history');
         if (!history) return;
 
@@ -1026,7 +1028,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const contentDiv = document.createElement('div');
         contentDiv.className = 'was-message-content';
 
-        // Bloco de Resposta (Citação)
+        // 1. Renderizar Referral Card (Se veio de anúncio)
+        if (referral) {
+            const refCard = document.createElement('div');
+            refCard.className = 'was-referral-card';
+            refCard.innerHTML = `
+                <span class="was-referral-badge">Veio de Anúncio</span>
+                ${referral.image_url ? `<img src="${referral.image_url}" class="was-referral-media">` : ''}
+                <div class="was-referral-content">
+                    <span class="was-referral-headline">${referral.headline || 'Anúncio do Facebook'}</span>
+                    <span class="was-referral-body">${referral.body || ''}</span>
+                </div>
+            `;
+            contentDiv.appendChild(refCard);
+        }
+
+        // 2. Bloco de Resposta (Citação)
         if (replyPreview) {
             const replyBox = document.createElement('div');
             replyBox.className = 'was-reply-box';
@@ -1152,14 +1169,71 @@ document.addEventListener('DOMContentLoaded', () => {
             if (nameInput) nameInput.disabled = false;
             document.getElementById('was-template-wizard').style.display = 'block'; 
             document.querySelector('#was-template-wizard h2').textContent = 'Criar Modelo';
+            
+            // Reset visibility
+            document.getElementById('wiz-standard-fields').style.display = 'block';
+            document.getElementById('wiz-auth-fields').style.display = 'none';
+            document.querySelector('.step-item[data-step="4"]').style.display = 'block';
+
             setWizardStep(1); 
             renderWizardButtons(); 
             renderVariablesList();
             updatePreview();
         });
 
-        document.getElementById('wiz-next')?.addEventListener('click', () => setWizardStep(wizardStep + 1));
-        document.getElementById('wiz-prev')?.addEventListener('click', () => setWizardStep(wizardStep - 1));
+        // Toggle Auth Fields
+        document.querySelectorAll('input[name="category"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const isAuth = e.target.value === 'AUTHENTICATION';
+                document.getElementById('wiz-standard-fields').style.display = isAuth ? 'none' : 'block';
+                document.getElementById('wiz-auth-fields').style.display = isAuth ? 'block' : 'none';
+                
+                // Botões são parte do Passo 3 em Auth, então ocultamos o Passo 4 (Botões)
+                document.querySelector('.step-item[data-step="4"]').style.display = isAuth ? 'none' : 'block';
+                
+                updatePreview();
+            });
+        });
+
+        // Auth Type Change
+        document.getElementById('wiz-auth-type')?.addEventListener('change', (e) => {
+            const val = e.target.value;
+            const mobileFields = document.getElementById('wiz-auth-mobile-fields');
+            const zeroTapWrap = document.getElementById('wiz-auth-zerotap-wrap');
+            const btnText = document.getElementById('wiz-auth-button-text');
+
+            if (mobileFields) mobileFields.style.display = (val === 'ONE_TAP' || val === 'ZERO_TAP') ? 'block' : 'none';
+            if (zeroTapWrap) zeroTapWrap.style.display = val === 'ZERO_TAP' ? 'block' : 'none';
+            
+            if (btnText) {
+                if (val === 'COPY_CODE') btnText.value = 'Copiar código';
+                else if (val === 'ONE_TAP') btnText.value = 'Preencher código';
+                else if (val === 'ZERO_TAP') btnText.value = 'Continuar';
+            }
+            updatePreview();
+        });
+
+        ['wiz-auth-button-text', 'wiz-auth-expiration', 'wiz-auth-security'].forEach(id => {
+            document.getElementById(id)?.addEventListener('input', updatePreview);
+        });
+
+        document.getElementById('wiz-next')?.addEventListener('click', () => {
+            const isAuth = document.querySelector('input[name="category"]:checked')?.value === 'AUTHENTICATION';
+            // Se for auth, pula o passo 4 (Botões) que já configuramos no passo 3
+            if (isAuth && wizardStep === 3) {
+                setWizardStep(5);
+            } else {
+                setWizardStep(wizardStep + 1);
+            }
+        });
+        document.getElementById('wiz-prev')?.addEventListener('click', () => {
+            const isAuth = document.querySelector('input[name="category"]:checked')?.value === 'AUTHENTICATION';
+            if (isAuth && wizardStep === 5) {
+                setWizardStep(3);
+            } else {
+                setWizardStep(wizardStep - 1);
+            }
+        });
         document.getElementById('wiz-cancel')?.addEventListener('click', () => document.getElementById('was-template-wizard').style.display = 'none');
         
         // Add Button Listeners
@@ -1230,9 +1304,12 @@ document.addEventListener('DOMContentLoaded', () => {
             submitBtn.disabled = true;
             submitBtn.textContent = 'Enviando...';
 
+            const cat = wizardForm.querySelector('input[name="category"]:checked').value;
+            const isAuth = cat === 'AUTHENTICATION';
+
             const payload = {
                 name: document.getElementById('wiz-tpl-name').value,
-                category: wizardForm.querySelector('input[name="category"]:checked').value,
+                category: cat,
                 language: document.getElementById('wiz-tpl-lang').value,
                 header: { 
                     type: document.getElementById('wiz-header-type').value, 
@@ -1245,6 +1322,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 footer: { text: document.getElementById('wiz-footer-text').value },
                 buttons: wizardButtons
             };
+
+            if (isAuth) {
+                payload.authentication = {
+                    type: document.getElementById('wiz-auth-type').value,
+                    button_text: document.getElementById('wiz-auth-button-text').value,
+                    code_expiration_minutes: document.getElementById('wiz-auth-expiration').value,
+                    add_security_recommendation: document.getElementById('wiz-auth-security').checked,
+                    package_name: document.getElementById('wiz-auth-package').value,
+                    signature_hash: document.getElementById('wiz-auth-hash').value,
+                    zero_tap_terms_accepted: document.getElementById('wiz-auth-zerotap-terms').checked
+                };
+            }
 
             const method = editingTemplateId ? 'PUT' : 'POST';
             const endpoint = editingTemplateId ? `/templates/${editingTemplateId}` : '/templates';
@@ -1409,6 +1498,25 @@ document.addEventListener('DOMContentLoaded', () => {
             ph.style.display = hType === 'TEXT' && hText ? 'block' : 'none';
         }
 
+        const isAuth = document.querySelector('input[name="category"]:checked')?.value === 'AUTHENTICATION';
+        
+        if (isAuth) {
+            const exp = document.getElementById('wiz-auth-expiration')?.value || '10';
+            const security = document.getElementById('wiz-auth-security')?.checked;
+            const btnText = document.getElementById('wiz-auth-button-text')?.value || 'Copiar código';
+            
+            let authBody = 'Seu código de verificação é <strong>123456</strong>.';
+            if (security) authBody += '\n\nPor segurança, não compartilhe este código.';
+            
+            pb.innerHTML = authBody.replace(/\n/g, '<br>');
+            pf.textContent = `Este código expira em ${exp} minutos.`;
+            pf.style.display = 'block';
+            pbtns.innerHTML = `<div class="was-wa-btn-item">${btnText}</div>`;
+            pbtns.style.display = 'block';
+            ph.style.display = 'none';
+            return;
+        }
+
         if (pb) {
             let processedBody = b;
             Object.entries(wizardVariables).forEach(([k, v]) => {
@@ -1449,6 +1557,28 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('wiz-header-type').value = hType;
         document.getElementById('wiz-header-text').value = hText;
         document.getElementById('wiz-header-text-container').style.display = hType === 'TEXT' ? 'block' : 'none';
+        const isAuth = t.category === 'AUTHENTICATION';
+        document.getElementById('wiz-standard-fields').style.display = isAuth ? 'none' : 'block';
+        document.getElementById('wiz-auth-fields').style.display = isAuth ? 'block' : 'none';
+        document.querySelector('.step-item[data-step="4"]').style.display = isAuth ? 'none' : 'block';
+
+        if (isAuth) {
+            document.getElementById('wiz-auth-type').value = t.otp_type || 'COPY_CODE';
+            document.getElementById('wiz-auth-button-text').value = payload.authentication?.button_text || '';
+            document.getElementById('wiz-auth-expiration').value = t.code_expiration_minutes || 10;
+            document.getElementById('wiz-auth-security').checked = parseInt(t.add_security_recommendation) !== 0;
+            
+            const authType = t.otp_type || 'COPY_CODE';
+            const mobileFields = document.getElementById('wiz-auth-mobile-fields');
+            const zeroTapWrap = document.getElementById('wiz-auth-zerotap-wrap');
+            if (mobileFields) mobileFields.style.display = (authType === 'ONE_TAP' || authType === 'ZERO_TAP') ? 'block' : 'none';
+            if (zeroTapWrap) zeroTapWrap.style.display = authType === 'ZERO_TAP' ? 'block' : 'none';
+            
+            document.getElementById('wiz-auth-package').value = t.package_name || '';
+            document.getElementById('wiz-auth-hash').value = t.signature_hash || '';
+            document.getElementById('wiz-auth-zerotap-terms').checked = parseInt(t.zero_tap_terms_accepted) !== 0;
+        }
+
         document.getElementById('wiz-body-text').value = payload.body?.text || t.body_text || '';
         document.getElementById('wiz-footer-text').value = payload.footer?.text || t.footer_text || '';
         wizardButtons = payload.buttons || [];
@@ -1515,21 +1645,43 @@ document.addEventListener('DOMContentLoaded', () => {
         const body = document.getElementById('wiz-body-text')?.value || '';
         const hType = document.getElementById('wiz-header-type')?.value || 'NONE';
         const hText = document.getElementById('wiz-header-text')?.value || '';
+        const category = document.querySelector('input[name="category"]:checked')?.value || 'UTILITY';
+        const isAuth = category === 'AUTHENTICATION';
 
-        const checks = [
-            { label: 'Nome válido', pass: /^[a-z0-9_]+$/.test(name) },
-            { label: 'Mensagem principal preenchida', pass: body.trim().length > 0 },
-            { label: 'Sem variável no início/fim', pass: !/^{{\s*[a-zA-Z0-9_]+\s*}}/.test(body.trim()) && !/{{\s*[a-zA-Z0-9_]+\s*}}$/.test(body.trim()) },
-            { label: 'Variáveis possuem exemplos', pass: Object.values(wizardVariables).every(v => v && v.toString().trim().length > 0) },
-            { label: 'Cabeçalho válido', pass: hType === 'NONE' || hText.trim().length > 0 },
-            { label: 'Botões válidos', pass: wizardButtons.every(b => {
+        let checks = [
+            { label: 'Nome válido', pass: /^[a-z0-9_]+$/.test(name) }
+        ];
+
+        if (isAuth) {
+            const authType = document.getElementById('wiz-auth-type')?.value;
+            const expiration = document.getElementById('wiz-auth-expiration')?.value;
+            const package = document.getElementById('wiz-auth-package')?.value;
+            const hash = document.getElementById('wiz-auth-hash')?.value;
+            const btnText = document.getElementById('wiz-auth-button-text')?.value || '';
+
+            checks.push({ label: 'Texto do botão preenchido', pass: btnText.trim().length > 0 });
+            checks.push({ label: 'Tempo de expiração válido (1-90)', pass: expiration >= 1 && expiration <= 90 });
+
+            if (authType === 'ONE_TAP' || authType === 'ZERO_TAP') {
+                checks.push({ label: 'Package Name preenchido', pass: (package || '').trim().length > 0 });
+                checks.push({ label: 'Signature Hash preenchido', pass: (hash || '').trim().length > 0 });
+            }
+            if (authType === 'ZERO_TAP') {
+                checks.push({ label: 'Termos do Zero-tap aceitos', pass: document.getElementById('wiz-auth-zerotap-terms')?.checked });
+            }
+        } else {
+            checks.push({ label: 'Mensagem principal preenchida', pass: body.trim().length > 0 });
+            checks.push({ label: 'Sem variável no início/fim', pass: !/^{{\s*[a-zA-Z0-9_]+\s*}}/.test(body.trim()) && !/{{\s*[a-zA-Z0-9_]+\s*}}$/.test(body.trim()) });
+            checks.push({ label: 'Variáveis possuem exemplos', pass: Object.values(wizardVariables).every(v => v && v.toString().trim().length > 0) });
+            checks.push({ label: 'Cabeçalho válido', pass: hType === 'NONE' || hText.trim().length > 0 });
+            checks.push({ label: 'Botões válidos', pass: wizardButtons.every(b => {
                 const textOk = (b.text || '').trim().length > 0;
                 if (!textOk) return false;
                 if (b.type === 'URL') return (b.url || '').startsWith('https://');
                 if (b.type === 'PHONE_NUMBER') return (b.phone_number || '').startsWith('+');
                 return true;
-            }) }
-        ];
+            }) });
+        }
 
         list.innerHTML = checks.map(c => `<li style="margin-bottom:8px; display:flex; align-items:center; gap:10px;">
             <span style="color:${c.pass ? '#25d366' : '#ef4444'}; font-weight:bold;">${c.pass ? '✅' : '❌'}</span>
@@ -1693,7 +1845,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             buttons: res.buttons
                         };
                         renderMessage(res.rendered_body || 'Modelo enviado', 'outbound', 'template', snapshot);
+                        if (res.id && parseInt(res.id) > lastMessageId) {
+                            lastMessageId = parseInt(res.id);
+                        }
                         scrollToBottom();
+                        lastTypingSentAt = 0;
+                        pollNewMessages();
                     } else if (!currentConversationId) {
                         location.reload();
                     }

@@ -73,6 +73,14 @@ if (!defined('ABSPATH')) {
                                     <p>Enviar oferta, campanha, cupom, lançamento ou promoção.</p>
                                 </div>
                             </label>
+                            <label class="was-cat-card">
+                                <input type="radio" name="category" value="AUTHENTICATION">
+                                <div class="was-cat-card-inner">
+                                    <span class="cat-icon">🔐</span>
+                                    <strong>Autenticação</strong>
+                                    <p>Enviar códigos de verificação (OTP), login ou redefinição de senha.</p>
+                                </div>
+                            </label>
                         </div>
                     </div>
 
@@ -97,24 +105,74 @@ if (!defined('ABSPATH')) {
                     <!-- Passo 3: Conteúdo -->
                     <div class="was-wizard-step-content" id="step-3" style="display:none;">
                         <h3>Estrutura da Mensagem</h3>
-                        <div class="was-form-group">
-                            <label>Cabeçalho (Opcional)</label>
-                            <select id="wiz-header-type" class="regular-text">
-                                <option value="NONE">Nenhum</option>
-                                <option value="TEXT">Texto</option>
-                            </select>
-                            <div id="wiz-header-text-container" style="display:none; margin-top:10px;">
-                                <input type="text" id="wiz-header-text" class="regular-text" placeholder="Título da mensagem" maxlength="60">
+                        
+                        <!-- Campos para Marketing/Utilitário -->
+                        <div id="wiz-standard-fields">
+                            <div class="was-form-group">
+                                <label>Cabeçalho (Opcional)</label>
+                                <select id="wiz-header-type" class="regular-text">
+                                    <option value="NONE">Nenhum</option>
+                                    <option value="TEXT">Texto</option>
+                                </select>
+                                <div id="wiz-header-text-container" style="display:none; margin-top:10px;">
+                                    <input type="text" id="wiz-header-text" class="regular-text" placeholder="Título da mensagem" maxlength="60">
+                                </div>
+                            </div>
+                            <div class="was-form-group" style="margin-top:20px;">
+                                <label>Corpo da mensagem (Obrigatório)</label>
+                                <textarea id="wiz-body-text" style="width:100%;" rows="6" placeholder="Digite sua mensagem aqui... Use {{nome}} para variáveis."></textarea>
+                                <button type="button" id="wiz-add-var" class="button" style="margin-top:5px;">+ Inserir variável</button>
+                            </div>
+                            <div class="was-form-group" style="margin-top:20px;">
+                                <label>Rodapé (Opcional)</label>
+                                <input type="text" id="wiz-footer-text" class="regular-text" placeholder="Texto curto no rodapé" maxlength="60">
                             </div>
                         </div>
-                        <div class="was-form-group" style="margin-top:20px;">
-                            <label>Corpo da mensagem (Obrigatório)</label>
-                            <textarea id="wiz-body-text" style="width:100%;" rows="6" required placeholder="Digite sua mensagem aqui... Use {{nome}} para variáveis."></textarea>
-                            <button type="button" id="wiz-add-var" class="button" style="margin-top:5px;">+ Inserir variável</button>
-                        </div>
-                        <div class="was-form-group" style="margin-top:20px;">
-                            <label>Rodapé (Opcional)</label>
-                            <input type="text" id="wiz-footer-text" class="regular-text" placeholder="Texto curto no rodapé" maxlength="60">
+
+                        <!-- Campos para Autenticação -->
+                        <div id="wiz-auth-fields" style="display:none;">
+                            <div class="was-form-group">
+                                <label>Tipo de Autenticação</label><br>
+                                <select id="wiz-auth-type" class="regular-text" style="width:100%;">
+                                    <option value="COPY_CODE">Copiar código (Copy Code)</option>
+                                    <option value="ONE_TAP">Um toque (One-tap autofill - Android)</option>
+                                    <option value="ZERO_TAP">Zero toque (Zero-tap - Avançado)</option>
+                                </select>
+                            </div>
+                            <div class="was-form-group" style="margin-top:15px;">
+                                <label>Texto do Botão</label><br>
+                                <input type="text" id="wiz-auth-button-text" class="regular-text" value="Copiar código" style="width:100%;">
+                            </div>
+                            <div class="was-form-group" style="margin-top:15px;">
+                                <label>Expiração do código (minutos)</label><br>
+                                <input type="number" id="wiz-auth-expiration" class="regular-text" value="10" min="1" max="90" style="width:100%;">
+                            </div>
+                            <div class="was-form-group" style="margin-top:15px;">
+                                <label>
+                                    <input type="checkbox" id="wiz-auth-security" checked> 
+                                    Adicionar recomendação de segurança
+                                </label>
+                                <p class="description">Ex: "Por segurança, não compartilhe este código."</p>
+                            </div>
+
+                            <!-- Campos Extras para One-tap / Zero-tap -->
+                            <div id="wiz-auth-mobile-fields" style="display:none; margin-top:20px; padding:15px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px;">
+                                <p><strong>Configurações do Aplicativo</strong></p>
+                                <p>
+                                    <label>Nome do pacote (Package Name)</label><br>
+                                    <input type="text" id="wiz-auth-package" class="regular-text" style="width:100%;" placeholder="com.exemplo.app">
+                                </p>
+                                <p>
+                                    <label>Assinatura do App (Signature Hash)</label><br>
+                                    <input type="text" id="wiz-auth-hash" class="regular-text" style="width:100%;" placeholder="HASH_DO_APP">
+                                </p>
+                                <p id="wiz-auth-zerotap-wrap" style="display:none;">
+                                    <label>
+                                        <input type="checkbox" id="wiz-auth-zerotap-terms"> 
+                                        Aceito os termos do Zero-tap
+                                    </label>
+                                </p>
+                            </div>
                         </div>
                     </div>
 

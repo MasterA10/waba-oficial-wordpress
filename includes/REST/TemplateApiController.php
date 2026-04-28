@@ -46,10 +46,12 @@ class TemplateApiController {
             'user_id'  => get_current_user_id(),
         ]);
 
-        if (empty($params['name']) || empty($params['body']['text'])) {
+        $is_auth = ($params['category'] ?? '') === 'AUTHENTICATION';
+        if (empty($params['name']) || (!$is_auth && empty($params['body']['text']))) {
             \WAS\Core\SystemLogger::logWarning('TemplateAPI: Criação rejeitada — campos obrigatórios ausentes.', [
                 'has_name' => !empty($params['name']),
                 'has_body' => !empty($params['body']['text']),
+                'is_auth'  => $is_auth
             ]);
             return new WP_REST_Response(['message' => 'Nome e conteúdo do corpo são obrigatórios'], 400);
         }
@@ -88,17 +90,36 @@ class TemplateApiController {
             return new WP_REST_Response(['message' => 'Token não configurado para o tenant.'], 400);
         }
 
-        $local_id = $this->repository->create([
+        $create_data = [
             'waba_id'             => $account->waba_id,
             'whatsapp_account_id' => $account->id,
             'name'                => $params['name'],
             'category'            => $params['category'],
             'language'            => $params['language'],
-            'body_text'           => $params['body']['text'],
+            'body_text'           => $params['body']['text'] ?? 'Authentication Template',
             'status'              => 'submitting',
             'friendly_payload'    => json_encode($params),
             'variable_map'        => json_encode($variable_map)
-        ]);
+        ];
+
+        // Se for autenticação, salvar campos específicos no banco
+        if ($is_auth && !empty($params['authentication'])) {
+            $auth = $params['authentication'];
+            $create_data['template_family'] = 'authentication';
+            $create_data['authentication_type'] = strtolower($auth['type'] ?? 'copy_code');
+            $create_data['otp_type'] = strtoupper($auth['type'] ?? 'COPY_CODE');
+            $create_data['code_expiration_minutes'] = $auth['code_expiration_minutes'] ?? 10;
+            $create_data['add_security_recommendation'] = isset($auth['add_security_recommendation']) ? (int)$auth['add_security_recommendation'] : 1;
+            
+            if ($create_data['otp_type'] !== 'COPY_CODE') {
+                $create_data['package_name'] = $auth['package_name'] ?? null;
+                $create_data['signature_hash'] = $auth['signature_hash'] ?? null;
+                $create_data['autofill_text'] = $auth['autofill_text'] ?? null;
+                $create_data['zero_tap_terms_accepted'] = isset($auth['zero_tap_terms_accepted']) ? (int)$auth['zero_tap_terms_accepted'] : 0;
+            }
+        }
+
+        $local_id = $this->repository->create($create_data);
 
         \WAS\Core\SystemLogger::logInfo('TemplateAPI: Template salvo localmente (submitting).', [
             'local_id' => $local_id,

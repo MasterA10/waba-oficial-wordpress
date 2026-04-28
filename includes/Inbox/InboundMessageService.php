@@ -75,7 +75,7 @@ class InboundMessageService {
             }
         }
 
-        $message_id = $this->message_repo->create_inbound([
+        $message_data = [
             'conversation_id'         => $conversation->id,
             'wa_message_id'           => $dto['wa_message_id'],
             'message_type'            => $type,
@@ -91,8 +91,47 @@ class InboundMessageService {
             'interactive_id'          => $dto['interactive_id'] ?? null,
             'interactive_title'       => $dto['interactive_title'] ?? null,
             'interactive_description' => $dto['interactive_description'] ?? null,
+            'latitude'                => $dto['latitude'] ?? null,
+            'longitude'               => $dto['longitude'] ?? null,
+            'location_name'           => $dto['location_name'] ?? null,
+            'location_address'        => $dto['location_address'] ?? null,
+            'contacts_json'           => $dto['contacts_json'] ?? null,
+            'order_json'              => $dto['order_json'] ?? null,
             'raw_payload'             => isset($dto['raw_message']) ? wp_json_encode($dto['raw_message']) : null,
-        ]);
+        ];
+
+        // 5.1. Tratar Referral (Anúncios)
+        if (!empty($dto['referral'])) {
+            global $wpdb;
+            $ref_table = \WAS\Core\TableNameResolver::getMessageReferralsTable();
+            $ref_data = array_merge($dto['referral'], [
+                'tenant_id'       => $dto['tenant_id'],
+                'conversation_id' => $conversation->id,
+                'created_at'      => current_time('mysql', 1),
+            ]);
+            
+            $wpdb->insert($ref_table, $ref_data);
+            $referral_id = $wpdb->insert_id;
+            $message_data['referral_id'] = $referral_id;
+
+            // Atualizar conversa com origem de anúncio
+            $conv_table = \WAS\Core\TableNameResolver::get_table_name('conversations');
+            $conv_update = [
+                'origin_type'   => 'paid',
+                'origin_source' => 'ctwa_ad',
+                'last_referral_id' => $referral_id,
+            ];
+            if (!empty($dto['referral']['ctwa_clid'])) {
+                $conv_update['ctwa_clid'] = $dto['referral']['ctwa_clid'];
+            }
+            // Se for o primeiro referral, marca como first_referral_id
+            if (empty($conversation->first_referral_id)) {
+                $conv_update['first_referral_id'] = $referral_id;
+            }
+            $wpdb->update($conv_table, $conv_update, ['id' => $conversation->id]);
+        }
+
+        $message_id = $this->message_repo->create_inbound($message_data);
 
         if ($message_id) {
             // 6. Se for mídia, baixar arquivo

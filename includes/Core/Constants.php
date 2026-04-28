@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'WAS_VERSION' ) ) {
-	define( 'WAS_VERSION', '0.3.6' );
+	define( 'WAS_VERSION', '0.3.7' );
 }
 
 if ( ! defined( 'WAS_PLUGIN_FILE' ) ) {
@@ -42,7 +42,7 @@ if ( ! defined( 'WAS_DB_VERSION_OPTION' ) ) {
 }
 
 if ( ! defined( 'WAS_DB_VERSION' ) ) {
-	define( 'WAS_DB_VERSION', '1.0.5' );
+	define( 'WAS_DB_VERSION', '1.0.6' );
 }
 
 if ( ! defined( 'WAS_ENCRYPTION_KEY' ) ) {

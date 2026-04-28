@@ -25,6 +25,15 @@ final class TemplatePayloadBuilder
             'has_buttons' => !empty($friendly['buttons']),
         ]);
 
+        // Tratar categoria AUTHENTICATION de forma isolada
+        if (($friendly['category'] ?? '') === 'AUTHENTICATION') {
+            $authBuilder = new AuthenticationTemplatePayloadBuilder();
+            return [
+                'meta_payload' => $authBuilder->build($friendly),
+                'variable_map' => [] // Autenticação usa parâmetro fixo no envio
+            ];
+        }
+
         $components = [];
         $variableMap = [];
 

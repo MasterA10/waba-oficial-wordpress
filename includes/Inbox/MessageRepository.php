@@ -97,16 +97,20 @@ class MessageRepository {
         global $wpdb;
         $tenant_id = TenantContext::get_tenant_id();
         $media_table = TableNameResolver::get_table_name('media');
+        $referral_table = TableNameResolver::getMessageReferralsTable();
 
         // Note: For reply preview, we'll do a simple approach or a self-join.
         // A self-join is better for performance here.
         return $wpdb->get_results($wpdb->prepare(
             "SELECT m.*, 
                     med.public_url as media_url, med.filename as media_filename, med.file_size as media_size,
-                    r.text_body as reply_text, r.direction as reply_direction, r.message_type as reply_type
+                    r.text_body as reply_text, r.direction as reply_direction, r.message_type as reply_type,
+                    ref.headline as referral_headline, ref.body as referral_body, ref.source_url as referral_url,
+                    ref.media_type as referral_media_type, ref.image_url as referral_image, ref.video_url as referral_video
              FROM {$this->table_name} m
              LEFT JOIN {$media_table} med ON m.id = med.message_id
              LEFT JOIN {$this->table_name} r ON m.reply_to_message_id = r.id
+             LEFT JOIN {$referral_table} ref ON m.referral_id = ref.id
              WHERE m.conversation_id = %d AND m.tenant_id = %d 
              ORDER BY m.created_at ASC 
              LIMIT %d OFFSET %d",
@@ -125,14 +129,18 @@ class MessageRepository {
         global $wpdb;
         $tenant_id = TenantContext::get_tenant_id();
         $media_table = TableNameResolver::get_table_name('media');
+        $referral_table = TableNameResolver::getMessageReferralsTable();
 
         return $wpdb->get_results($wpdb->prepare(
             "SELECT m.*, 
                     med.public_url as media_url, med.filename as media_filename, med.file_size as media_size,
-                    r.text_body as reply_text, r.direction as reply_direction, r.message_type as reply_type
+                    r.text_body as reply_text, r.direction as reply_direction, r.message_type as reply_type,
+                    ref.headline as referral_headline, ref.body as referral_body, ref.source_url as referral_url,
+                    ref.media_type as referral_media_type, ref.image_url as referral_image, ref.video_url as referral_video
              FROM {$this->table_name} m
              LEFT JOIN {$media_table} med ON m.id = med.message_id
              LEFT JOIN {$this->table_name} r ON m.reply_to_message_id = r.id
+             LEFT JOIN {$referral_table} ref ON m.referral_id = ref.id
              WHERE m.conversation_id = %d AND m.tenant_id = %d AND m.id > %d
              ORDER BY m.created_at ASC",
             $conversation_id,
