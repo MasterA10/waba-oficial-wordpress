@@ -45,9 +45,23 @@ Este documento lista os erros técnicos mais frequentes e críticos encontrados 
 *   **Causa:** O `TenantContext` depende do usuário logado, que não existe no WP-CLI.
 *   **Como evitar:** Implemente um fallback para `tenant_id = 1` quando `defined('WP_CLI')` for verdadeiro, apenas para fins de teste e manutenção.
 
+### ❌ Erro: "Unknown column" após subir arquivos para produção
+*   **Causa:** O banco de dados no servidor remoto não possui as colunas novas criadas localmente durante o desenvolvimento.
+*   **Como evitar:** 
+    *   Sempre utilize a lógica de `check_database_update` no `Plugin::boot()`.
+    *   Incremente `WAS_DB_VERSION` em `Constants.php` sempre que alterar o schema em `Installer.php`.
+    *   Isso forçará a execução do `dbDelta` no servidor assim que os arquivos forem carregados e o plugin inicializado.
+
 ---
 
 ## 4. Frontend e JavaScript (app.js)
+
+### ❌ Erro: Tela branca ao clicar em botões de salvar
+*   **Causa:** O formulário está executando o envio padrão do HTML (recarregando a página) porque o JavaScript não interceptou o evento (geralmente por erro de sintaxe ou cache do JS antigo).
+*   **Como evitar:** 
+    *   Sempre adicione `onsubmit="event.preventDefault(); return false;"` nas tags `<form>`.
+    *   Prefira usar `<button type="button">` em vez de `type="submit"` para botões controlados via AJAX.
+    *   Incremente `WAS_VERSION` para quebrar o cache do navegador no servidor de produção.
 
 ### ❌ Erro: Telas pararem de carregar (Templates/Logs em branco)
 *   **Causa:** Erro de sintaxe no `app.js` (chaves ou parênteses sobrando após edições manuais/ferramentas).
