@@ -1515,16 +1515,33 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const tpl = await wasApiFetch(`/templates/${id}`);
             const varMap = tpl.variable_map ? JSON.parse(tpl.variable_map) : {};
+            const buttons = tpl.buttons_json ? JSON.parse(tpl.buttons_json) : [];
             const inputsContainer = document.getElementById('was-tpl-variables-inputs');
             inputsContainer.innerHTML = '';
+            
+            // 1. Variáveis do Corpo
             const varKeys = Object.keys(varMap);
-            if (varKeys.length === 0) {
-                inputsContainer.innerHTML = '<p class="description">Este modelo não possui variáveis no corpo da mensagem.</p>';
-            } else {
+            if (varKeys.length > 0) {
+                inputsContainer.innerHTML += '<h4>Variáveis do Corpo</h4>';
                 varKeys.forEach(k => {
-                    inputsContainer.innerHTML += `<div style="margin-bottom:10px;"><label><strong>Variável {{${k}}}</strong> (Mapeada como: ${varMap[k]})</label><input type="text" class="tpl-var-input regular-text" data-key="${k}" style="width:100%; margin-top:4px;" required></div>`;
+                    inputsContainer.innerHTML += `<div style="margin-bottom:10px;"><label><strong>{{${k}}}</strong> (${varMap[k]})</label><input type="text" class="tpl-var-input regular-text" data-key="${varMap[k]}" style="width:100%; margin-top:4px;" required></div>`;
                 });
             }
+
+            // 2. Variáveis de Botões
+            buttons.forEach((btn, idx) => {
+                if (btn.type === 'URL' && btn.url && btn.url.includes('{{')) {
+                    const match = btn.url.match(/{{\s*([a-zA-Z0-9_]+)\s*}}/);
+                    const varName = match ? match[1] : `button_${idx}`;
+                    inputsContainer.innerHTML += `<h4>Variável do Botão: ${btn.text}</h4>`;
+                    inputsContainer.innerHTML += `<div style="margin-bottom:10px;"><label><strong>{{${varName}}}</strong> (Link Dinâmico)</label><input type="text" class="tpl-var-input regular-text" data-key="${varName}" style="width:100%; margin-top:4px;" required placeholder="ex: código ou slug"></div>`;
+                }
+            });
+
+            if (inputsContainer.innerHTML === '') {
+                inputsContainer.innerHTML = '<p class="description">Este modelo não possui variáveis.</p>';
+            }
+
             modal.style.display = 'block';
         } catch (err) { alert('Erro ao carregar detalhes do template para envio.'); }
     };

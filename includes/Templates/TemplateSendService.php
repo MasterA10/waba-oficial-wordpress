@@ -86,11 +86,12 @@ class TemplateSendService {
         $rendered_header = $template->header_type === 'TEXT' ? $template->header_text : '';
         $rendered_footer = $template->footer_text;
 
-        // Processa variáveis do BODY
+        // 1. Processa variáveis do BODY
         if (!empty($variable_map)) {
             $body_params = [];
             ksort($variable_map);
             foreach ($variable_map as $pos => $friendlyName) {
+                // Tenta pegar pelo nome amigável ou pela posição
                 $val = $variables[$friendlyName] ?? $variables[$pos] ?? ''; 
                 $body_params[] = ['type' => 'text', 'text' => (string)$val];
                 $rendered_body = str_replace("{{{$friendlyName}}}", (string)$val, $rendered_body);
@@ -100,9 +101,52 @@ class TemplateSendService {
             }
         }
 
-        // Processa variáveis do HEADER (Se houver)
-        // Atualmente o builder salva header_text fixo, mas se no futuro tiver {{var}} no header:
-        // foreach($variables as $k => $v) { $rendered_header = str_replace("{{$k}}", $v, $rendered_header); }
+        // 2. Processa variáveis de BOTÕES (URL Dinâmica)
+        $buttons = [];
+        try { if ($template->buttons_json) $buttons = json_decode($template->buttons_json, true); } catch (\Exception $e) {}
+        
+        if (!empty($buttons)) {
+            $button_index = 0;
+            foreach ($buttons as $btn) {
+                if (($btn['type'] ?? '') === 'URL' && strpos($btn['url'] ?? '', '{{') !== false) {
+                    // Identifica o nome da variável na URL do botão. Ex: domain.com/{{var}}
+                    preg_match('/{{\s*([a-zA-Z0-9_]+)\s*}}/', $btn['url'], $matches);
+                    $varName = $matches[1] ?? null;
+                    
+                    if ($varName) {
+                        $val = $variables[$varName] ?? $button_variables[$button_index] ?? '';
+                        $components[] = [
+                            'type' => 'button',
+                            'sub_type' => 'url',
+                            'index' => (string)$button_index,
+                            'parameters' => [
+                                ['type' => 'text', 'text' => (string)$val]
+                            ]
+                        ];
+                    }
+                }
+                // Apenas botões do tipo URL podem ter variáveis na Meta API estável atual
+                $button_index++;
+            }
+        }
+
+        // 3. Processa variáveis do HEADER (Se houver mídia)
+        if (in_array($template->header_type, ['IMAGE', 'VIDEO', 'DOCUMENT'])) {
+            // Se o template exige mídia no cabeçalho, ela deve ser passada como parâmetro
+            // Para simplificar, se houver um header_handle ou media_id nas variáveis:
+            $media_id = $variables['header_media_id'] ?? $variables['media_id'] ?? null;
+            if ($media_id) {
+                $components[] = [
+                    'type' => 'header',
+                    'parameters' => [
+                        [
+                            'type' => strtolower($template->header_type),
+                            strtolower($template->header_type) => ['id' => $media_id]
+                        ]
+                    ]
+                ];
+            }
+        }
 
         $payload = [
             'messaging_product' => 'whatsapp',
@@ -114,6 +158,12 @@ class TemplateSendService {
                 'components' => $components
             ]
         ];
+
+        \WAS\Core\SystemLogger::logInfo('TemplateSendService: Enviando payload para Meta.', [
+            'template' => $template->name,
+            'to' => $to,
+            'components_count' => count($components)
+        ]);
 
         $response = $this->api_client->postJson('messages.send', ['phone_number_id' => $phone_number_id], $payload, $token);
 
