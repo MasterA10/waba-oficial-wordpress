@@ -38,6 +38,22 @@ class OutboundMediaService {
             throw new \Exception('Conversa não encontrada.');
         }
 
+        // 1. Validar Janela de Atendimento de 24 horas
+        $window_service = new \WAS\Inbox\ConversationWindowService();
+        try {
+            $window_service->assertCanSendFreeform($tenant_id, $conversation_id);
+        } catch (\RuntimeException $e) {
+            \WAS\Core\SystemLogger::logWarning('send_media: Tentativa de envio fora da janela.', [
+                'conversation_id' => $conversation_id,
+                'error'           => $e->getMessage()
+            ]);
+            return [
+                'success'    => false, 
+                'error'      => $e->getMessage(),
+                'error_code' => 'CUSTOMER_SERVICE_WINDOW_CLOSED'
+            ];
+        }
+
         try {
             $this->validation_service->validate($filePath, $mimeType, $mediaType);
         } catch (\Exception $e) {

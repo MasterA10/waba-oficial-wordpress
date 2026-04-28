@@ -194,6 +194,17 @@ class TemplateSendService {
         $response = $this->api_client->postJson('messages.send', ['phone_number_id' => $phone_number_id], $payload, $token);
 
         if ($response['success']) {
+            $wa_message_id = $response['messages'][0]['id'] ?? null;
+
+            // Aprendizado: Se a Meta devolveu um wa_id (canônico), atualizamos o contato
+            if (!empty($response['contacts'][0]['wa_id'])) {
+                $confirmed_wa_id = $response['contacts'][0]['wa_id'];
+                $contact = $this->contact_repo->get_by_id($this->conversation_repo->get_by_id($conversation_id)->contact_id);
+                if ($contact && $confirmed_wa_id !== $contact->wa_id) {
+                    $this->contact_repo->confirm_wa_id($contact->id, $confirmed_wa_id, 'confirmed_by_meta_response');
+                }
+            }
+
             // Salva um snapshot renderizado para o Inbox
             $history_snapshot = [
                 'name' => $template->name,

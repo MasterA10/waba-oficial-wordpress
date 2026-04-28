@@ -189,6 +189,12 @@ class WebhookProcessor {
             new MessageRepository()
         );
 
+        // 1. Processar identidade do contato (Nome de Perfil vs Nome de Exibição)
+        if (!empty($value['contacts'][0])) {
+            $contact_service = new \WAS\Inbox\ContactService();
+            $contact_service->upsertNameFromWebhook($tenant_id, $value['contacts'][0]);
+        }
+
         return $service->handle($dto);
     }
 

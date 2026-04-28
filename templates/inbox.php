@@ -50,6 +50,15 @@ if (!defined('ABSPATH')) {
                 </div>
             </header>
 
+            <div id="was-chat-window-status" class="was-window-status-banner" style="display: none;">
+                <span class="was-window-icon"></span>
+                <div class="was-window-text">
+                    <strong class="was-window-title">Janela de Atendimento</strong>
+                    <p class="was-window-desc"></p>
+                </div>
+                <div class="was-window-timer"></div>
+            </div>
+
             <div id="was-messages-history" class="was-messages-history">
                 <!-- Mensagens renderizadas aqui -->
             </div>

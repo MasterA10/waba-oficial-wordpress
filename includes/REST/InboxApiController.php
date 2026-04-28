@@ -75,13 +75,38 @@ class InboxApiController {
             ],
         ]);
 
-        register_rest_route(WAS_REST_NAMESPACE, '/conversations/(?P<id>\d+)/messages/(?P<message_id>\d+)/typing', [
+        register_rest_route(WAS_REST_NAMESPACE, '/conversations/(?P<id>\d+)/typing', [
             [
                 'methods'             => \WP_REST_Server::CREATABLE,
                 'callback'            => [$this, 'send_typing_indicator'],
                 'permission_callback' => [$this, 'check_send_permission'],
             ],
         ]);
+
+        register_rest_route(WAS_REST_NAMESPACE, '/conversations/(?P<id>\d+)/window', [
+            [
+                'methods'             => \WP_REST_Server::READABLE,
+                'callback'            => [$this, 'get_window_status'],
+                'permission_callback' => [$this, 'check_permission'],
+            ],
+        ]);
+    }
+
+    /**
+     * Retorna o status da janela de atendimento de 24 horas.
+     */
+    public function get_window_status($request) {
+        $id = $request['id'];
+        $conversation = $this->conversation_repo->get_by_id($id);
+
+        if (!$conversation) {
+            return new \WP_REST_Response(['message' => 'Conversa não encontrada'], 404);
+        }
+
+        $window_service = new \WAS\Inbox\ConversationWindowService();
+        $state = $window_service->getWindowState($conversation);
+
+        return new \WP_REST_Response($state, 200);
     }
 
     public function check_permission() {

@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastMessageId = 0;
     let lastInboundMessageId = null;
     let lastTypingSentAt = 0;
+    let windowStatusTimer = null;
+    let currentWindowData = null;
     let lastMessageSentAt = 0;
     let typingTimer = null;
     let replyToMessageId = null;
@@ -844,6 +846,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadConversation(id, contactName) {
         // Parar polling anterior
         stopChatPolling();
+        if (windowStatusTimer) clearTimeout(windowStatusTimer);
 
         currentConversationId = id;
         lastMessageId = 0;
@@ -871,7 +874,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Iniciar polling em tempo real
             startChatPolling();
+            updateWindowStatus(id);
         } catch (err) { historyContainer.innerHTML = 'Erro ao carregar histórico.'; }
+    }
+
+    async function updateWindowStatus(id) {
+        if (!id || id !== currentConversationId) return;
+        try {
+            const data = await wasApiFetch(`/conversations/${id}/window`);
+            currentWindowData = data;
+            renderWindowStatus(data);
+
+            // Reagenda atualização (cada 30s se aberta, ou se estiver mudando de estado)
+            if (windowStatusTimer) clearTimeout(windowStatusTimer);
+            windowStatusTimer = setTimeout(() => updateWindowStatus(currentConversationId), 30000);
+        } catch (err) { console.error('Erro ao atualizar janela:', err); }
+    }
+
+    function renderWindowStatus(data) {
+        const banner = document.getElementById('was-chat-window-status');
+        const input = document.getElementById('was-message-input');
+        const attachBtn = document.getElementById('was-attach-media');
+        if (!banner) return;
+
+        const icon = banner.querySelector('.was-window-icon');
+        const desc = banner.querySelector('.was-window-desc');
+        const timer = banner.querySelector('.was-window-timer');
+
+        banner.style.display = 'flex';
+        banner.className = 'was-window-status-banner ' + (data.status || 'closed');
+
+        if (data.is_open) {
+            icon.innerHTML = '✅';
+            desc.textContent = 'Janela aberta: Você pode enviar mensagens livres.';
+            timer.textContent = `Expira em: ${data.human_remaining}`;
+            input.disabled = false;
+            input.placeholder = 'Digite uma mensagem...';
+            if (attachBtn) attachBtn.disabled = false;
+        } else {
+            icon.innerHTML = '🔒';
+            desc.textContent = 'Janela fechada: Envie um modelo (template) para retomar o contato.';
+            timer.textContent = '';
+            input.disabled = true;
+            input.value = '';
+            input.placeholder = 'Janela fechada. Use um template.';
+            if (attachBtn) attachBtn.disabled = true;
+        }
     }
 
     function startChatPolling() {
@@ -912,6 +960,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (hasInbound) {
                 document.title = '💬 Nova mensagem! — WhatsApp SaaS';
                 setTimeout(() => { document.title = 'WhatsApp SaaS'; }, 3000);
+                // Renovar janela visualmente
+                updateWindowStatus(currentConversationId);
             }
         } catch (err) {
             // Silenciar erros de polling para não poluir a experiência

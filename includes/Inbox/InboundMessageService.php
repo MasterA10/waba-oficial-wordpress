@@ -39,14 +39,15 @@ class InboundMessageService {
             return true; // Já processada
         }
 
-        // 3. Encontrar ou criar contato
-        $contact = $this->contact_repo->find_or_create_by_wa_id(
-            $dto['from'], 
-            $dto['profile_name'] ?? '',
-            $dto['from'] // Usa o wa_id como telefone por padrão
-        );
+        // 3. Encontrar contato (já processado pelo WebhookProcessor via ContactService)
+        $contact = $this->contact_repo->find_by_wa_id($dto['tenant_id'], $dto['from']);
 
-        if (!$contact) {
+        if ($contact) {
+            // Se recebemos mensagem, o número é válido no WhatsApp
+            if ($contact->phone_status !== 'confirmed_by_inbound' && $contact->phone_status !== 'confirmed_by_wa_id') {
+                $this->contact_repo->confirm_wa_id($contact->id, $dto['from'], 'confirmed_by_inbound');
+            }
+        } else {
             return false;
         }
 
@@ -151,9 +152,17 @@ class InboundMessageService {
                 }
             }
 
-            // 7. Atualizar timestamp da conversa e ID da última mensagem inbound
+            // 7. Atualizar timestamp da conversa e janela de atendimento
             $this->conversation_repo->update_last_message_at($conversation->id);
-            $this->conversation_repo->update_last_inbound_wa_message_id($conversation->id, $dto['wa_message_id']);
+            
+            $window_service = new \WAS\Inbox\ConversationWindowService();
+            $window_service->refreshFromInboundMessage(
+                $tenant_id,
+                $conversation->id,
+                $dto['wa_message_id'],
+                $dto['timestamp'] ?? time()
+            );
+            
             return true;
         }
 

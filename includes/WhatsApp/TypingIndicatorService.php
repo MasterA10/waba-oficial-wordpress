@@ -34,7 +34,7 @@ final class TypingIndicatorService {
      * @param int|null $messageId Opcional. Se não passado, usa o último inbound da conversa.
      * @return array
      */
-    public function show_typing(int $conversationId, int $messageId = null): array {
+    public function show_typing(int $conversationId, ?int $messageId = null): array {
         $tenant_id = TenantContext::get_tenant_id();
         $conv_repo = new \WAS\Inbox\ConversationRepository();
 

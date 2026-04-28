@@ -44,9 +44,25 @@ class OutboundMessageService {
             return ['success' => false, 'error' => 'Conversa não encontrada'];
         }
 
-        $contact_repo = new ContactRepository();
+        $contact_repo = new \WAS\Inbox\ContactRepository();
         $contact = $contact_repo->get_by_id($conversation->contact_id);
         if (!$contact) return ['success' => false, 'error' => 'Contato não encontrado'];
+
+        // 1. Validar Janela de Atendimento de 24 horas
+        $window_service = new \WAS\Inbox\ConversationWindowService();
+        try {
+            $window_service->assertCanSendFreeform($tenant_id, $conversation_id);
+        } catch (\RuntimeException $e) {
+            \WAS\Core\SystemLogger::logWarning('send_text: Tentativa de envio fora da janela.', [
+                'conversation_id' => $conversation_id,
+                'error'           => $e->getMessage()
+            ]);
+            return [
+                'success'    => false, 
+                'error'      => $e->getMessage(),
+                'error_code' => 'CUSTOMER_SERVICE_WINDOW_CLOSED'
+            ];
+        }
 
         $phone_number_id = $this->phone_service->get_primary_id($tenant_id);
         $token = $this->token_service->get_active_token($tenant_id);
@@ -117,6 +133,14 @@ class OutboundMessageService {
         if ($response['success']) {
             $wa_message_id = $response['messages'][0]['id'] ?? null;
             
+            // Aprendizado: Se a Meta devolveu um wa_id (canônico), atualizamos o contato
+            if (!empty($response['contacts'][0]['wa_id'])) {
+                $confirmed_wa_id = $response['contacts'][0]['wa_id'];
+                if ($confirmed_wa_id !== $contact->wa_id) {
+                    $contact_repo->confirm_wa_id($contact->id, $confirmed_wa_id, 'confirmed_by_meta_response');
+                }
+            }
+
             \WAS\Compliance\AuditLogger::log('send_text_success', 'conversation', $conversation_id, [
                 'wa_message_id'          => $wa_message_id,
                 'is_reply'               => !!$reply_to_message_id,
