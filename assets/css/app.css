@@ -101,6 +101,145 @@
     line-height: 1.3;
 }
 
+/* Reply Box in Message History */
+.was-reply-box {
+    background: rgba(0, 0, 0, 0.05);
+    border-left: 3px solid var(--primary);
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.was-reply-box:hover {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.was-message-out .was-reply-box {
+    background: rgba(255, 255, 255, 0.2);
+    border-left-color: rgba(255, 255, 255, 0.5);
+    color: white;
+}
+
+.was-reply-user {
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 2px;
+}
+
+.was-message-out .was-reply-user {
+    color: white;
+}
+
+.was-reply-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.8;
+}
+
+/* Composer Reply Preview */
+.was-composer-reply {
+    display: none; /* Controlled by JS */
+    background: #f8fafc;
+    border-bottom: 1px solid var(--slate-200);
+    padding: 10px 16px;
+    position: relative;
+    animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.was-composer-reply-content {
+    border-left: 3px solid var(--primary);
+    padding-left: 10px;
+}
+
+.was-composer-reply .was-reply-user {
+    font-size: 0.75rem;
+}
+
+.was-composer-reply .was-reply-text {
+    font-size: 0.85rem;
+    color: var(--slate-600);
+}
+
+.was-composer-reply-close {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: var(--slate-400);
+    font-size: 1.2rem !important;
+}
+
+.was-composer-reply-close:hover {
+    color: var(--danger);
+}
+
+/* Highlight for Jump to Message */
+.was-message-highlight {
+    animation: highlightFade 2s ease-in-out;
+}
+
+@keyframes highlightFade {
+    0% { background-color: rgba(37, 99, 235, 0.1); }
+    100% { background-color: transparent; }
+}
+
+/* Message Actions (Reply Button) */
+.was-message {
+    position: relative;
+    max-width: 80%;
+}
+
+.was-message-actions {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
+    z-index: 10;
+}
+
+.was-message:hover .was-message-actions {
+    display: flex;
+}
+
+.was-message-in .was-message-actions {
+    left: calc(100% + 10px);
+}
+
+.was-message-out .was-message-actions {
+    right: calc(100% + 10px);
+}
+
+.was-action-btn {
+    background: white;
+    border: 1px solid var(--slate-200);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--slate-600);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: all 0.2s ease;
+}
+
+.was-action-btn:hover {
+    background: var(--slate-50);
+    color: var(--primary);
+    border-color: var(--primary-light);
+}
+
 /* Base Reset & Typography */
 body.was-app-shell {
     margin: 0;
@@ -677,4 +816,103 @@ body.was-app-shell .wrap h1 {
 #was-send-message:hover:not(:disabled) { background-color: #008f6f; transform: scale(1.05); }
 #was-send-message:disabled { background-color: #cbd5e1; cursor: default; opacity: 0.6; }
 #was-send-message svg { width: 22px; height: 22px; margin-left: 2px; }
+
+
+/* Reply Context in Messages */
+.was-reply-box {
+    background: rgba(0, 0, 0, 0.05);
+    border-left: 4px solid var(--primary);
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    overflow: hidden;
+}
+.was-reply-box:hover {
+    background: rgba(0, 0, 0, 0.08);
+}
+.was-reply-user {
+    font-weight: 600;
+    font-size: 0.78rem;
+    color: var(--primary);
+    margin-bottom: 2px;
+}
+.was-reply-text {
+    color: #54656f;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-style: italic;
+}
+.was-message-out .was-reply-box { border-left-color: #00a884; background: rgba(0,0,0,0.03); }
+
+/* Message Actions (Reply Button) */
+.was-message { position: relative; }
+.was-message-actions {
+    position: absolute;
+    top: 8px;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.2s, visibility 0.2s;
+    z-index: 10;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.was-message-in .was-message-actions { right: -42px; padding-left: 20px; }
+.was-message-out .was-message-actions { left: -42px; padding-right: 20px; }
+.was-message:hover .was-message-actions { visibility: visible; opacity: 1; }
+
+.was-action-btn {
+    background: white;
+    border: 1px solid #e5e7eb;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #667781;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+}
+.was-action-btn:hover { color: var(--primary); background: #f8fafc; transform: scale(1.1); }
+
+/* Composer Reply Preview */
+.was-composer-reply {
+    background: #f0f2f5;
+    padding: 8px 16px;
+    border-top: 1px solid #e5e7eb;
+    display: none;
+    position: relative;
+    border-left: 4px solid var(--primary);
+}
+.was-composer-reply-content {
+    background: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+.was-composer-reply-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    cursor: pointer;
+    color: #667781;
+}
+.was-composer-reply-close:hover { color: #ef4444; }
+
+/* Message Highlight for jumpToMessage */
+@keyframes was-highlight-fade {
+    0% { background-color: #fef08a; }
+    100% { background-color: transparent; }
+}
+.was-message-highlight .was-message-content {
+    animation: was-highlight-fade 2s ease-in-out;
+}
 

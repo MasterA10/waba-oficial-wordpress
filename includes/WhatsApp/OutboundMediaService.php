@@ -29,7 +29,7 @@ class OutboundMediaService {
         $this->validation_service = new MediaValidationService();
     }
 
-    public function send_media($conversation_id, $filePath, $mimeType, $mediaType, $caption = '', $filename = '') {
+    public function send_media($conversation_id, $filePath, $mimeType, $mediaType, $caption = '', $filename = '', $reply_to_message_id = null) {
         $tenant_id = TenantContext::get_tenant_id();
         
         $conversation = $this->conversation_repo->get_by_id($conversation_id);
@@ -124,21 +124,57 @@ class OutboundMediaService {
             $mediaType          => $mediaObject
         ];
 
+        // Resolver Contexto de Resposta
+        $reply_to_wa_message_id = null;
+        if ($reply_to_message_id) {
+            \WAS\Core\SystemLogger::logInfo('send_media: Resolvendo contexto de resposta...', [
+                'reply_to_message_id' => $reply_to_message_id,
+                'conversation_id'     => $conversation_id,
+                'media_type'          => $mediaType,
+            ]);
+            $original_msg = $this->message_repo->find_by_id($reply_to_message_id);
+            if ($original_msg && !empty($original_msg->wa_message_id)) {
+                $reply_to_wa_message_id = $original_msg->wa_message_id;
+                $payload['context'] = [
+                    'message_id' => $reply_to_wa_message_id
+                ];
+                \WAS\Core\SystemLogger::logInfo('send_media: Contexto de resposta resolvido com sucesso.', [
+                    'reply_to_message_id'    => $reply_to_message_id,
+                    'reply_to_wa_message_id' => $reply_to_wa_message_id,
+                ]);
+            } else {
+                \WAS\Core\SystemLogger::logWarning('send_media: Mensagem original para reply NÃO encontrada ou sem wa_message_id.', [
+                    'reply_to_message_id' => $reply_to_message_id,
+                    'original_msg_found'  => !!$original_msg,
+                    'wa_message_id'       => $original_msg->wa_message_id ?? null,
+                ]);
+            }
+        }
+
         // 6. Enviar Mensagem
         \WAS\Core\SystemLogger::logInfo('Enviando mensagem de mídia via Cloud API...', ['media_id' => $media_id, 'to' => $contact->wa_id]);
         $sendResponse = $this->api_client->postJson('messages.send', ['phone_number_id' => $phone_number_id], $payload, $token);
         if ($sendResponse['success']) {
-            \WAS\Core\SystemLogger::logInfo('Mensagem de mídia enviada com sucesso.', ['media_id' => $media_id]);
             $wa_message_id = $sendResponse['messages'][0]['id'] ?? null;
+
+            \WAS\Core\SystemLogger::logInfo('Mensagem de mídia enviada com sucesso.', [
+                'media_id'               => $media_id,
+                'wa_message_id'          => $wa_message_id,
+                'is_reply'               => !!$reply_to_message_id,
+                'reply_to_message_id'    => $reply_to_message_id,
+                'reply_to_wa_message_id' => $reply_to_wa_message_id,
+            ]);
             
             // 7. Registrar mensagem e vincular mídia
             $message_id = $this->message_repo->create_outbound([
-                'conversation_id' => $conversation_id,
-                'wa_message_id'   => $wa_message_id,
-                'message_type'    => $mediaType,
-                'text_body'       => $caption ?: $realFilename,
-                'status'          => 'sent',
-                'raw_payload'     => json_encode($payload)
+                'conversation_id'        => $conversation_id,
+                'wa_message_id'          => $wa_message_id,
+                'message_type'           => $mediaType,
+                'text_body'              => $caption ?: $realFilename,
+                'status'                 => 'sent',
+                'reply_to_message_id'    => $reply_to_message_id,
+                'reply_to_wa_message_id' => $reply_to_wa_message_id,
+                'raw_payload'            => wp_json_encode($payload)
             ]);
 
             $this->media_repo->attach_message($media_id, $message_id);
@@ -146,11 +182,14 @@ class OutboundMediaService {
             $this->conversation_repo->update_last_message_at($conversation_id);
 
             \WAS\Compliance\AuditLogger::log('media_sent', 'media', $media_id, [
-                'conversation_id' => $conversation_id,
-                'media_type'      => $mediaType,
-                'wa_message_id'   => $wa_message_id,
-                'filename'        => $realFilename,
-                'public_url'      => $publicUrl
+                'conversation_id'        => $conversation_id,
+                'media_type'             => $mediaType,
+                'wa_message_id'          => $wa_message_id,
+                'filename'               => $realFilename,
+                'public_url'             => $publicUrl,
+                'is_reply'               => !!$reply_to_message_id,
+                'reply_to_message_id'    => $reply_to_message_id,
+                'reply_to_wa_message_id' => $reply_to_wa_message_id,
             ]);
 
             return ['success' => true, 'wa_message_id' => $wa_message_id, 'media_id' => $media_id];

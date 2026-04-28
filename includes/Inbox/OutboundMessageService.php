@@ -28,11 +28,21 @@ class OutboundMessageService {
     /**
      * Envia uma mensagem de texto livre.
      */
-    public function send_text($conversation_id, $text) {
+    public function send_text($conversation_id, $text, $reply_to_message_id = null) {
         $tenant_id = TenantContext::get_tenant_id();
+
+        \WAS\Core\SystemLogger::logInfo('OutboundMessageService::send_text iniciado.', [
+            'conversation_id'      => $conversation_id,
+            'tenant_id'            => $tenant_id,
+            'text_length'          => strlen($text),
+            'reply_to_message_id'  => $reply_to_message_id,
+        ]);
         
         $conversation = $this->conversation_repo->get_by_id($conversation_id);
-        if (!$conversation) return ['success' => false, 'error' => 'Conversa não encontrada'];
+        if (!$conversation) {
+            \WAS\Core\SystemLogger::logError('send_text: Conversa não encontrada.', ['conversation_id' => $conversation_id]);
+            return ['success' => false, 'error' => 'Conversa não encontrada'];
+        }
 
         $contact_repo = new ContactRepository();
         $contact = $contact_repo->get_by_id($conversation->contact_id);
@@ -71,6 +81,32 @@ class OutboundMessageService {
             ],
         ];
 
+        // Resolver Contexto de Resposta
+        $reply_to_wa_message_id = null;
+        if ($reply_to_message_id) {
+            \WAS\Core\SystemLogger::logInfo('send_text: Resolvendo contexto de resposta...', [
+                'reply_to_message_id' => $reply_to_message_id,
+                'conversation_id'     => $conversation_id,
+            ]);
+            $original_msg = $this->message_repo->find_by_id($reply_to_message_id);
+            if ($original_msg && !empty($original_msg->wa_message_id)) {
+                $reply_to_wa_message_id = $original_msg->wa_message_id;
+                $payload['context'] = [
+                    'message_id' => $reply_to_wa_message_id
+                ];
+                \WAS\Core\SystemLogger::logInfo('send_text: Contexto de resposta resolvido com sucesso.', [
+                    'reply_to_message_id'    => $reply_to_message_id,
+                    'reply_to_wa_message_id' => $reply_to_wa_message_id,
+                ]);
+            } else {
+                \WAS\Core\SystemLogger::logWarning('send_text: Mensagem original para reply NÃO encontrada ou sem wa_message_id.', [
+                    'reply_to_message_id' => $reply_to_message_id,
+                    'original_msg_found'  => !!$original_msg,
+                    'wa_message_id'       => $original_msg->wa_message_id ?? null,
+                ]);
+            }
+        }
+
         $response = $this->api_client->postJson(
             'messages.send',
             ['phone_number_id' => $phone_number_id],
@@ -82,21 +118,34 @@ class OutboundMessageService {
             $wa_message_id = $response['messages'][0]['id'] ?? null;
             
             \WAS\Compliance\AuditLogger::log('send_text_success', 'conversation', $conversation_id, [
-                'wa_message_id' => $wa_message_id
+                'wa_message_id'          => $wa_message_id,
+                'is_reply'               => !!$reply_to_message_id,
+                'reply_to_message_id'    => $reply_to_message_id,
+                'reply_to_wa_message_id' => $reply_to_wa_message_id,
             ]);
 
             // Salvar no repositório local
-            $this->message_repo->create_outbound([
-                'conversation_id' => $conversation_id,
-                'wa_message_id'   => $wa_message_id,
-                'message_type'    => 'text',
-                'text_body'       => $text,
-                'status'          => 'sent'
+            $saved_id = $this->message_repo->create_outbound([
+                'conversation_id'        => $conversation_id,
+                'wa_message_id'          => $wa_message_id,
+                'message_type'           => 'text',
+                'text_body'              => $text,
+                'status'                 => 'sent',
+                'reply_to_message_id'    => $reply_to_message_id,
+                'reply_to_wa_message_id' => $reply_to_wa_message_id,
+                'raw_payload'            => wp_json_encode($payload)
+            ]);
+
+            \WAS\Core\SystemLogger::logInfo('send_text: Mensagem salva no banco local.', [
+                'local_id'               => $saved_id,
+                'wa_message_id'          => $wa_message_id,
+                'reply_to_message_id'    => $reply_to_message_id,
+                'reply_to_wa_message_id' => $reply_to_wa_message_id,
             ]);
 
             $this->conversation_repo->update_last_message_at($conversation_id);
             
-            return ['success' => true, 'wa_message_id' => $wa_message_id];
+            return ['success' => true, 'wa_message_id' => $wa_message_id, 'data' => ['id' => $saved_id]];
         } else {
             \WAS\Core\SystemLogger::logError('A Meta API recusou o envio da mensagem de texto.', [
                 'conversation_id' => $conversation_id,

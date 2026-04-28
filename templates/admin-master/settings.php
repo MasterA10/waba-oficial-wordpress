@@ -47,6 +47,13 @@ if (!defined('ABSPATH')) exit;
                             <p class="description">Logs mais antigos que isso serão removidos automaticamente.</p>
                         </td>
                     </tr>
+                    <tr>
+                        <th scope="row"><label for="master_polling_interval">Intervalo de Polling (ms)</label></th>
+                        <td>
+                            <input name="master_polling_interval" type="number" id="master_polling_interval" value="3000" class="small-text" min="500" step="500">
+                            <p class="description">Velocidade de atualização do chat em tempo real (ex: 3000 = 3 seg). Diminua para App Review.</p>
+                        </td>
+                    </tr>
                 </table>
             </div>
 

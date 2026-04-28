@@ -55,6 +55,13 @@ if (!defined('ABSPATH')) {
             </div>
 
             <footer class="was-chat-footer">
+                <div id="was-composer-reply" class="was-composer-reply">
+                    <div class="was-composer-reply-content">
+                        <div id="was-reply-preview-user" class="was-reply-user">Respondendo a...</div>
+                        <div id="was-reply-preview-text" class="was-reply-text">...</div>
+                    </div>
+                    <span id="was-clear-reply" class="was-composer-reply-close dashicons dashicons-no-alt"></span>
+                </div>
                 <div id="was-chat-input-container">
                     <div class="was-chat-input-actions">
                         <button id="was-open-templates-inbox" class="was-btn-secondary" title="Enviar Modelo">

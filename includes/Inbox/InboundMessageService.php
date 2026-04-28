@@ -70,12 +70,34 @@ class InboundMessageService {
             $body = $body ?: '[Tipo de mensagem não suportado]';
         }
 
+        // Resolver reply_to_message_id local
+        $reply_to_message_id = null;
+        $reply_to_wa_message_id = null;
+        $context_from = null;
+        $context_payload = null;
+
+        if (!empty($dto['reply_context']['has_context'])) {
+            $reply_to_wa_message_id = $dto['reply_context']['reply_to_wa_message_id'];
+            $context_from = $dto['reply_context']['context_from'];
+            $context_payload = $dto['reply_context']['context_payload'];
+
+            $original_msg = $this->message_repo->find_by_wa_message_id($reply_to_wa_message_id);
+            if ($original_msg) {
+                $reply_to_message_id = $original_msg->id;
+            }
+        }
+
         $message_id = $this->message_repo->create_inbound([
-            'conversation_id' => $conversation->id,
-            'wa_message_id'   => $dto['wa_message_id'],
-            'message_type'    => $type,
-            'text_body'       => $body,
-            'status'          => 'received'
+            'conversation_id'        => $conversation->id,
+            'wa_message_id'          => $dto['wa_message_id'],
+            'message_type'           => $type,
+            'text_body'              => $body,
+            'status'                 => 'received',
+            'reply_to_message_id'    => $reply_to_message_id,
+            'reply_to_wa_message_id' => $reply_to_wa_message_id,
+            'context_from'           => $context_from,
+            'context_payload'        => $context_payload,
+            'raw_payload'            => isset($dto['raw_message']) ? wp_json_encode($dto['raw_message']) : null,
         ]);
 
         if ($message_id) {

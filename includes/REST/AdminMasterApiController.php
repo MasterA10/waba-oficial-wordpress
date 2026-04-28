@@ -396,6 +396,7 @@ class AdminMasterApiController {
             'master_graph_version' => get_option('was_master_graph_version', 'v25.0'),
             'master_msg_rate_limit' => get_option('was_master_msg_rate_limit', 60),
             'master_log_retention' => get_option('was_master_log_retention', 90),
+            'master_polling_interval' => get_option('was_master_polling_interval', 3000),
         ], 200);
     }
 
@@ -413,6 +414,9 @@ class AdminMasterApiController {
         }
         if (isset($params['master_log_retention'])) {
             update_option('was_master_log_retention', intval($params['master_log_retention']));
+        }
+        if (isset($params['master_polling_interval'])) {
+            update_option('was_master_polling_interval', intval($params['master_polling_interval']));
         }
 
         return new WP_REST_Response(['success' => true], 200);

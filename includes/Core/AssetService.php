@@ -33,6 +33,7 @@ class AssetService {
             'baseUrl' => home_url( '/app' ),
             'adminUrl' => admin_url( 'admin.php?page=was-' ),
             'timezone' => wp_timezone_string(),
+            'pollingInterval' => (int) get_option('was_master_polling_interval', 3000),
 		] );
 
         // Enqueue dashicons if in shell

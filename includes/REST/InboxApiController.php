@@ -86,6 +86,14 @@ class InboxApiController {
     public function send_text_message($request) {
         $id   = $request['id'];
         $text = $request->get_param('text');
+        $reply_to = $request->get_param('reply_to_message_id');
+
+        \WAS\Core\SystemLogger::logInfo('InboxAPI: Requisição de envio de texto recebida.', [
+            'conversation_id'      => $id,
+            'text_length'          => strlen($text ?: ''),
+            'reply_to_message_id'  => $reply_to,
+            'user_id'              => get_current_user_id(),
+        ]);
 
         if (empty($text)) {
             return new \WP_REST_Response(['success' => false, 'message' => 'O texto da mensagem é obrigatório'], 400);
@@ -93,18 +101,32 @@ class InboxApiController {
 
         try {
             $service = new \WAS\Inbox\OutboundMessageService();
-            $result = $service->send_text($id, $text);
+            $result = $service->send_text($id, $text, $reply_to);
 
             if ($result['success']) {
+                \WAS\Core\SystemLogger::logInfo('InboxAPI: Texto enviado com sucesso.', [
+                    'conversation_id' => $id,
+                    'wa_message_id'   => $result['wa_message_id'] ?? null,
+                    'is_reply'        => !!$reply_to,
+                ]);
                 return new \WP_REST_Response($result, 200);
             }
 
+            \WAS\Core\SystemLogger::logWarning('InboxAPI: Falha no envio de texto.', [
+                'conversation_id' => $id,
+                'error'           => $result['error'] ?? 'Desconhecido',
+                'is_reply'        => !!$reply_to,
+            ]);
             return new \WP_REST_Response([
                 'success' => false,
                 'message' => $result['error'] ?? 'Erro ao enviar mensagem'
             ], 500);
         } catch (\Throwable $e) {
-            \WAS\Core\SystemLogger::logException($e, ['context' => 'InboxApiController::send_text_message', 'conversation_id' => $id]);
+            \WAS\Core\SystemLogger::logException($e, [
+                'context'              => 'InboxApiController::send_text_message',
+                'conversation_id'      => $id,
+                'reply_to_message_id'  => $reply_to,
+            ]);
             return new \WP_REST_Response([
                 'success' => false,
                 'message' => 'Erro interno do sistema ao enviar mensagem.'
@@ -136,15 +158,17 @@ class InboxApiController {
         $mediaType = $request['media_type'];
         $caption = $request->get_param('caption') ?: '';
         $filename = $request->get_param('filename') ?: '';
+        $reply_to = $request->get_param('reply_to_message_id');
 
         \WAS\Core\SystemLogger::logInfo('Tentativa de envio de mídia iniciada.', [
-            'conversation_id' => $id,
-            'media_type'      => $mediaType,
-            'has_file'        => !empty($_FILES['file']),
-            'file_name'       => $_FILES['file']['name'] ?? 'N/A',
-            'file_size'       => $_FILES['file']['size'] ?? 0,
-            'file_type'       => $_FILES['file']['type'] ?? 'N/A',
-            'file_error'      => $_FILES['file']['error'] ?? 'N/A',
+            'conversation_id'      => $id,
+            'media_type'           => $mediaType,
+            'reply_to_message_id'  => $reply_to,
+            'has_file'             => !empty($_FILES['file']),
+            'file_name'            => $_FILES['file']['name'] ?? 'N/A',
+            'file_size'            => $_FILES['file']['size'] ?? 0,
+            'file_type'            => $_FILES['file']['type'] ?? 'N/A',
+            'file_error'           => $_FILES['file']['error'] ?? 'N/A',
         ]);
 
         if (empty($_FILES['file'])) {
@@ -187,7 +211,8 @@ class InboxApiController {
                 $file['type'], 
                 $mediaType, 
                 $caption, 
-                $filename ?: $file['name']
+                $filename ?: $file['name'],
+                $reply_to
             );
 
             if ($result['success']) {
@@ -343,6 +368,34 @@ class InboxApiController {
 
         $messages = $this->message_repo->list_by_conversation($id);
 
+        // Formatar reply_preview
+        $reply_count = 0;
+        foreach ($messages as $msg) {
+            if ($msg->reply_to_message_id) {
+                $reply_count++;
+                $msg->reply_preview = [
+                    'id'        => $msg->reply_to_message_id,
+                    'text'      => $msg->reply_text,
+                    'direction' => $msg->reply_direction,
+                    'type'      => $msg->reply_type
+                ];
+            } else {
+                $msg->reply_preview = null;
+            }
+            // Limpar campos de join para o JSON ficar limpo
+            unset($msg->reply_text);
+            unset($msg->reply_direction);
+            unset($msg->reply_type);
+        }
+
+        if ($reply_count > 0) {
+            \WAS\Core\SystemLogger::logInfo('InboxAPI: Conversa carregada com mensagens de reply.', [
+                'conversation_id' => $id,
+                'total_messages'  => count($messages),
+                'reply_messages'  => $reply_count,
+            ]);
+        }
+
         return new \WP_REST_Response([
             'success' => true,
             'data'    => [
@@ -364,6 +417,24 @@ class InboxApiController {
         }
 
         $messages = $this->message_repo->list_new_messages($id, $after_id);
+
+        if ($messages) {
+            foreach ($messages as $msg) {
+                if ($msg->reply_to_message_id) {
+                    $msg->reply_preview = [
+                        'id'        => $msg->reply_to_message_id,
+                        'text'      => $msg->reply_text,
+                        'direction' => $msg->reply_direction,
+                        'type'      => $msg->reply_type
+                    ];
+                } else {
+                    $msg->reply_preview = null;
+                }
+                unset($msg->reply_text);
+                unset($msg->reply_direction);
+                unset($msg->reply_type);
+            }
+        }
 
         return new \WP_REST_Response([
             'success' => true,

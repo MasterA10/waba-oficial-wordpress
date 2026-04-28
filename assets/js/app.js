@@ -9,10 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const { restUrl, nonce } = window.wasApp;
     let currentConversationId = null;
     let lastMessageId = 0;
+    let replyToMessageId = null;
     let chatPollTimer = null;
     let convListPollTimer = null;
-    const CHAT_POLL_INTERVAL = 3000;      // 3 segundos
-    const CONV_LIST_POLL_INTERVAL = 10000; // 10 segundos
+    const CHAT_POLL_INTERVAL = window.wasApp.pollingInterval || 3000;
+    const CONV_LIST_POLL_INTERVAL = (window.wasApp.pollingInterval * 3) || 10000;
     let wizardStep = 1;
     let wizardButtons = [];
     let editingTemplateId = null;
@@ -155,6 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('master_graph_version').value = data.master_graph_version || 'v25.0';
                 document.getElementById('master_msg_rate_limit').value = data.master_msg_rate_limit || 60;
                 document.getElementById('master_log_retention').value = data.master_log_retention || 90;
+                document.getElementById('master_polling_interval').value = data.master_polling_interval || 3000;
             }
         } catch (err) { console.error('Error loading master settings:', err); }
 
@@ -162,7 +164,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = {
                 master_graph_version: document.getElementById('master_graph_version').value,
                 master_msg_rate_limit: document.getElementById('master_msg_rate_limit').value,
-                master_log_retention: document.getElementById('master_log_retention').value
+                master_log_retention: document.getElementById('master_log_retention').value,
+                master_polling_interval: document.getElementById('master_polling_interval').value
             };
             try {
                 await wasApiFetch('/admin/settings', 'POST', payload);
@@ -691,6 +694,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (modal) modal.style.display = 'none';
         });
 
+        const clearReplyBtn = document.getElementById('was-clear-reply');
+        if (clearReplyBtn) clearReplyBtn.addEventListener('click', clearReplyContext);
+
         window.addEventListener('click', (e) => {
             const modal = document.getElementById('was-inbox-tpl-modal');
             if (e.target === modal) modal.style.display = 'none';
@@ -757,6 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const formData = new FormData();
                 formData.append('file', file);
                 if (caption) formData.append('caption', caption);
+                if (replyToMessageId) formData.append('reply_to_message_id', replyToMessageId);
 
                 console.log('Starting fetch to:', `${wasApp.restUrl}/conversations/${currentConversationId}/messages/${mediaType}`);
                 const res = await fetch(`${wasApp.restUrl}/conversations/${currentConversationId}/messages/${mediaType}`, {
@@ -781,6 +788,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('API Data received:', data);
 
                 if (data.success) {
+                    clearReplyContext();
                     loadConversation(currentConversationId, document.getElementById('was-chat-contact-name').textContent);
                 } else {
                     console.error('API reported failure:', data);
@@ -836,7 +844,7 @@ document.addEventListener('DOMContentLoaded', () => {
             messages.forEach(msg => {
                 const text = msg.text_body || msg.body || '';
                 const payload = (msg.message_type === 'template' && msg.raw_payload) ? JSON.parse(msg.raw_payload) : null;
-                renderMessage(text, msg.direction, msg.message_type, payload, msg.media_url, msg.media_filename, msg.created_at);
+                renderMessage(text, msg.direction, msg.message_type, payload, msg.media_url, msg.media_filename, msg.created_at, msg.reply_preview, msg.id);
                 // Rastrear último ID para polling
                 if (msg.id && parseInt(msg.id) > lastMessageId) lastMessageId = parseInt(msg.id);
             });
@@ -872,7 +880,7 @@ document.addEventListener('DOMContentLoaded', () => {
             newMsgs.forEach(msg => {
                 const text = msg.text_body || msg.body || '';
                 const payload = (msg.message_type === 'template' && msg.raw_payload) ? JSON.parse(msg.raw_payload) : null;
-                renderMessage(text, msg.direction, msg.message_type, payload, msg.media_url, msg.media_filename, msg.created_at);
+                renderMessage(text, msg.direction, msg.message_type, payload, msg.media_url, msg.media_filename, msg.created_at, msg.reply_preview, msg.id);
                 if (msg.id && parseInt(msg.id) > lastMessageId) lastMessageId = parseInt(msg.id);
             });
 
@@ -911,10 +919,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!body) return;
         inputField.disabled = true; sendBtn.disabled = true;
         try {
-            const res = await wasApiFetch(`/conversations/${currentConversationId}/messages/text`, 'POST', { text: body });
+            const res = await wasApiFetch(`/conversations/${currentConversationId}/messages/text`, 'POST', { 
+                text: body,
+                reply_to_message_id: replyToMessageId
+            });
             if (res.success) {
-                renderMessage(body, 'outbound', 'text', null, null, null, new Date().toISOString());
+                // Se era uma resposta, o renderMessage vai precisar do reply_preview se quisermos mostrar na hora
+                // Mas geralmente o fetchConversations ou polling vai trazer os dados completos.
+                // Por simplicidade agora, limpamos e deixamos o polling trazer se for o caso, 
+                // ou renderizamos localmente se o backend retornar o preview.
+                const replyPreview = res.data?.reply_preview || null;
+                renderMessage(body, 'outbound', 'text', null, null, null, new Date().toISOString(), replyPreview, res.data?.id);
                 inputField.value = '';
+                clearReplyContext();
                 scrollToBottom();
             } else {
                 const errorMsg = res.message || (res.data && res.data.message) || 'Erro ao enviar.';
@@ -924,7 +941,36 @@ document.addEventListener('DOMContentLoaded', () => {
         finally { inputField.disabled = false; sendBtn.disabled = false; inputField.focus(); }
     }
 
-    function renderMessage(text, direction, type = 'text', payload = null, mediaUrl = null, mediaFilename = null, timestamp = null) {
+    function setReplyContext(messageId, text, author) {
+        replyToMessageId = messageId;
+        const preview = document.getElementById('was-composer-reply');
+        const userEl = document.getElementById('was-reply-preview-user');
+        const textEl = document.getElementById('was-reply-preview-text');
+        
+        if (preview && userEl && textEl) {
+            userEl.textContent = `Respondendo a ${author}`;
+            textEl.textContent = text.length > 60 ? text.substring(0, 60) + '...' : text;
+            preview.style.display = 'block';
+            document.getElementById('was-message-input')?.focus();
+        }
+    }
+
+    function clearReplyContext() {
+        replyToMessageId = null;
+        const preview = document.getElementById('was-composer-reply');
+        if (preview) preview.style.display = 'none';
+    }
+
+    function jumpToMessage(messageId) {
+        const target = document.querySelector(`.was-message[data-id="${messageId}"]`);
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.classList.add('was-message-highlight');
+            setTimeout(() => target.classList.remove('was-message-highlight'), 2000);
+        }
+    }
+
+    function renderMessage(text, direction, type = 'text', payload = null, mediaUrl = null, mediaFilename = null, timestamp = null, replyPreview = null, messageId = null) {
         const history = document.getElementById('was-messages-history');
         if (!history) return;
 
@@ -947,8 +993,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const msgDiv = document.createElement('div');
         msgDiv.className = `was-message ${direction === 'outbound' || direction === 'sent' ? 'was-message-out' : 'was-message-in'}`;
+        if (messageId) msgDiv.dataset.id = messageId;
+
         const contentDiv = document.createElement('div');
         contentDiv.className = 'was-message-content';
+
+        // Bloco de Resposta (Citação)
+        if (replyPreview) {
+            const replyBox = document.createElement('div');
+            replyBox.className = 'was-reply-box';
+            const author = replyPreview.direction === 'outbound' ? 'Você' : (document.getElementById('was-chat-contact-name').textContent || 'Contato');
+            const replyText = replyPreview.text_body || replyPreview.body || (replyPreview.message_type !== 'text' ? `[${replyPreview.message_type}]` : '...');
+            
+            replyBox.innerHTML = `
+                <div class="was-reply-user">${author}</div>
+                <div class="was-reply-text">${replyText}</div>
+            `;
+            
+            if (replyPreview.id) {
+                replyBox.addEventListener('click', () => jumpToMessage(replyPreview.id));
+            }
+            contentDiv.appendChild(replyBox);
+        }
         
         if (type === 'template') {
             let header = '';
@@ -973,22 +1039,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
             }
 
-            contentDiv.innerHTML = `<div class="was-template-card">
+            contentDiv.innerHTML += `<div class="was-template-card">
                 ${header ? `<div class="was-tpl-header">${header}</div>` : ''}
                 <div class="was-tpl-body">${body}</div>
                 ${footer ? `<div class="was-tpl-footer">${footer}</div>` : ''}
                 ${buttonsHtml}
             </div>`;
         } else if (type === 'image' && mediaUrl) {
-            contentDiv.innerHTML = `<img src="${mediaUrl}" alt="Imagem" loading="lazy">
+            contentDiv.innerHTML += `<img src="${mediaUrl}" alt="Imagem" loading="lazy">
                                     ${text ? `<div style="padding-top:4px;">${text}</div>` : ''}`;
         } else if (type === 'audio' && mediaUrl) {
-            contentDiv.innerHTML = `<audio controls src="${mediaUrl}"></audio>`;
+            contentDiv.innerHTML += `<audio controls src="${mediaUrl}"></audio>`;
         } else if (type === 'video' && mediaUrl) {
-            contentDiv.innerHTML = `<video controls src="${mediaUrl}"></video>
+            contentDiv.innerHTML += `<video controls src="${mediaUrl}"></video>
                                     ${text ? `<div style="padding-top:4px;">${text}</div>` : ''}`;
         } else if (type === 'document' && mediaUrl) {
-            contentDiv.innerHTML = `<a href="${mediaUrl}" target="_blank" class="was-doc-card">
+            contentDiv.innerHTML += `<a href="${mediaUrl}" target="_blank" class="was-doc-card">
                                         <span class="dashicons dashicons-media-document"></span>
                                         <div class="was-doc-info">
                                             <span class="was-doc-name">${mediaFilename || 'Documento'}</span>
@@ -996,7 +1062,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </a>
                                     ${text ? `<div style="padding-top:4px;">${text}</div>` : ''}`;
         } else {
-            contentDiv.textContent = text;
+            const bodySpan = document.createElement('span');
+            bodySpan.textContent = text;
+            contentDiv.appendChild(bodySpan);
         }
 
         const timeSpan = document.createElement('span');
@@ -1004,6 +1072,16 @@ document.addEventListener('DOMContentLoaded', () => {
         timeSpan.textContent = timeStr;
         contentDiv.appendChild(timeSpan);
 
+        // Botão de Responder (Ações)
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'was-message-actions';
+        actionsDiv.innerHTML = `<button class="was-action-btn" title="Responder"><span class="dashicons dashicons-undo"></span></button>`;
+        actionsDiv.querySelector('button').addEventListener('click', () => {
+            const author = (direction === 'outbound' || direction === 'sent') ? 'Você' : (document.getElementById('was-chat-contact-name').textContent || 'Contato');
+            setReplyContext(messageId, text, author);
+        });
+
+        msgDiv.appendChild(actionsDiv);
         msgDiv.appendChild(contentDiv);
         history.appendChild(msgDiv);
     }

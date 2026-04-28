@@ -181,6 +181,10 @@ class WebhookProcessor {
             ];
         }
 
+        // Extrair Reply Context
+        $reply_parser = new \WAS\WhatsApp\WebhookReplyContextParser();
+        $reply_context = $reply_parser->extract($message);
+
         $dto = [
             'tenant_id'       => $tenant_id,
             'phone_number_id' => $phone_number_id,
@@ -193,6 +197,7 @@ class WebhookProcessor {
             'timestamp'       => $message['timestamp'],
             'raw_event_id'    => $event_id,
             'raw_message'     => $message, // Para debug
+            'reply_context'   => $reply_context,
         ];
 
         // Injetar dependências manualmente para o serviço

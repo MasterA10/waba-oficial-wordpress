@@ -261,12 +261,18 @@ class Installer {
 			wa_message_id varchar(255) NULL,
 			text_body text NULL,
 			status varchar(50) DEFAULT 'sent',
+			reply_to_message_id bigint(20) UNSIGNED DEFAULT NULL,
+			reply_to_wa_message_id varchar(255) DEFAULT NULL,
+			context_from varchar(80) DEFAULT NULL,
+			context_payload longtext DEFAULT NULL,
 			raw_payload longtext NULL,
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY wa_message_id (wa_message_id),
 			KEY conversation_id (conversation_id),
 			KEY tenant_id (tenant_id),
+			KEY reply_to_message_id (reply_to_message_id),
+			KEY reply_to_wa_message_id (reply_to_wa_message_id),
 			KEY created_at (created_at)
 		) $charset_collate;";
 		dbDelta( $sql_messages );
