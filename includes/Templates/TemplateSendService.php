@@ -226,6 +226,11 @@ class TemplateSendService {
 
             $this->conversation_repo->update_last_message_at($conversation_id);
 
+            \WAS\Core\SystemLogger::logInfo('WindowService: Template enviado. A janela de 24h permanece inalterada (Regra da Meta: apenas mensagens do cliente abrem a janela).', [
+                'conversation_id' => $conversation_id,
+                'template_name' => $template->name
+            ]);
+
             return [
                 'success' => true, 
                 'wa_message_id' => $response['messages'][0]['id'],

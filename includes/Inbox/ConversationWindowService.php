@@ -46,8 +46,13 @@ class ConversationWindowService {
     /**
      * Retorna o estado detalhado da janela de uma conversa.
      */
-    public function getWindowState(object $conversation): array {
+    public function getWindowState(object $conversation, bool $debugLog = false): array {
         if (empty($conversation->customer_service_window_expires_at)) {
+            if ($debugLog) {
+                \WAS\Core\SystemLogger::logInfo('WindowService_Debug: Conversa sem data de expiração.', [
+                    'conversation_id' => $conversation->id ?? 'unknown'
+                ]);
+            }
             return [
                 'status'            => 'closed',
                 'is_open'           => false,
@@ -78,7 +83,7 @@ class ConversationWindowService {
         // Se faltar menos de 1 hora, status muda para closing_soon
         $status = $remaining <= (60 * 60) ? 'closing_soon' : 'open';
 
-        return [
+        $state = [
             'status'            => $status,
             'is_open'           => true,
             'expires_at'        => $conversation->customer_service_window_expires_at,
@@ -87,6 +92,20 @@ class ConversationWindowService {
             'can_send_freeform' => true,
             'must_use_template' => false,
         ];
+
+        if ($debugLog) {
+            \WAS\Core\SystemLogger::logInfo('WindowService_Debug: Cálculo de janela realizado.', [
+                'conversation_id' => $conversation->id ?? 'unknown',
+                'raw_expires_at'  => $conversation->customer_service_window_expires_at,
+                'time_now_utc'    => gmdate('Y-m-d H:i:s', $now),
+                'now_epoch'       => $now,
+                'expires_epoch'   => $expiresAt,
+                'remaining'       => $remaining,
+                'final_status'    => $status
+            ]);
+        }
+
+        return $state;
     }
 
     /**
@@ -103,7 +122,7 @@ class ConversationWindowService {
             throw new \RuntimeException('Conversa não encontrada.');
         }
 
-        $window = $this->getWindowState($conversation);
+        $window = $this->getWindowState($conversation, true);
         
         if (!$window['can_send_freeform']) {
             \WAS\Core\SystemLogger::logWarning('WindowService: Bloqueio de envio - Janela fechada.', [
