@@ -654,3 +654,27 @@ body.was-app-shell .wrap h1 {
 .was-message-out .was-message-time { color: #667781; }
 .was-message-in .was-message-time { color: #667781; }
 
+/* Chat Footer & Send Button */
+.was-chat-footer { padding: 10px 16px; background: #f0f2f5; border-top: 1px solid #e5e7eb; }
+#was-chat-input-container { display: flex; align-items: center; gap: 12px; background: #ffffff; border-radius: 24px; padding: 4px 12px; }
+#was-message-input { flex: 1; border: none; background: transparent; padding: 10px; font-size: 0.95rem; outline: none; resize: none; max-height: 120px; min-height: 24px; line-height: 1.4; color: #111b21; }
+
+#was-send-message {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #00a884;
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s, background-color 0.2s;
+    flex-shrink: 0;
+    padding: 0;
+}
+#was-send-message:hover:not(:disabled) { background-color: #008f6f; transform: scale(1.05); }
+#was-send-message:disabled { background-color: #cbd5e1; cursor: default; opacity: 0.6; }
+#was-send-message svg { width: 22px; height: 22px; margin-left: 2px; }
+

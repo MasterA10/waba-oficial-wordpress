@@ -73,7 +73,9 @@ if (!defined('ABSPATH')) {
                     </div>
                     <textarea id="was-message-input" placeholder="Digite uma mensagem..."></textarea>
                     <button id="was-send-message" class="was-btn-primary" disabled>
-                        <span class="dashicons dashicons-send"></span>
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <path d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"></path>
+                        </svg>
                     </button>
                 </div>
             </footer>
