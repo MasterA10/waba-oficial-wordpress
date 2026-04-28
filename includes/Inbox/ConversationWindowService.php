@@ -35,8 +35,11 @@ class ConversationWindowService {
         ]);
 
         \WAS\Core\SystemLogger::logInfo('WindowService: Janela de atendimento renovada.', [
+            'tenant_id'       => $tenantId,
             'conversation_id' => $conversationId,
-            'expires_at'      => $expiresAt
+            'message_time'    => gmdate('Y-m-d H:i:s', $messageTime),
+            'expires_at'      => $expiresAt,
+            'wa_message_id'   => $waMessageId
         ]);
     }
 
@@ -93,13 +96,30 @@ class ConversationWindowService {
     public function assertCanSendFreeform(int $tenantId, int $conversationId): void {
         $conversation = $this->repository->findForTenant($conversationId, $tenantId);
         if (!$conversation) {
+            \WAS\Core\SystemLogger::logError('WindowService: Falha na validação - Conversa não encontrada.', [
+                'tenant_id' => $tenantId,
+                'conversation_id' => $conversationId
+            ]);
             throw new \RuntimeException('Conversa não encontrada.');
         }
 
         $window = $this->getWindowState($conversation);
+        
         if (!$window['can_send_freeform']) {
+            \WAS\Core\SystemLogger::logWarning('WindowService: Bloqueio de envio - Janela fechada.', [
+                'tenant_id' => $tenantId,
+                'conversation_id' => $conversationId,
+                'window_state' => $window
+            ]);
             throw new \RuntimeException('A janela de atendimento de 24 horas está fechada. Use um template para retomar o contato.');
         }
+
+        \WAS\Core\SystemLogger::logInfo('WindowService: Validação de envio permitida.', [
+            'tenant_id' => $tenantId,
+            'conversation_id' => $conversationId,
+            'expires_at' => $window['expires_at'],
+            'seconds_remaining' => $window['seconds_remaining']
+        ]);
     }
 
     /**
