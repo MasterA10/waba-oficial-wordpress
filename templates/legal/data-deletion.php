@@ -24,7 +24,7 @@
 <body>
     <div class="card">
         <h1>Solicitação de Exclusão de Dados</h1>
-        <p>A plataforma <strong>WABA SaaS</strong> permite que usuários e empresas solicitem a exclusão dos dados associados à integração com a Meta/Facebook/WhatsApp.</p>
+        <p>A plataforma <strong>Dominai Cloud</strong> permite que usuários e empresas solicitem a exclusão dos dados associados à integração com a Meta/Facebook/WhatsApp.</p>
 
         <h2>Dados que podem ser excluídos:</h2>
         <ul>
@@ -37,17 +37,17 @@
 
         <h2>Como solicitar:</h2>
         <ol>
-            <li>Envie um e-mail para <strong>suporte@was-saas.com</strong></li>
+            <li>Envie um e-mail para <strong>nasalexalves@gmail.com</strong></li>
             <li>Informe o e-mail da conta, nome da empresa e o número de telefone WhatsApp conectado.</li>
             <li>Nossa equipe processará a solicitação e retornará um protocolo de confirmação em até 48 horas.</li>
         </ol>
 
         <p>Se você já realizou uma solicitação através do painel do Facebook/Meta, você pode acompanhar o status da sua solicitação utilizando o link de status fornecido pela plataforma.</p>
         
-        <a href="<?php echo home_url('/contact'); ?>" class="btn">Entrar em contato</a>
+        <a href="<?php echo home_url('/support'); ?>" class="btn">Entrar em contato</a>
     </div>
     <div class="footer">
-        &copy; <?php echo date('Y'); ?> WABA SaaS. Todos os direitos reservados.
+        &copy; <?php echo date('Y'); ?> Dominai Cloud. Todos os direitos reservados.
     </div>
 </body>
 </html>

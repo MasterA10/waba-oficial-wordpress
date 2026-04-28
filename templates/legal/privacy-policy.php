@@ -169,7 +169,7 @@ if (!defined('ABSPATH')) {
             <span class="badge">Privacidade</span>
             <h1>Política de Privacidade</h1>
             <div class="meta-data">
-                Data de disponibilização: <strong>22/05/2024</strong>
+                Data de disponibilização: <strong>28/04/2026</strong>
             </div>
         </header>
 

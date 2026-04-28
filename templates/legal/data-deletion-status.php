@@ -8,7 +8,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Status da Exclusão de Dados - WABA SaaS</title>
+    <title>Status da Exclusão de Dados - Dominai Cloud</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #334155; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #f8fafc; }
         .card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; text-align: center; }
@@ -71,7 +71,7 @@
         <a href="<?php echo home_url('/'); ?>" style="color: #2563eb; text-decoration: none; font-size: 0.9rem; font-weight: 600;">Voltar ao início</a>
     </div>
     <div class="footer">
-        &copy; <?php echo date('Y'); ?> WABA SaaS.
+        &copy; <?php echo date('Y'); ?> Dominai Cloud.
     </div>
 </body>
 </html>

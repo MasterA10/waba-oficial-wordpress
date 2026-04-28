@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - WABA SaaS</title>
+    <title>Login - Dominai Cloud</title>
     <link rel="stylesheet" href="<?php echo WAS_PLUGIN_URL; ?>assets/css/login.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,7 +13,7 @@
 <body class="was-login-body">
     <div class="was-login-container">
         <div class="was-login-box">
-            <img src="<?php echo WAS_PLUGIN_URL; ?>assets/images/logo.png" alt="WABA SaaS Logo" class="was-login-logo">
+            <img src="<?php echo WAS_PLUGIN_URL; ?>assets/images/logo.png" alt="Dominai Cloud Logo" class="was-login-logo">
             <h1>Bem-vindo de volta</h1>
             <p>Acesse sua conta para gerenciar seu WhatsApp</p>
 
@@ -50,6 +50,7 @@
         <div class="was-login-footer">
             <a href="<?php echo home_url('/privacy-policy'); ?>">Privacidade</a>
             <a href="<?php echo home_url('/terms-of-service'); ?>">Termos de Uso</a>
+            <a href="<?php echo home_url('/data-deletion'); ?>">Exclusão de Dados</a>
             <a href="<?php echo home_url('/support'); ?>">Suporte</a>
         </div>
     </div>

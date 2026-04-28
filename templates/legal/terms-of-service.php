@@ -172,11 +172,11 @@ if (!defined('ABSPATH')) {
             <span class="badge">Oficial</span>
             <h1>Termos e Condições Gerais de Uso</h1>
             <div class="meta-data">
-                Publicado em: <strong>22/05/2024</strong> • Atualizado em: <strong>27/03/2026</strong>
+                Publicado em: <strong>22/05/2024</strong> • Atualizado em: <strong>28/04/2026</strong>
             </div>
         </header>
 
-        <p>Estes Termos e Condições de Uso (“Termos”) regulam a relação comercial e o licenciamento de uso entre a empresa <strong>BIANCA SANT ANA PEREIRA & CIA LTDA</strong>, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 35.617.749/0001-67, doravante denominada “Dominai Cloud” ou “LICENCIANTE”, e a pessoa física ou jurídica que adquire a licença, doravante denominada “CLIENTE” ou “LICENCIADO”.</p>
+        <p>Estes Termos e Condições de Uso (“Termos”) regulam a relação comercial e o licenciamento de uso entre <strong>Alex Alves (Dominai)</strong>, doravante denominada “Dominai Cloud” ou “LICENCIANTE”, e a pessoa física ou jurídica que adquire a licença, doravante denominada “CLIENTE” ou “LICENCIADO”.</p>
 
         <p>O objeto deste instrumento é o regramento da utilização do software de gestão e automação de atendimentos denominado “SISTEMA DOMINAI CLOUD”, fornecido na modalidade auto-hospedada (selfhosted).</p>
 
@@ -269,7 +269,7 @@ if (!defined('ABSPATH')) {
         <p>11.1. A tolerância de uma das partes quanto ao descumprimento de qualquer obrigação pela outra não implicará em renúncia ao direito de exigir o cumprimento da obrigação.</p>
 
         <h2>12. FORO E LEGISLAÇÃO APLICÁVEL</h2>
-        <p>12.1. Regido pelas leis da República Federativa do Brasil. Foro eleito: Comarca de Alfenas - MG.</p>
+        <p>12.1. Regido pelas leis da República Federativa do Brasil. Foro eleito: Comarca do domicílio do LICENCIANTE para dirimir quaisquer dúvidas oriundas deste instrumento.</p>
 
         <div class="footer-note">
             &copy; <?php echo date('Y'); ?> Dominai Cloud. Todos os direitos reservados.<br>
