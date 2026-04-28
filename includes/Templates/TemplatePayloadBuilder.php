@@ -116,6 +116,8 @@ final class TemplatePayloadBuilder
             throw new RuntimeException('O corpo do template é obrigatório.');
         }
 
+        $this->assertNoLeadingOrTrailingVariables($text);
+
         $examples = [];
         foreach (($body['variables'] ?? []) as $variable) {
             $key = $variable['key'] ?? '';
@@ -145,6 +147,28 @@ final class TemplatePayloadBuilder
             'component' => $component,
             'variable_map' => $parsed['variable_map'],
         ];
+    }
+
+    /**
+     * Valida que o texto não começa nem termina com variáveis.
+     */
+    private function assertNoLeadingOrTrailingVariables(string $text): void
+    {
+        $text = trim($text);
+
+        // Verifica início: {{var}} ...
+        if (preg_match('/^{{\s*[a-zA-Z0-9_]+\s*}}/', $text)) {
+            throw new RuntimeException(
+                'A Meta não permite que o template comece com uma variável. Adicione algum texto antes dela (ex: "Olá, {{nome}}").'
+            );
+        }
+
+        // Verifica fim: ... {{var}}
+        if (preg_match('/{{\s*[a-zA-Z0-9_]+\s*}}$/', $text)) {
+            throw new RuntimeException(
+                'A Meta não permite que o template termine com uma variável. Adicione algum texto depois dela (ex: "{{codigo}}.").'
+            );
+        }
     }
 
     /**

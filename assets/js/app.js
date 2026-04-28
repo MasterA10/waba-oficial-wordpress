@@ -1486,6 +1486,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const checks = [
             { label: 'Nome válido', pass: /^[a-z0-9_]+$/.test(name) },
             { label: 'Mensagem principal preenchida', pass: body.trim().length > 0 },
+            { label: 'Sem variável no início/fim', pass: !/^{{\s*[a-zA-Z0-9_]+\s*}}/.test(body.trim()) && !/{{\s*[a-zA-Z0-9_]+\s*}}$/.test(body.trim()) },
             { label: 'Variáveis possuem exemplos', pass: Object.values(wizardVariables).every(v => v && v.toString().trim().length > 0) },
             { label: 'Cabeçalho válido', pass: hType === 'NONE' || hText.trim().length > 0 },
             { label: 'Botões válidos', pass: wizardButtons.every(b => {
