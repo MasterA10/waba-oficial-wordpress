@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let wizardStep = 1;
     let wizardButtons = [];
     let editingTemplateId = null;
+    let wizardVariables = {}; // Ex: { 'nome': 'Fulano' }
     let activeSendTemplate = null;
 
     /**
@@ -182,9 +183,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const syncBtn = document.getElementById('sync-templates');
 
         if (openBtn) openBtn.addEventListener('click', () => { 
-            editingTemplateId = null; wizardForm?.reset(); wizardButtons = []; 
+            editingTemplateId = null; 
+            wizardForm?.reset(); 
+            wizardButtons = []; 
+            wizardVariables = {};
+            
+            const nameInput = document.getElementById('wiz-tpl-name');
+            if (nameInput) nameInput.disabled = false;
+
             document.getElementById('was-template-wizard').style.display = 'block'; 
-            setWizardStep(1); renderWizardButtons(); updatePreview();
+            document.querySelector('#was-template-wizard h2').textContent = 'Criar Modelo';
+            setWizardStep(1); 
+            renderWizardButtons(); 
+            renderVariablesList();
+            updatePreview();
         });
 
         document.getElementById('wiz-next')?.addEventListener('click', () => setWizardStep(wizardStep + 1));
@@ -196,21 +208,67 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById(id)?.addEventListener('input', updatePreview);
         });
 
+        // Toggle Header Input
+        document.getElementById('wiz-header-type')?.addEventListener('change', (e) => {
+            const container = document.getElementById('wiz-header-text-container');
+            if (container) {
+                container.style.display = e.target.value === 'TEXT' ? 'block' : 'none';
+            }
+            updatePreview();
+        });
+
+        // Insert Variable Logic
+        document.getElementById('wiz-add-var')?.addEventListener('click', () => {
+            const textarea = document.getElementById('wiz-body-text');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const varName = prompt('Nome da variável (ex: nome, pedido):', 'var');
+            if (!varName) return;
+
+            const newText = text.substring(0, start) + `{{${varName}}}` + text.substring(end);
+            textarea.value = newText;
+            
+            if (!wizardVariables[varName]) {
+                wizardVariables[varName] = 'Exemplo';
+            }
+            
+            textarea.focus();
+            textarea.setSelectionRange(start + 2, start + 2 + varName.length);
+            updatePreview();
+            renderVariablesList();
+        });
+
         if (wizardForm) wizardForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const payload = {
                 name: document.getElementById('wiz-tpl-name').value,
                 category: wizardForm.querySelector('input[name="category"]:checked').value,
                 language: document.getElementById('wiz-tpl-lang').value,
-                header: { type: 'TEXT', text: document.getElementById('wiz-header-text').value },
-                body: { text: document.getElementById('wiz-body-text').value },
+                header: { 
+                    type: document.getElementById('wiz-header-type').value, 
+                    text: document.getElementById('wiz-header-text').value 
+                },
+                body: { 
+                    text: document.getElementById('wiz-body-text').value,
+                    variables: Object.entries(wizardVariables).map(([k, v]) => ({ key: k, example: v }))
+                },
                 footer: { text: document.getElementById('wiz-footer-text').value },
                 buttons: wizardButtons
             };
+
+            const method = editingTemplateId ? 'PUT' : 'POST';
+            const endpoint = editingTemplateId ? `/templates/${editingTemplateId}` : '/templates';
+
             try {
-                await wasApiFetch('/templates', 'POST', payload);
-                alert('Enviado!'); location.reload();
-            } catch (err) { alert(err.message); }
+                const res = await wasApiFetch(endpoint, method, payload);
+                if (res.success) {
+                    alert(editingTemplateId ? 'Template atualizado!' : 'Template enviado para aprovação!');
+                    location.reload();
+                }
+            } catch (err) { 
+                alert(err.message || 'Erro ao salvar template'); 
+            }
         });
 
         if (syncBtn) syncBtn.addEventListener('click', async () => {
@@ -261,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.was-btn-send-tpl').forEach(btn => btn.addEventListener('click', () => openSendModal(btn.dataset.id, btn.dataset.name)));
             
             document.querySelectorAll('.was-btn-del-tpl').forEach(btn => btn.addEventListener('click', async () => {
-                if(confirm('Tem certeza que deseja excluir permanentemente este template? Essa ação pode demorar alguns segundos para refletir na Meta.')) {
+                if(confirm('Tem certeza que deseja excluir permanentemente este template?')) {
                     try {
                         btn.disabled = true;
                         btn.textContent = '...';
@@ -282,7 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         btn.disabled = true;
                         btn.textContent = '...';
                         await wasApiFetch(`/templates/${btn.dataset.id}/duplicate`, 'POST', { new_name: newName });
-                        alert('Template duplicado! Um rascunho foi criado.');
+                        alert('Template duplicado!');
                         fetchTemplates();
                     } catch(err) {
                         alert(err.message || 'Erro ao duplicar');
@@ -292,9 +350,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }));
 
-            document.querySelectorAll('.was-btn-edit-tpl').forEach(btn => btn.addEventListener('click', () => {
-                alert('A edição de templates usará a mesma interface do Wizard. Funcionalidade visual em finalização!');
-                // Aqui poderíamos popular o Wizard e abrir o form
+            document.querySelectorAll('.was-btn-edit-tpl').forEach(btn => btn.addEventListener('click', async () => {
+                const id = btn.dataset.id;
+                try {
+                    btn.disabled = true;
+                    btn.textContent = '...';
+                    const template = await wasApiFetch(`/templates/${id}`);
+                    populateWizard(template);
+                } catch (err) {
+                    alert('Erro ao carregar template para edição');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Editar';
+                }
             }));
 
         } catch (err) { 
@@ -314,11 +382,124 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updatePreview() {
-        const h = document.getElementById('wiz-header-text')?.value || '', b = document.getElementById('wiz-body-text')?.value || '', f = document.getElementById('wiz-footer-text')?.value || '';
-        const ph = document.getElementById('pre-header'), pb = document.getElementById('pre-body'), pf = document.getElementById('pre-footer'), pbtns = document.getElementById('pre-buttons');
-        if (ph) ph.textContent = h; if (pb) pb.textContent = b; if (pf) pf.textContent = f;
-        if (pbtns) pbtns.innerHTML = wizardButtons.map(btn => `<div class="pre-btn">${btn.text}</div>`).join('');
+        const hType = document.getElementById('wiz-header-type')?.value || 'NONE';
+        const hText = document.getElementById('wiz-header-text')?.value || '';
+        const b = document.getElementById('wiz-body-text')?.value || '';
+        const f = document.getElementById('wiz-footer-text')?.value || '';
+        
+        const ph = document.getElementById('pre-header');
+        const pb = document.getElementById('pre-body');
+        const pf = document.getElementById('pre-footer');
+        const pbtns = document.getElementById('pre-buttons');
+
+        if (ph) {
+            ph.textContent = hText;
+            ph.style.display = hType === 'TEXT' && hText ? 'block' : 'none';
+        }
+
+        if (pb) {
+            let processedBody = b;
+            // Substitui {{var}} pelo valor do exemplo no preview
+            Object.entries(wizardVariables).forEach(([k, v]) => {
+                processedBody = processedBody.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), `<span style="color:#2563eb; font-weight:bold;">${v}</span>`);
+            });
+            pb.innerHTML = processedBody || 'Sua mensagem aparecerá aqui...';
+        }
+
+        if (pf) {
+            pf.textContent = f;
+            pf.style.display = f ? 'block' : 'none';
+        }
+
+        if (pbtns) {
+            pbtns.innerHTML = wizardButtons.map(btn => `<div class="was-wa-btn-item">${btn.text}</div>`).join('');
+            pbtns.style.display = wizardButtons.length > 0 ? 'block' : 'none';
+        }
     }
+
+    function populateWizard(t) {
+        editingTemplateId = t.id;
+        document.getElementById('was-template-wizard').style.display = 'block';
+        
+        // Título e Estado do Campo Nome
+        const title = document.querySelector('#was-template-wizard h2');
+        const nameInput = document.getElementById('wiz-tpl-name');
+        if (title) title.textContent = 'Editar Modelo';
+        if (nameInput) nameInput.disabled = true;
+
+        // Carrega dados básicos
+        if (nameInput) nameInput.value = t.name || '';
+        document.getElementById('wiz-tpl-lang').value = t.language || 'pt_BR';
+        
+        // Categoria
+        const catInput = document.querySelector(`input[name="category"][value="${t.category}"]`);
+        if (catInput) catInput.checked = true;
+
+        // Friendly Payload ou Fallback
+        let payload = {};
+        try {
+            payload = t.friendly_payload ? JSON.parse(t.friendly_payload) : {};
+        } catch(e) {}
+
+        // Header
+        const hType = payload.header?.type || (t.header_type === 'TEXT' ? 'TEXT' : 'NONE');
+        const hText = payload.header?.text || '';
+        document.getElementById('wiz-header-type').value = hType;
+        document.getElementById('wiz-header-text').value = hText;
+        document.getElementById('wiz-header-text-container').style.display = hType === 'TEXT' ? 'block' : 'none';
+
+        // Body
+        document.getElementById('wiz-body-text').value = payload.body?.text || t.body_text || '';
+        
+        // Footer
+        document.getElementById('wiz-footer-text').value = payload.footer?.text || t.footer_text || '';
+
+        // Buttons
+        wizardButtons = payload.buttons || [];
+        try {
+            if (!wizardButtons.length && t.buttons_json) {
+                wizardButtons = JSON.parse(t.buttons_json);
+            }
+        } catch(e) {}
+
+        // Variables
+        wizardVariables = {};
+        if (payload.body?.variables) {
+            payload.body.variables.forEach(v => {
+                wizardVariables[v.key] = v.example;
+            });
+        }
+
+        setWizardStep(1);
+        renderWizardButtons();
+        renderVariablesList();
+        updatePreview();
+    }
+
+    function renderVariablesList() {
+        const container = document.getElementById('wiz-checklist');
+        if (!container) return;
+        
+        const entries = Object.entries(wizardVariables);
+        if (entries.length === 0) {
+            container.innerHTML = '<p class="description">Nenhuma variável detectada no corpo da mensagem.</p>';
+            return;
+        }
+
+        container.innerHTML = '<h4>Exemplos de Variáveis</h4><p class="description">Insira valores reais para que a Meta aprove seu modelo.</p>';
+        entries.forEach(([k, v]) => {
+            const row = document.createElement('div');
+            row.style.marginBottom = '10px';
+            row.innerHTML = `<label style="display:block; font-size:11px; font-weight:bold;">{{${k}}}</label>
+                             <input type="text" value="${v}" oninput="updateVariableExample('${k}', this.value)" style="width:100%;" placeholder="Valor de exemplo">`;
+            container.appendChild(row);
+        });
+    }
+
+    window.updateVariableExample = (key, val) => {
+        wizardVariables[key] = val;
+        updatePreview();
+    };
 
     function renderWizardButtons() {
         const container = document.getElementById('wiz-buttons-list');
@@ -372,7 +553,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const to = document.getElementById('send-tpl-to').value;
             
             const varInputs = document.querySelectorAll('.tpl-var-input');
-            const variables = Array.from(varInputs).map(inp => inp.value);
+            const variables = Array.from(varInputs).reduce((acc, inp) => {
+                acc[inp.dataset.key] = inp.value;
+                return acc;
+            }, {});
 
             const submitBtn = sendTplForm.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
