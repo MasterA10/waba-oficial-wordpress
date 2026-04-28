@@ -55,26 +55,22 @@ if (!defined('ABSPATH')) {
                     <!-- Passo 1: Objetivo -->
                     <div class="was-wizard-step-content" id="step-1">
                         <h3>Qual é o objetivo desta mensagem?</h3>
-                        <div class="was-category-cards" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; margin-top:20px;">
+                        <p class="description">A categoria ajuda o WhatsApp a entender o propósito do seu modelo.</p>
+                        <div class="was-category-cards" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:20px;">
                             <label class="was-cat-card">
                                 <input type="radio" name="category" value="UTILITY" checked>
                                 <div class="was-cat-card-inner">
+                                    <span class="cat-icon">🛠️</span>
                                     <strong>Utilitário</strong>
-                                    <p>Atualizar cliente sobre pedido, entrega ou agendamento.</p>
+                                    <p>Atualizar cliente sobre pedido, pagamento, entrega ou agendamento.</p>
                                 </div>
                             </label>
                             <label class="was-cat-card">
                                 <input type="radio" name="category" value="MARKETING">
                                 <div class="was-cat-card-inner">
+                                    <span class="cat-icon">🚀</span>
                                     <strong>Marketing</strong>
-                                    <p>Enviar oferta, campanha, lançamento ou promoção.</p>
-                                </div>
-                            </label>
-                            <label class="was-cat-card">
-                                <input type="radio" name="category" value="AUTHENTICATION">
-                                <div class="was-cat-card-inner">
-                                    <strong>Autenticação</strong>
-                                    <p>Enviar código de verificação ou login seguro.</p>
+                                    <p>Enviar oferta, campanha, cupom, lançamento ou promoção.</p>
                                 </div>
                             </label>
                         </div>
@@ -124,18 +120,35 @@ if (!defined('ABSPATH')) {
 
                     <!-- Passo 4: Botões -->
                     <div class="was-wizard-step-content" id="step-4" style="display:none;">
-                        <h3>Botões (Opcional)</h3>
-                        <div id="wiz-buttons-list">
+                        <h3>Botões de Interação</h3>
+                        <p class="description">Adicione botões para facilitar a resposta do cliente ou direcioná-lo para um link.</p>
+                        
+                        <div id="wiz-buttons-list" style="margin-top:15px;">
                             <!-- Injetado via JS -->
                         </div>
-                        <button type="button" id="wiz-add-button" class="button">+ Adicionar Botão</button>
+
+                        <div class="was-button-actions" style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;">
+                            <button type="button" class="button wiz-add-btn-type" data-type="QUICK_REPLY">+ Resposta Rápida</button>
+                            <button type="button" class="button wiz-add-btn-type" data-type="URL">+ Abrir Site</button>
+                            <button type="button" class="button wiz-add-btn-type" data-type="PHONE_NUMBER">+ Ligar</button>
+                            <button type="button" class="button wiz-add-btn-type" data-type="COPY_CODE">+ Copiar Código</button>
+                        </div>
                     </div>
 
                     <!-- Passo 5: Revisão -->
                     <div class="was-wizard-step-content" id="step-5" style="display:none;">
                         <h3>Revisão de Conformidade</h3>
-                        <div id="wiz-checklist" style="margin-top:20px; background:white; padding:20px; border-radius:8px; border:1px solid #ddd;">
-                            <!-- Dinâmico -->
+                        <p class="description">Verifique se tudo está correto antes de enviar para a Meta.</p>
+                        
+                        <div id="wiz-variables-examples" style="margin-top:20px; background:white; padding:20px; border-radius:8px; border:1px solid #ddd;">
+                            <!-- Exemplos de variáveis injetados via JS -->
+                        </div>
+
+                        <div id="wiz-checklist" style="margin-top:20px; background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd;">
+                            <h4 style="margin-top:0;">Checklist</h4>
+                            <ul id="was-checklist-items" style="list-style:none; padding:0;">
+                                <!-- Dinâmico -->
+                            </ul>
                         </div>
                     </div>
 
@@ -215,16 +228,21 @@ if (!defined('ABSPATH')) {
 <style>
 /* Estilos rápidos para o Wizard */
 .was-cat-card input { display:none; }
-.was-cat-card-inner { border:2px solid #ddd; padding:20px; border-radius:8px; cursor:pointer; background:white; transition:all 0.2s; }
+.was-cat-card-inner { border:2px solid #ddd; padding:20px; border-radius:8px; cursor:pointer; background:white; transition:all 0.2s; text-align:center; }
+.was-cat-card-inner .cat-icon { font-size:24px; display:block; margin-bottom:10px; }
 .was-cat-card input:checked + .was-cat-card-inner { border-color:#2563eb; background:#eff6ff; box-shadow:0 0 0 1px #2563eb; }
 .step-item { padding:12px; border-radius:6px; margin-bottom:5px; color:#64748b; font-weight:500; }
 .step-item.active { background:#eff6ff; color:#2563eb; }
 
+/* Botões no editor */
+.wiz-btn-edit-item { background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:15px; margin-bottom:10px; position:relative; }
+.wiz-btn-edit-item .remove-btn { position:absolute; right:10px; top:10px; cursor:pointer; color:#ef4444; font-weight:bold; }
+
 /* Preview WhatsApp */
 .was-wa-preview-card { background:white; width:280px; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.1); padding:10px; position:relative; }
-.was-wa-header { font-weight:bold; margin-bottom:5px; font-size:0.9rem; }
+.was-wa-header { font-weight:bold; margin-bottom:5px; font-size:0.9rem; color:#111; }
 .was-wa-body { white-space:pre-wrap; font-size:0.9rem; color:#111; line-height:1.4; }
 .was-wa-footer { color:#667781; font-size:0.75rem; margin-top:5px; }
-.was-wa-buttons { margin-top:10px; border-top:1px solid #f0f2f5; }
-.was-wa-btn-item { padding:8px; text-align:center; color:#00a884; font-weight:500; font-size:0.85rem; }
+.was-wa-buttons { margin-top:10px; border-top:1px solid #f0f2f5; margin-left:-10px; margin-right:-10px; margin-bottom:-10px; }
+.was-wa-btn-item { padding:10px; text-align:center; color:#00a884; font-weight:500; font-size:0.85rem; border-top:1px solid #f0f2f5; }
 </style>

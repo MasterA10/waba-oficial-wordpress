@@ -31,7 +31,11 @@ class ComplianceApiController {
         $tenant_id = TenantContext::getTenantId();
 
         $logs = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $table_name WHERE tenant_id = %d OR tenant_id = 0 ORDER BY created_at DESC LIMIT 100",
+            "SELECT l.*, u.user_login 
+             FROM $table_name l 
+             LEFT JOIN {$wpdb->users} u ON l.user_id = u.ID
+             WHERE l.tenant_id = %d OR l.tenant_id = 0 
+             ORDER BY l.created_at DESC LIMIT 100",
             $tenant_id
         ));
 

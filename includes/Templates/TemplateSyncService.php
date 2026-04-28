@@ -48,10 +48,12 @@ class TemplateSyncService {
             'errors' => 0,
         ];
 
+        $syncedNames = [];
         foreach (($response['data'] ?? []) as $metaTemplate) {
             try {
                 $result = $this->upsertFromMeta($tenantId, $account->id, $account->waba_id, $metaTemplate);
                 $summary[$result]++;
+                if ($metaTemplate['name']) $syncedNames[] = $metaTemplate['name'];
             } catch (\Throwable $e) {
                 $summary['errors']++;
                 \WAS\Core\SystemLogger::logException($e, [
@@ -61,6 +63,9 @@ class TemplateSyncService {
                 ]);
             }
         }
+
+        // Soft-delete local templates that were not in the Meta response
+        $this->cleanupDeletedTemplates($tenantId, $account->waba_id, $syncedNames);
 
         \WAS\Compliance\AuditLogger::log('template_sync_completed', 'template', 0, [
             'tenant_id'       => $tenantId,
@@ -135,5 +140,24 @@ class TemplateSyncService {
             \WAS\Core\SystemLogger::logError('Template update failed', ['error' => $wpdb->last_error, 'data' => $data, 'id' => $existing->id]);
         }
         return $res !== false ? 'updated_local' : 'errors';
+    }
+
+    private function cleanupDeletedTemplates(int $tenantId, string $wabaId, array $syncedNames): void {
+        global $wpdb;
+        $table = $this->repository->getTable();
+        
+        // Templates locais deste tenant/waba que NÃO estão na lista de sincronizados e NÃO estão deletados ainda
+        if (empty($syncedNames)) {
+            $wpdb->query($wpdb->prepare(
+                "UPDATE $table SET status = 'DELETED', deleted_at = %s WHERE tenant_id = %d AND waba_id = %s AND deleted_at IS NULL",
+                current_time('mysql', 1), $tenantId, $wabaId
+            ));
+        } else {
+            $placeholders = implode(',', array_fill(0, count($syncedNames), '%s'));
+            $wpdb->query($wpdb->prepare(
+                "UPDATE $table SET status = 'DELETED', deleted_at = %s WHERE tenant_id = %d AND waba_id = %s AND deleted_at IS NULL AND name NOT IN ($placeholders)",
+                array_merge([current_time('mysql', 1), $tenantId, $wabaId], $syncedNames)
+            ));
+        }
     }
 }

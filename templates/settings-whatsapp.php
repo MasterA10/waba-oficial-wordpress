@@ -16,7 +16,7 @@ $app_id = $app ? $app->app_id : '';
 
     <?php if (!$app_id): ?>
         <div class="notice notice-warning">
-            <p>Você precisa configurar o <strong>Meta App ID</strong> antes de conectar uma conta WhatsApp. Vá em <a href="<?php echo admin_url('admin.php?page=was-settings-meta'); ?>">Configurações Meta</a>.</p>
+            <p>Você precisa configurar o <strong>Meta App ID</strong> antes de conectar uma conta WhatsApp. Vá em <a href="<?php echo \WAS\Core\URLService::get_meta_settings_url(); ?>">Configurações Meta</a>.</p>
         </div>
     <?php else: ?>
         <div id="was-whatsapp-setup-app">

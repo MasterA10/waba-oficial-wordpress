@@ -27,6 +27,80 @@
     --header-height: 64px;
 }
 
+/* 
+ * WP Admin Compatibility Styles for SaaS Shell
+ * These ensure that templates using standard WP classes look good in /app
+ */
+
+.was-app-shell .button {
+    display: inline-block;
+    text-decoration: none;
+    font-size: 13px;
+    line-height: 2.15384615;
+    min-height: 30px;
+    margin: 0;
+    padding: 0 10px;
+    cursor: pointer;
+    border-width: 1px;
+    border-style: solid;
+    -webkit-appearance: none;
+    border-radius: 3px;
+    white-space: nowrap;
+    box-sizing: border-box;
+    background: #f6f7f7;
+    border-color: #dcdcde;
+    color: #2271b1;
+    vertical-align: top;
+}
+
+.was-app-shell .button:hover {
+    background: #f0f0f1;
+    border-color: #0a4b78;
+    color: #0a4b78;
+}
+
+.was-app-shell .button-primary {
+    background: #2271b1;
+    border-color: #2271b1;
+    color: #fff;
+    text-shadow: none;
+}
+
+.was-app-shell .button-primary:hover {
+    background: #135e96;
+    border-color: #135e96;
+    color: #fff;
+}
+
+.was-app-shell .notice {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-left-width: 4px;
+    box-shadow: 0 1px 1px 0 rgba(0,0,0,0.1);
+    margin: 5px 0 15px;
+    padding: 1px 12px;
+}
+
+.was-app-shell .notice-warning {
+    border-left-color: #f0ad4e;
+}
+
+.was-app-shell .notice-error {
+    border-left-color: #d9534f;
+}
+
+.was-app-shell .notice-success {
+    border-left-color: #5cb85c;
+}
+
+.was-app-shell .wrap h1 {
+    font-size: 23px;
+    font-weight: 400;
+    margin: 0 0 20px;
+    padding: 9px 0 4px;
+    line-height: 1.3;
+}
+
 /* Base Reset & Typography */
 body.was-app-shell {
     margin: 0;

@@ -4,41 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WhatsApp SaaS Core</title>
-    <link rel="stylesheet" href="<?php echo WAS_PLUGIN_URL; ?>assets/css/app.css">
     <?php 
     if ( ! function_exists( 'get_current_screen' ) ) {
         require_once ABSPATH . 'wp-admin/includes/screen.php';
     }
-    wp_enqueue_style( 'dashicons' );
     wp_head(); 
     ?>
 </head>
 <body class="was-app-shell">
     <div class="was-sidebar">
         <div class="was-logo">
-            <h2>WABA SaaS</h2>
+            <a href="<?php echo \WAS\Core\URLService::get_page_url('dashboard'); ?>" style="text-decoration: none;">
+                <h2>WABA SaaS</h2>
+            </a>
         </div>
         <nav class="was-nav">
             <ul>
-                <li><a href="<?php echo home_url('/app/dashboard'); ?>" class="<?php echo $page === 'dashboard' ? 'active' : ''; ?>"><span class="dashicons dashicons-dashboard"></span> Dashboard</a></li>
+                <li><a href="<?php echo \WAS\Core\URLService::get_page_url('dashboard'); ?>" class="<?php echo $page === 'dashboard' ? 'active' : ''; ?>"><span class="dashicons dashicons-dashboard"></span> Dashboard</a></li>
                 <?php if (current_user_can('was_view_inbox')): ?>
-                    <li><a href="<?php echo home_url('/app/inbox'); ?>" class="<?php echo $page === 'inbox' ? 'active' : ''; ?>"><span class="dashicons dashicons-whatsapp"></span> Inbox</a></li>
+                    <li><a href="<?php echo \WAS\Core\URLService::get_page_url('inbox'); ?>" class="<?php echo $page === 'inbox' ? 'active' : ''; ?>"><span class="dashicons dashicons-whatsapp"></span> Inbox</a></li>
                 <?php endif; ?>
                 <?php if (current_user_can('was_manage_templates')): ?>
-                    <li><a href="<?php echo home_url('/app/templates'); ?>" class="<?php echo $page === 'templates' ? 'active' : ''; ?>"><span class="dashicons dashicons-layout"></span> Modelos</a></li>
+                    <li><a href="<?php echo \WAS\Core\URLService::get_page_url('templates'); ?>" class="<?php echo $page === 'templates' ? 'active' : ''; ?>"><span class="dashicons dashicons-layout"></span> Modelos</a></li>
                 <?php endif; ?>
 
                 <li class="nav-divider" style="margin: 15px 16px 5px; font-size: 0.7rem; text-transform: uppercase; color: var(--slate-600); font-weight: 700; letter-spacing: 0.05em;">Configurações</li>
                 
                 <?php if (current_user_can('manage_options')): ?>
-                    <li><a href="<?php echo home_url('/app/settings/meta'); ?>" class="<?php echo $page === 'settings-meta' ? 'active' : ''; ?>"><span class="dashicons dashicons-networking"></span> Configuração Meta</a></li>
+                    <li><a href="<?php echo \WAS\Core\URLService::get_page_url('settings-meta'); ?>" class="<?php echo $page === 'settings-meta' ? 'active' : ''; ?>"><span class="dashicons dashicons-networking"></span> Configuração Meta</a></li>
                 <?php endif; ?>
 
                 <?php if (current_user_can('was_manage_whatsapp')): ?>
-                    <li><a href="<?php echo home_url('/app/settings/whatsapp'); ?>" class="<?php echo $page === 'settings-whatsapp' ? 'active' : ''; ?>"><span class="dashicons dashicons-admin-settings"></span> Conexão WhatsApp</a></li>
+                    <li><a href="<?php echo \WAS\Core\URLService::get_page_url('settings-whatsapp'); ?>" class="<?php echo $page === 'settings-whatsapp' ? 'active' : ''; ?>"><span class="dashicons dashicons-admin-settings"></span> Conexão WhatsApp</a></li>
                 <?php endif; ?>
                 <?php if (current_user_can('was_view_logs')): ?>
-                    <li><a href="<?php echo home_url('/app/logs'); ?>" class="<?php echo $page === 'logs' ? 'active' : ''; ?>"><span class="dashicons dashicons-list-view"></span> Auditoria</a></li>
+                    <li><a href="<?php echo \WAS\Core\URLService::get_page_url('logs'); ?>" class="<?php echo $page === 'logs' ? 'active' : ''; ?>"><span class="dashicons dashicons-list-view"></span> Auditoria</a></li>
                 <?php endif; ?>
             </ul>
         </nav>
@@ -70,15 +70,5 @@
         </div>
     </div>
     <?php wp_footer(); ?>
-    <?php if ( ! is_admin() ): ?>
-    <script>
-        window.wasApp = {
-            restUrl: '<?php echo esc_url_raw(rest_url('was/v1')); ?>',
-            nonce: '<?php echo wp_create_nonce('wp_rest'); ?>',
-            page: '<?php echo esc_js($page); ?>'
-        };
-    </script>
-    <script src="<?php echo WAS_PLUGIN_URL; ?>assets/js/app.js"></script>
-    <?php endif; ?>
 </body>
 </html>

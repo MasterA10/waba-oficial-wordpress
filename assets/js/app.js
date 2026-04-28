@@ -187,10 +187,8 @@ document.addEventListener('DOMContentLoaded', () => {
             wizardForm?.reset(); 
             wizardButtons = []; 
             wizardVariables = {};
-            
             const nameInput = document.getElementById('wiz-tpl-name');
             if (nameInput) nameInput.disabled = false;
-
             document.getElementById('was-template-wizard').style.display = 'block'; 
             document.querySelector('#was-template-wizard h2').textContent = 'Criar Modelo';
             setWizardStep(1); 
@@ -202,10 +200,40 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('wiz-next')?.addEventListener('click', () => setWizardStep(wizardStep + 1));
         document.getElementById('wiz-prev')?.addEventListener('click', () => setWizardStep(wizardStep - 1));
         document.getElementById('wiz-cancel')?.addEventListener('click', () => document.getElementById('was-template-wizard').style.display = 'none');
-        document.getElementById('wiz-add-button')?.addEventListener('click', () => { wizardButtons.push({type:'QUICK_REPLY', text:'Botão'}); renderWizardButtons(); updatePreview(); });
+        
+        // Add Button Listeners
+        document.querySelectorAll('.wiz-add-btn-type').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const type = btn.dataset.type;
+                let newBtn = { type, text: 'Botão' };
+                if (type === 'URL') newBtn.url = 'https://';
+                if (type === 'PHONE_NUMBER') newBtn.phone_number = '+';
+                if (type === 'COPY_CODE') newBtn.example = 'CUPOM20';
+                
+                wizardButtons.push(newBtn);
+                renderWizardButtons();
+                updatePreview();
+            });
+        });
 
-        ['wiz-tpl-name', 'wiz-body-text', 'wiz-header-text', 'wiz-footer-text'].forEach(id => {
-            document.getElementById(id)?.addEventListener('input', updatePreview);
+        // Name Normalization
+        document.getElementById('wiz-tpl-name')?.addEventListener('input', (e) => {
+            if (editingTemplateId) return;
+            const original = e.target.value;
+            const normalized = original.toLowerCase()
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove acentos
+                .replace(/[^a-z0-9_]/g, '_') // Apenas minúsculas, números e underline
+                .replace(/_+/g, '_'); // Evita múltiplos underscores
+            
+            if (original !== normalized) e.target.value = normalized;
+            updatePreview();
+        });
+
+        ['wiz-body-text', 'wiz-header-text', 'wiz-footer-text'].forEach(id => {
+            document.getElementById(id)?.addEventListener('input', () => {
+                if (id === 'wiz-body-text') syncVariablesFromText();
+                updatePreview();
+            });
         });
 
         // Toggle Header Input
@@ -229,12 +257,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const newText = text.substring(0, start) + `{{${varName}}}` + text.substring(end);
             textarea.value = newText;
             
-            if (!wizardVariables[varName]) {
-                wizardVariables[varName] = 'Exemplo';
-            }
-            
+            syncVariablesFromText();
             textarea.focus();
-            textarea.setSelectionRange(start + 2, start + 2 + varName.length);
             updatePreview();
             renderVariablesList();
         });
@@ -287,6 +311,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         fetchTemplates();
+    }
+
+    function syncVariablesFromText() {
+        const text = document.getElementById('wiz-body-text').value;
+        const matches = text.match(/{{\s*([a-zA-Z0-9_]+)\s*}}/g) || [];
+        const currentVars = matches.map(m => m.replace(/{{\s*|\s*}}/g, ''));
+        
+        // Remove variáveis que não existem mais
+        Object.keys(wizardVariables).forEach(k => {
+            if (!currentVars.includes(k)) delete wizardVariables[k];
+        });
+        
+        // Adiciona novas
+        currentVars.forEach(v => {
+            if (!wizardVariables[v]) wizardVariables[v] = 'Exemplo';
+        });
     }
 
     async function fetchTemplates() {
@@ -379,6 +419,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (bP) bP.style.display = step > 1 ? 'inline-block' : 'none';
         if (bN) bN.style.display = step < 5 ? 'inline-block' : 'none';
         if (bS) bS.style.display = step === 5 ? 'inline-block' : 'none';
+        
+        if (step === 5) {
+            renderVariablesList();
+            renderChecklist();
+        }
     }
 
     function updatePreview() {
@@ -399,7 +444,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (pb) {
             let processedBody = b;
-            // Substitui {{var}} pelo valor do exemplo no preview
             Object.entries(wizardVariables).forEach(([k, v]) => {
                 processedBody = processedBody.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), `<span style="color:#2563eb; font-weight:bold;">${v}</span>`);
             });
@@ -420,72 +464,46 @@ document.addEventListener('DOMContentLoaded', () => {
     function populateWizard(t) {
         editingTemplateId = t.id;
         document.getElementById('was-template-wizard').style.display = 'block';
-        
-        // Título e Estado do Campo Nome
         const title = document.querySelector('#was-template-wizard h2');
         const nameInput = document.getElementById('wiz-tpl-name');
         if (title) title.textContent = 'Editar Modelo';
-        if (nameInput) nameInput.disabled = true;
-
-        // Carrega dados básicos
-        if (nameInput) nameInput.value = t.name || '';
+        if (nameInput) { nameInput.value = t.name || ''; nameInput.disabled = true; }
         document.getElementById('wiz-tpl-lang').value = t.language || 'pt_BR';
-        
-        // Categoria
         const catInput = document.querySelector(`input[name="category"][value="${t.category}"]`);
         if (catInput) catInput.checked = true;
 
-        // Friendly Payload ou Fallback
         let payload = {};
-        try {
-            payload = t.friendly_payload ? JSON.parse(t.friendly_payload) : {};
-        } catch(e) {}
+        try { payload = t.friendly_payload ? JSON.parse(t.friendly_payload) : {}; } catch(e) {}
 
-        // Header
         const hType = payload.header?.type || (t.header_type === 'TEXT' ? 'TEXT' : 'NONE');
         const hText = payload.header?.text || '';
         document.getElementById('wiz-header-type').value = hType;
         document.getElementById('wiz-header-text').value = hText;
         document.getElementById('wiz-header-text-container').style.display = hType === 'TEXT' ? 'block' : 'none';
-
-        // Body
         document.getElementById('wiz-body-text').value = payload.body?.text || t.body_text || '';
-        
-        // Footer
         document.getElementById('wiz-footer-text').value = payload.footer?.text || t.footer_text || '';
-
-        // Buttons
         wizardButtons = payload.buttons || [];
-        try {
-            if (!wizardButtons.length && t.buttons_json) {
-                wizardButtons = JSON.parse(t.buttons_json);
-            }
-        } catch(e) {}
-
-        // Variables
+        try { if (!wizardButtons.length && t.buttons_json) wizardButtons = JSON.parse(t.buttons_json); } catch(e) {}
+        
         wizardVariables = {};
         if (payload.body?.variables) {
-            payload.body.variables.forEach(v => {
-                wizardVariables[v.key] = v.example;
-            });
+            payload.body.variables.forEach(v => { wizardVariables[v.key] = v.example; });
         }
+        syncVariablesFromText(); // Garante consistência
 
         setWizardStep(1);
         renderWizardButtons();
-        renderVariablesList();
         updatePreview();
     }
 
     function renderVariablesList() {
-        const container = document.getElementById('wiz-checklist');
+        const container = document.getElementById('wiz-variables-examples');
         if (!container) return;
-        
         const entries = Object.entries(wizardVariables);
         if (entries.length === 0) {
             container.innerHTML = '<p class="description">Nenhuma variável detectada no corpo da mensagem.</p>';
             return;
         }
-
         container.innerHTML = '<h4>Exemplos de Variáveis</h4><p class="description">Insira valores reais para que a Meta aprove seu modelo.</p>';
         entries.forEach(([k, v]) => {
             const row = document.createElement('div');
@@ -504,26 +522,71 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderWizardButtons() {
         const container = document.getElementById('wiz-buttons-list');
         if (!container) return;
-        container.innerHTML = wizardButtons.map((btn, i) => `<div style="margin-bottom:5px;"><input type="text" value="${btn.text}" oninput="updateWizardButton(${i}, this.value)" style="width:150px;"> <button type="button" onclick="removeWizardButton(${i})">×</button></div>`).join('');
+        container.innerHTML = wizardButtons.map((btn, i) => {
+            let fields = `<input type="text" value="${btn.text}" oninput="updateWizardButton(${i}, 'text', this.value)" style="width:100%;" placeholder="Texto do botão">`;
+            
+            if (btn.type === 'URL') {
+                fields += `<input type="text" value="${btn.url || ''}" oninput="updateWizardButton(${i}, 'url', this.value)" style="width:100%; margin-top:5px;" placeholder="URL (ex: https://...)">`;
+                if (btn.url?.includes('{{')) {
+                    fields += `<input type="text" value="${btn.example || ''}" oninput="updateWizardButton(${i}, 'example', this.value)" style="width:100%; margin-top:5px;" placeholder="Exemplo para a variável da URL">`;
+                }
+            } else if (btn.type === 'PHONE_NUMBER') {
+                fields += `<input type="text" value="${btn.phone_number || ''}" oninput="updateWizardButton(${i}, 'phone_number', this.value)" style="width:100%; margin-top:5px;" placeholder="Telefone (ex: +55...)">`;
+            } else if (btn.type === 'COPY_CODE') {
+                fields += `<input type="text" value="${btn.example || ''}" oninput="updateWizardButton(${i}, 'example', this.value)" style="width:100%; margin-top:5px;" placeholder="Código de exemplo">`;
+            }
+
+            return `<div class="wiz-btn-edit-item">
+                <span class="remove-btn" onclick="removeWizardButton(${i})">×</span>
+                <div style="font-size:10px; font-weight:bold; margin-bottom:5px; color:#64748b;">${btn.type}</div>
+                ${fields}
+            </div>`;
+        }).join('');
     }
 
-    window.updateWizardButton = (i, val) => { wizardButtons[i].text = val; updatePreview(); };
+    window.updateWizardButton = (i, field, val) => { 
+        wizardButtons[i][field] = val; 
+        if (field === 'url') renderWizardButtons(); // Re-render to show/hide dynamic URL example field
+        updatePreview(); 
+    };
     window.removeWizardButton = (i) => { wizardButtons.splice(i, 1); renderWizardButtons(); updatePreview(); };
+
+    function renderChecklist() {
+        const list = document.getElementById('was-checklist-items');
+        if (!list) return;
+        const name = document.getElementById('wiz-tpl-name').value;
+        const body = document.getElementById('wiz-body-text').value;
+        const hType = document.getElementById('wiz-header-type').value;
+        const hText = document.getElementById('wiz-header-text').value;
+
+        const checks = [
+            { label: 'Nome válido', pass: /^[a-z0-9_]+$/.test(name) },
+            { label: 'Mensagem principal preenchida', pass: body.trim().length > 0 },
+            { label: 'Variáveis possuem exemplos', pass: Object.values(wizardVariables).every(v => v.trim().length > 0) },
+            { label: 'Cabeçalho válido', pass: hType === 'NONE' || hText.trim().length > 0 },
+            { label: 'Botões válidos', pass: wizardButtons.every(b => b.text.trim().length > 0 && (b.type !== 'URL' || b.url.startsWith('https://'))) }
+        ];
+
+        list.innerHTML = checks.map(c => `<li style="margin-bottom:8px; display:flex; align-items:center; gap:10px;">
+            <span style="color:${c.pass ? '#25d366' : '#ef4444'}; font-weight:bold;">${c.pass ? '✅' : '❌'}</span>
+            <span style="color:${c.pass ? '#1e293b' : '#ef4444'}">${c.label}</span>
+        </li>`).join('');
+        
+        const submitBtn = document.getElementById('wiz-submit');
+        if (submitBtn) submitBtn.disabled = !checks.every(c => c.pass);
+    }
 
     // --- Modal de Envio de Template ---
     window.openSendModal = async function(id, name) {
         const modal = document.getElementById('was-send-template-modal');
         if (!modal) return;
-        
         document.getElementById('send-tpl-id').value = id;
         document.getElementById('send-tpl-name-display').textContent = name;
-        
         try {
             const tpl = await wasApiFetch(`/templates/${id}`);
             const varMap = tpl.variable_map ? JSON.parse(tpl.variable_map) : {};
             const inputsContainer = document.getElementById('was-tpl-variables-inputs');
             inputsContainer.innerHTML = '';
-            
             const varKeys = Object.keys(varMap);
             if (varKeys.length === 0) {
                 inputsContainer.innerHTML = '<p class="description">Este modelo não possui variáveis no corpo da mensagem.</p>';
@@ -533,17 +596,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             modal.style.display = 'block';
-        } catch (err) {
-            alert('Erro ao carregar detalhes do template para envio.');
-        }
+        } catch (err) { alert('Erro ao carregar detalhes do template para envio.'); }
     };
 
     const closeSendModal = document.getElementById('was-close-send-modal');
-    if (closeSendModal) {
-        closeSendModal.addEventListener('click', () => {
-            document.getElementById('was-send-template-modal').style.display = 'none';
-        });
-    }
+    if (closeSendModal) closeSendModal.addEventListener('click', () => { document.getElementById('was-send-template-modal').style.display = 'none'; });
 
     const sendTplForm = document.getElementById('was-send-template-form');
     if (sendTplForm) {
@@ -551,31 +608,17 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const id = document.getElementById('send-tpl-id').value;
             const to = document.getElementById('send-tpl-to').value;
-            
             const varInputs = document.querySelectorAll('.tpl-var-input');
-            const variables = Array.from(varInputs).reduce((acc, inp) => {
-                acc[inp.dataset.key] = inp.value;
-                return acc;
-            }, {});
-
+            const variables = Array.from(varInputs).reduce((acc, inp) => { acc[inp.dataset.key] = inp.value; return acc; }, {});
             const submitBtn = sendTplForm.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
-            submitBtn.textContent = 'Enviando...';
-            submitBtn.disabled = true;
-
+            submitBtn.textContent = 'Enviando...'; submitBtn.disabled = true;
             try {
-                await wasApiFetch(`/templates/${id}/send`, 'POST', {
-                    to_phone: to,
-                    variables: variables
-                });
+                await wasApiFetch(`/templates/${id}/send`, 'POST', { to_phone: to, variables: variables });
                 alert('Template enviado com sucesso!');
                 document.getElementById('was-send-template-modal').style.display = 'none';
-            } catch(err) {
-                alert(err.message || 'Erro ao enviar template');
-            } finally {
-                submitBtn.textContent = originalText;
-                submitBtn.disabled = false;
-            }
+            } catch(err) { alert(err.message || 'Erro ao enviar template'); }
+            finally { submitBtn.textContent = originalText; submitBtn.disabled = false; }
         });
     }
 
@@ -597,7 +640,6 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initSettingsMeta() {
         const form = document.getElementById('was-meta-config-form');
         if (!form) return;
-
         try {
             const data = await wasApiFetch('/meta/config');
             if (data) {
@@ -608,19 +650,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('waba_id').value = data.waba_id || '';
                 document.getElementById('verify_token').value = data.verify_token || '';
                 document.getElementById('webhook_url').value = data.webhook_url || '';
-                if (document.getElementById('config_id')) {
-                    document.getElementById('config_id').value = data.config_id || '';
-                }
+                if (document.getElementById('config_id')) document.getElementById('config_id').value = data.config_id || '';
                 if (document.getElementById('embedded_signup_url')) {
                     document.getElementById('embedded_signup_url').value = data.embedded_signup_url || '';
-                    if (document.getElementById('was-start-embedded-signup')) {
-                        document.getElementById('was-start-embedded-signup').href = data.embedded_signup_url || '#';
-                    }
+                    if (document.getElementById('was-start-embedded-signup')) document.getElementById('was-start-embedded-signup').href = data.embedded_signup_url || '#';
                 }
             }
-        } catch (err) {
-            console.error('Error fetching meta config:', err);
-        }
+        } catch (err) { console.error('Error fetching meta config:', err); }
 
         const saveConfig = async (e) => {
             if (e) e.preventDefault();
@@ -637,23 +673,13 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 await wasApiFetch('/meta/config', 'POST', payload);
                 alert('Configurações salvas com sucesso!');
-                if (payload.embedded_signup_url && document.getElementById('was-start-embedded-signup')) {
-                    document.getElementById('was-start-embedded-signup').href = payload.embedded_signup_url;
-                }
-            } catch (err) {
-                alert(err.message || 'Erro ao salvar configurações');
-            }
+            } catch (err) { alert(err.message || 'Erro ao salvar configurações'); }
         };
 
         const btnSaveMeta = document.getElementById('was-btn-save-meta');
-        if (btnSaveMeta) {
-            btnSaveMeta.addEventListener('click', saveConfig);
-        }
-
+        if (btnSaveMeta) btnSaveMeta.addEventListener('click', saveConfig);
         const btnSaveEmbedded = document.getElementById('was-btn-save-embedded');
-        if (btnSaveEmbedded) {
-            btnSaveEmbedded.addEventListener('click', saveConfig);
-        }
+        if (btnSaveEmbedded) btnSaveEmbedded.addEventListener('click', saveConfig);
     }
     async function openInboxTplModal() {
         const modal = document.getElementById('was-inbox-tpl-modal');

@@ -220,6 +220,10 @@ class Plugin {
 	 * @param string $page The page identifier.
 	 */
 	private function render_app_shell( $page ) {
+        add_action( 'wp_enqueue_scripts', function() use ( $page ) {
+            AssetService::enqueue_assets( $page );
+        } );
+
 		$template = WAS_PLUGIN_DIR . "templates/app-shell.php";
 		if ( file_exists( $template ) ) {
 			include $template;

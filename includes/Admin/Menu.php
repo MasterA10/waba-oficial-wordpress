@@ -30,9 +30,6 @@ class Menu {
             return;
         }
 
-        wp_enqueue_style('was-app-css', WAS_PLUGIN_URL . 'assets/css/app.css', [], WAS_VERSION);
-        wp_enqueue_script('was-app-js', WAS_PLUGIN_URL . 'assets/js/app.js', [], WAS_VERSION, true);
-
         // Map menu slugs to our page identifiers
         $page_mapping = [
             'toplevel_page_was-dashboard' => 'dashboard',
@@ -45,15 +42,11 @@ class Menu {
 
         $current_page = $page_mapping[$hook] ?? 'dashboard';
 
-        wp_localize_script('was-app-js', 'wasApp', [
-            'restUrl' => esc_url_raw(rest_url('was/v1')),
-            'nonce'   => wp_create_nonce('wp_rest'),
-            'page'    => $current_page
-        ]);
+        \WAS\Core\AssetService::enqueue_assets($current_page);
     }
 
     public function register_menus() {
-        $capability = 'manage_options'; 
+        $capability = 'was_access_app'; 
 
         add_menu_page(
             'WhatsApp SaaS',
@@ -78,7 +71,7 @@ class Menu {
             'was-dashboard',
             'Inbox',
             'Inbox',
-            'manage_options',
+            'was_view_inbox',
             'was-inbox',
             [$this, 'render_inbox']
         );
@@ -87,7 +80,7 @@ class Menu {
             'was-dashboard',
             'Templates',
             'Templates',
-            'manage_options',
+            'was_manage_templates',
             'was-templates',
             [$this, 'render_templates_page']
         );
@@ -105,7 +98,7 @@ class Menu {
             'was-dashboard',
             'WhatsApp Setup',
             'WhatsApp Setup',
-            'manage_options',
+            'was_manage_whatsapp',
             'was-settings-whatsapp',
             [$this, 'render_settings_whatsapp']
         );
@@ -114,7 +107,7 @@ class Menu {
             'was-dashboard',
             'Logs',
             'Logs',
-            'manage_options',
+            'was_view_logs',
             'was-logs',
             [$this, 'render_logs_page']
         );

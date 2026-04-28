@@ -34,7 +34,7 @@ class PhoneNumberRepository {
     /**
      * Busca número padrão do tenant.
      */
-    public function getDefaultByTenant(int $tenant_id = null) {
+    public function getDefaultByTenant(?int $tenant_id = null) {
         global $wpdb;
         $tenant_id = $tenant_id ?: TenantContext::getTenantId();
 

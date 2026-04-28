@@ -34,7 +34,7 @@ class WhatsAppAccountRepository {
     /**
      * Busca contas do tenant atual.
      */
-    public function getByTenant(int $tenant_id = null) {
+    public function getByTenant(?int $tenant_id = null) {
         global $wpdb;
         $tenant_id = $tenant_id ?: TenantContext::get_tenant_id();
 

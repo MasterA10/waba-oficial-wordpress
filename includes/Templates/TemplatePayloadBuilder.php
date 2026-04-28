@@ -7,6 +7,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+/**
+ * Construtor de Payload oficial para a Meta Graph API.
+ * Transforma o "friendly_payload" do frontend no formato técnico exigido.
+ */
 final class TemplatePayloadBuilder
 {
     public function build(array $friendly): array
@@ -14,14 +18,17 @@ final class TemplatePayloadBuilder
         $components = [];
         $variableMap = [];
 
+        // 1. HEADER
         if (!empty($friendly['header']) && $this->shouldAddHeader($friendly['header'])) {
             $components[] = $this->buildHeader($friendly['header']);
         }
 
+        // 2. BODY (Obrigatório)
         $bodyResult = $this->buildBody($friendly['body'] ?? []);
         $components[] = $bodyResult['component'];
         $variableMap = $bodyResult['variable_map'];
 
+        // 3. FOOTER
         if (!empty(trim($friendly['footer']['text'] ?? ''))) {
             $components[] = [
                 'type' => 'FOOTER',
@@ -29,6 +36,7 @@ final class TemplatePayloadBuilder
             ];
         }
 
+        // 4. BUTTONS
         if (!empty($friendly['buttons']) && is_array($friendly['buttons'])) {
             $buttons = $this->buildButtons($friendly['buttons'], $variableMap);
 
@@ -42,7 +50,7 @@ final class TemplatePayloadBuilder
 
         $metaPayload = [
             'name' => $this->normalizeName($friendly['name'] ?? ''),
-            'category' => strtoupper($friendly['category'] ?? ''),
+            'category' => strtoupper($friendly['category'] ?? 'UTILITY'),
             'language' => $friendly['language'] ?? 'pt_BR',
             'components' => $components,
         ];
@@ -65,6 +73,7 @@ final class TemplatePayloadBuilder
             return trim((string) ($header['text'] ?? '')) !== '';
         }
 
+        // Futuro suporte para mídia
         if (in_array($type, ['IMAGE', 'VIDEO', 'DOCUMENT'], true)) {
             return !empty($header['media_handle']);
         }
@@ -108,11 +117,9 @@ final class TemplatePayloadBuilder
         }
 
         $examples = [];
-
         foreach (($body['variables'] ?? []) as $variable) {
             $key = $variable['key'] ?? '';
             $value = $variable['example'] ?? '';
-
             if ($key !== '') {
                 $examples[$key] = $value;
             }
@@ -125,6 +132,7 @@ final class TemplatePayloadBuilder
             'text' => $parsed['text'],
         ];
 
+        // Meta exige: example -> body_text -> [ [val1, val2] ]
         if (!empty($parsed['examples'])) {
             $component['example'] = [
                 'body_text' => [
@@ -139,10 +147,12 @@ final class TemplatePayloadBuilder
         ];
     }
 
+    /**
+     * Converte {{nome}} para {{1}} e extrai mapa de variáveis.
+     */
     private function parseVariables(string $text, array $examples): array
     {
         preg_match_all('/{{\s*([a-zA-Z0-9_]+)\s*}}/', $text, $matches);
-
         $names = array_values(array_unique($matches[1] ?? []));
 
         $variableMap = [];
@@ -153,7 +163,7 @@ final class TemplatePayloadBuilder
             $position = $index + 1;
 
             if (!isset($examples[$name]) || trim((string) $examples[$name]) === '') {
-                throw new RuntimeException("A variável {{$name}} precisa de exemplo.");
+                throw new RuntimeException("A variável {{$name}} precisa de um valor de exemplo.");
             }
 
             $variableMap[(string) $position] = $name;
@@ -181,12 +191,10 @@ final class TemplatePayloadBuilder
             $type = strtoupper($button['type'] ?? '');
 
             if ($type === 'QUICK_REPLY') {
-                if (!empty(trim($button['text'] ?? ''))) {
-                    $result[] = [
-                        'type' => 'QUICK_REPLY',
-                        'text' => trim($button['text']),
-                    ];
-                }
+                $result[] = [
+                    'type' => 'QUICK_REPLY',
+                    'text' => trim($button['text']),
+                ];
             }
 
             if ($type === 'PHONE_NUMBER') {
@@ -198,7 +206,14 @@ final class TemplatePayloadBuilder
             }
 
             if ($type === 'URL') {
-                $url = $this->convertUrlVariables($button['url'], $variableMap);
+                // A URL pode ter variável dinâmica. Ex: domain.com/{{pedido}}
+                // No payload de criação da Meta, a URL deve vir com {{1}}
+                $url = trim($button['url']);
+                
+                // Mapeia variáveis amigáveis para posicionais na URL
+                foreach ($variableMap as $pos => $friendlyName) {
+                    $url = preg_replace('/{{\s*'.preg_quote($friendlyName, '/').'\s*}}/', '{{'.$pos.'}}', $url);
+                }
 
                 $payload = [
                     'type' => 'URL',
@@ -206,10 +221,12 @@ final class TemplatePayloadBuilder
                     'url' => $url,
                 ];
 
-                if (str_contains($url, '{{') && !empty($button['example'])) {
-                    $payload['example'] = [
-                        (string) $button['example'],
-                    ];
+                // Se for dinâmica, exige example -> array de strings
+                if (str_contains($url, '{{')) {
+                    if (empty($button['example'])) {
+                        throw new RuntimeException("O botão de URL dinâmica '{$button['text']}' precisa de um valor de exemplo.");
+                    }
+                    $payload['example'] = [(string) $button['example']];
                 }
 
                 $result[] = $payload;
@@ -218,7 +235,7 @@ final class TemplatePayloadBuilder
             if ($type === 'COPY_CODE') {
                 $result[] = [
                     'type' => 'COPY_CODE',
-                    'example' => (string) $button['example'],
+                    'example' => (string) ($button['example'] ?? 'CODE'),
                 ];
             }
         }
@@ -226,25 +243,11 @@ final class TemplatePayloadBuilder
         return $result;
     }
 
-    private function convertUrlVariables(string $url, array $variableMap): string
-    {
-        foreach ($variableMap as $position => $name) {
-            $url = preg_replace(
-                '/{{\s*' . preg_quote($name, '/') . '\s*}}/',
-                '{{' . $position . '}}',
-                $url
-            );
-        }
-
-        return $url;
-    }
-
     private function normalizeName(string $name): string
     {
+        $name = strtolower($name);
         if (function_exists('remove_accents')) {
-            $name = strtolower(remove_accents($name));
-        } else {
-            $name = strtolower($name);
+            $name = remove_accents($name);
         }
         $name = preg_replace('/[^a-z0-9_]+/', '_', $name);
         $name = trim($name, '_');
