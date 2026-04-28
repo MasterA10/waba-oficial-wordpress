@@ -1,0 +1,5 @@
+https://business.facebook.com/messaging/whatsapp/onboard/?app_id=803378469198821&config_id=1126530680535435&extras=%7B%22featureType%22%3A%22whatsapp_business_app_onboarding%22%2C%22sessionInfoVersion%22%3A%223%22%2C%22version%22%3A%22v4%22%2C%22features%22%3A[%7B%22name%22%3A%22app_only_install%22%7D]%7D
+
+1126530680535435
+
+EAALaqyBG2ZBUBRQvrpZBsZBuRsQqhS01JCUCsTwpOAl4WbrE3DvgRgdN7fHqc9JocwTD7QJyika84xzdaxm8mI3zkmaJWVy06ZBxNZCP2ZCAxwZB92PfQsXiVUhvSuM7rhQcl9nJWw6Sw4HDL3LmxZBiWJljGTuT87ylQPPrjnD7snRwrl49lbo9o64F954wbaeGtO1UCwwCeyn9xQzLtsvTgxcOXIgnrMJIZBbofsbhb1bXZB9885srAlfLeKTZAGI63Sz99CpID709k7dPRVlZAFdR
