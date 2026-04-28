@@ -1709,6 +1709,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!modal) return;
         document.getElementById('send-tpl-id').value = id;
         document.getElementById('send-tpl-name-display').textContent = name;
+        try {
             const tpl = await wasApiFetch(`/templates/${id}`);
             currentTemplateForSend = tpl;
             
