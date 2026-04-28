@@ -24,6 +24,34 @@ class WhatsAppApiController {
         $this->numberRepository = new PhoneNumberRepository();
     }
 
+    public function register_routes() {
+        register_rest_route( 'was/v1', '/whatsapp/check-connection', [
+            'methods'             => 'POST',
+            'callback'            => [ $this, 'check_connection' ],
+            'permission_callback' => [ $this, 'permissions_check' ],
+        ] );
+
+        register_rest_route( 'was/v1', '/whatsapp/accounts', [
+            'methods'             => 'GET',
+            'callback'            => [ $this, 'get_accounts' ],
+            'permission_callback' => [ $this, 'permissions_check' ],
+        ] );
+    }
+
+    /**
+     * Realiza verificação completa de conexão.
+     */
+    public function check_connection(WP_REST_Request $request) {
+        $tenant_id = \WAS\Auth\TenantContext::getTenantId();
+        $service = new \WAS\WhatsApp\IntegrationConnectionCheckService();
+        $results = $service->checkConnection($tenant_id);
+        
+        return new WP_REST_Response([
+            'success' => true,
+            'results' => $results
+        ], 200);
+    }
+
     /**
      * Lista contas WABA do tenant atual.
      */

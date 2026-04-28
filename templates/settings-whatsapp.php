@@ -32,6 +32,19 @@ $app_id = $app ? $app->app_id : '';
                     </div>
                 </div>
 
+                <!-- Nova seção de Verificação de Conexão -->
+                <div class="was-verify-connection-box" style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9;">
+                    <h3>Diagnóstico de Conexão</h3>
+                    <p class="description">Execute um teste completo para validar se sua integração com a Meta está 100% operacional.</p>
+                    <button id="was-btn-check-connection" class="button">Verificar conexão oficial</button>
+                    
+                    <div id="was-verify-results" style="display:none; margin-top: 15px;">
+                        <ul id="was-verify-list" style="list-style: none; padding: 0;">
+                            <!-- Preenchido via JS -->
+                        </ul>
+                    </div>
+                </div>
+
                 <div style="margin: 20px 0; padding: 15px; background: #f0f0f1; border-radius: 4px;">
                     <strong>URL do Webhook:</strong><br>
                     <code><?php echo esc_url_raw(rest_url(WAS_REST_NAMESPACE . '/meta/webhook')); ?></code>

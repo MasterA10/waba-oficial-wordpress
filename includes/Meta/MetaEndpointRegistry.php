@@ -23,6 +23,11 @@ class MetaEndpointRegistry {
 
             'oauth.access_token' => '/oauth/access_token',
             'waba.subscribe_webhooks' => '/{waba_id}/subscribed_apps',
+            'waba.get_subscribed_apps' => '/{waba_id}/subscribed_apps',
+            'waba.get' => '/{waba_id}',
+            'waba.phone_numbers' => '/{waba_id}/phone_numbers',
+            'phone.get' => '/{phone_number_id}',
+            'phone.business_profile' => '/{phone_number_id}/whatsapp_business_profile',
         ];
 
         if (!isset($map[$operation])) {

@@ -8,6 +8,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const { restUrl, nonce } = window.wasApp;
     let currentConversationId = null;
+    let lastMessageId = 0;
+    let chatPollTimer = null;
+    let convListPollTimer = null;
+    const CHAT_POLL_INTERVAL = 3000;      // 3 segundos
+    const CONV_LIST_POLL_INTERVAL = 10000; // 10 segundos
     let wizardStep = 1;
     let wizardButtons = [];
     let editingTemplateId = null;
@@ -693,6 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         initAttachmentLogic();
         fetchConversations();
+        startConvListPolling();
     }
 
     function initAttachmentLogic() {
@@ -813,7 +819,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadConversation(id, contactName) {
+        // Parar polling anterior
+        stopChatPolling();
+
         currentConversationId = id;
+        lastMessageId = 0;
         document.getElementById('was-no-conversation-selected').style.display = 'none';
         document.getElementById('was-active-chat').style.display = 'flex';
         document.getElementById('was-chat-contact-name').textContent = contactName;
@@ -827,9 +837,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 const text = msg.text_body || msg.body || '';
                 const payload = (msg.message_type === 'template' && msg.raw_payload) ? JSON.parse(msg.raw_payload) : null;
                 renderMessage(text, msg.direction, msg.message_type, payload, msg.media_url, msg.media_filename, msg.created_at);
+                // Rastrear último ID para polling
+                if (msg.id && parseInt(msg.id) > lastMessageId) lastMessageId = parseInt(msg.id);
             });
             scrollToBottom();
+
+            // Iniciar polling em tempo real
+            startChatPolling();
         } catch (err) { historyContainer.innerHTML = 'Erro ao carregar histórico.'; }
+    }
+
+    function startChatPolling() {
+        stopChatPolling();
+        chatPollTimer = setInterval(pollNewMessages, CHAT_POLL_INTERVAL);
+    }
+
+    function stopChatPolling() {
+        if (chatPollTimer) {
+            clearInterval(chatPollTimer);
+            chatPollTimer = null;
+        }
+    }
+
+    async function pollNewMessages() {
+        if (!currentConversationId || !lastMessageId) return;
+        try {
+            const res = await wasApiFetch(`/conversations/${currentConversationId}/poll?after_id=${lastMessageId}`);
+            const newMsgs = res.data || [];
+            if (newMsgs.length === 0) return;
+
+            const history = document.getElementById('was-messages-history');
+            const isAtBottom = history.scrollTop + history.clientHeight >= history.scrollHeight - 60;
+
+            newMsgs.forEach(msg => {
+                const text = msg.text_body || msg.body || '';
+                const payload = (msg.message_type === 'template' && msg.raw_payload) ? JSON.parse(msg.raw_payload) : null;
+                renderMessage(text, msg.direction, msg.message_type, payload, msg.media_url, msg.media_filename, msg.created_at);
+                if (msg.id && parseInt(msg.id) > lastMessageId) lastMessageId = parseInt(msg.id);
+            });
+
+            // Auto-scroll só se já estava no fundo
+            if (isAtBottom) scrollToBottom();
+
+            // Notificação visual se é mensagem recebida
+            const hasInbound = newMsgs.some(m => m.direction === 'inbound');
+            if (hasInbound) {
+                document.title = '💬 Nova mensagem! — WhatsApp SaaS';
+                setTimeout(() => { document.title = 'WhatsApp SaaS'; }, 3000);
+            }
+        } catch (err) {
+            // Silenciar erros de polling para não poluir a experiência
+            console.debug('Poll error:', err.message);
+        }
+    }
+
+    function startConvListPolling() {
+        stopConvListPolling();
+        convListPollTimer = setInterval(fetchConversations, CONV_LIST_POLL_INTERVAL);
+    }
+
+    function stopConvListPolling() {
+        if (convListPollTimer) {
+            clearInterval(convListPollTimer);
+            convListPollTimer = null;
+        }
     }
 
     async function sendMessage() {
@@ -857,13 +928,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const history = document.getElementById('was-messages-history');
         if (!history) return;
 
-        // Formatar hora
+        // Formatar hora usando o fuso horário configurado no WordPress
+        const tz = wasApp.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
         let timeStr = '';
         if (timestamp) {
-            const date = new Date(timestamp);
-            timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            // Timestamps do banco vêm em UTC. Se não termina com Z ou offset, adicionar Z.
+            let ts = timestamp;
+            if (!ts.endsWith('Z') && !ts.includes('+') && !ts.includes('T')) {
+                ts = ts.replace(' ', 'T') + 'Z';
+            } else if (!ts.endsWith('Z') && !ts.includes('+')) {
+                ts = ts + 'Z';
+            }
+            const date = new Date(ts);
+            timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
         } else {
-            timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            timeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
         }
 
         const msgDiv = document.createElement('div');
@@ -1509,4 +1588,48 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) { alert(err.message); }
     };
+
+    /**
+     * WhatsApp Business Setup (Embedded Signup & Verification)
+     */
+    if (document.getElementById('was-whatsapp-setup-app')) {
+        initWhatsAppSetup();
+    }
+
+    async function initWhatsAppSetup() {
+        const btnCheck = document.getElementById('was-btn-check-connection');
+        const resultsBox = document.getElementById('was-verify-results');
+        const list = document.getElementById('was-verify-list');
+
+        if (btnCheck) {
+            btnCheck.addEventListener('click', async () => {
+                btnCheck.textContent = 'Verificando...';
+                btnCheck.disabled = true;
+                resultsBox.style.display = 'block';
+                list.innerHTML = '<li>⚙️ Iniciando testes de conectividade...</li>';
+
+                try {
+                    const res = await wasApiFetch('/whatsapp/check-connection', 'POST');
+                    if (res.success && res.results) {
+                        list.innerHTML = Object.values(res.results).map(r => {
+                            let icon = '✅';
+                            let color = '#166534';
+                            if (r.status === 'error') { icon = '❌'; color = '#991b1b'; }
+                            else if (r.status === 'warning') { icon = '⚠️'; color = '#854d0e'; }
+                            
+                            return `<li style="margin-bottom:8px; padding:10px; background:#fff; border-radius:6px; border-left:4px solid ${color}; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                                <strong>${icon} ${r.label}</strong><br>
+                                <small style="color:#64748b">${r.details || '-'}</small>
+                            </li>`;
+                        }).join('');
+                    }
+                } catch (err) {
+                    list.innerHTML = `<li style="color:red; padding:10px;">❌ Erro crítico ao realizar verificação: ${err.message}</li>`;
+                } finally {
+                    btnCheck.textContent = 'Verificar conexão oficial';
+                    btnCheck.disabled = false;
+                }
+            });
+        }
+    }
 });

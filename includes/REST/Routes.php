@@ -78,13 +78,7 @@ class Routes {
         ]);
 
         // WhatsApp Accounts
-        register_rest_route(WAS_REST_NAMESPACE, '/whatsapp/accounts', [
-            [
-                'methods'             => 'GET',
-                'callback'            => [$whatsAppController, 'get_accounts'],
-                'permission_callback' => [$whatsAppController, 'permissions_check'],
-            ]
-        ]);
+        $whatsAppController->register_routes();
 
         // Outras rotas já existentes
         register_rest_route(WAS_REST_NAMESPACE, '/templates', [

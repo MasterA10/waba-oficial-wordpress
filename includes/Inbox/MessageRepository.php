@@ -97,6 +97,27 @@ class MessageRepository {
     }
 
     /**
+     * Lista mensagens novas de uma conversa (após um determinado ID).
+     * Usado pelo sistema de polling em tempo real.
+     */
+    public function list_new_messages($conversation_id, $after_id) {
+        global $wpdb;
+        $tenant_id = TenantContext::get_tenant_id();
+        $media_table = TableNameResolver::get_table_name('media');
+
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT m.*, med.public_url as media_url, med.filename as media_filename, med.file_size as media_size 
+             FROM {$this->table_name} m
+             LEFT JOIN {$media_table} med ON m.id = med.message_id
+             WHERE m.conversation_id = %d AND m.tenant_id = %d AND m.id > %d
+             ORDER BY m.created_at ASC",
+            $conversation_id,
+            $tenant_id,
+            $after_id
+        ));
+    }
+
+    /**
      * Atualiza o status de uma mensagem (sent, delivered, read, failed).
      */
     public function update_status($wa_message_id, $status) {

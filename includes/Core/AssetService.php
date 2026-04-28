@@ -31,7 +31,8 @@ class AssetService {
 			'page'    => $page,
             'isShell' => ! is_admin(),
             'baseUrl' => home_url( '/app' ),
-            'adminUrl' => admin_url( 'admin.php?page=was-' )
+            'adminUrl' => admin_url( 'admin.php?page=was-' ),
+            'timezone' => wp_timezone_string(),
 		] );
 
         // Enqueue dashicons if in shell

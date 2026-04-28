@@ -66,6 +66,14 @@ class InboxApiController {
                 'permission_callback' => [$this, 'check_send_permission'],
             ],
         ]);
+
+        register_rest_route(WAS_REST_NAMESPACE, '/conversations/(?P<id>\d+)/poll', [
+            [
+                'methods'             => \WP_REST_Server::READABLE,
+                'callback'            => [$this, 'poll_new_messages'],
+                'permission_callback' => [$this, 'check_permission'],
+            ],
+        ]);
     }
 
     public function check_permission() {
@@ -341,6 +349,25 @@ class InboxApiController {
                 'conversation' => $conversation,
                 'messages'     => $messages
             ]
+        ], 200);
+    }
+
+    /**
+     * Polling: retorna apenas mensagens novas (após um determinado ID).
+     */
+    public function poll_new_messages($request) {
+        $id = $request['id'];
+        $after_id = (int) $request->get_param('after_id');
+
+        if (!$after_id) {
+            return new \WP_REST_Response(['success' => false, 'message' => 'Parâmetro after_id é obrigatório'], 400);
+        }
+
+        $messages = $this->message_repo->list_new_messages($id, $after_id);
+
+        return new \WP_REST_Response([
+            'success' => true,
+            'data'    => $messages ?: []
         ], 200);
     }
 }
