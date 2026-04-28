@@ -59,19 +59,37 @@ class OutboundMediaService {
             throw new \Exception('Configuração de envio incompleta.');
         }
 
-        // 1. Registrar mídia localmente
-        \WAS\Core\SystemLogger::logInfo('Registrando mídia localmente...', ['conversation_id' => $conversation_id, 'media_type' => $mediaType]);
+        // Usar o nome real do arquivo (não o caminho temporário do PHP)
+        $realFilename = $filename ?: basename($filePath);
+
+        // 1. Salvar arquivo no WordPress Uploads para ter URL pública
+        $upload_dir = wp_upload_dir();
+        $was_dir = $upload_dir['basedir'] . '/was-media/' . $tenant_id;
+        if (!file_exists($was_dir)) {
+            wp_mkdir_p($was_dir);
+        }
+        $uniqueName = wp_unique_filename($was_dir, $realFilename);
+        $localPath = $was_dir . '/' . $uniqueName;
+        $publicUrl = $upload_dir['baseurl'] . '/was-media/' . $tenant_id . '/' . $uniqueName;
+
+        copy($filePath, $localPath);
+
+        // 2. Registrar mídia localmente
+        \WAS\Core\SystemLogger::logInfo('Registrando mídia localmente...', ['conversation_id' => $conversation_id, 'media_type' => $mediaType, 'filename' => $realFilename]);
         $media_id = $this->media_repo->create([
             'conversation_id' => $conversation_id,
             'media_type'      => $mediaType,
             'mime_type'       => $mimeType,
-            'filename'        => basename($filePath),
+            'filename'        => $realFilename,
+            'original_filename' => $realFilename,
             'file_size'       => filesize($filePath),
+            'storage_path'    => $localPath,
+            'public_url'      => $publicUrl,
             'direction'       => 'outbound',
             'status'          => 'validated'
         ]);
 
-        // 2. Upload para Meta
+        // 3. Upload para Meta
         \WAS\Core\SystemLogger::logInfo('Iniciando upload para Meta...', ['media_id' => $media_id, 'phone_number_id' => $phone_number_id]);
         $uploadResponse = $this->api_client->uploadMedia($phone_number_id, $filePath, $mimeType, $token);
         if (!$uploadResponse['success']) {
@@ -88,15 +106,15 @@ class OutboundMediaService {
         \WAS\Core\SystemLogger::logInfo('Upload concluído com sucesso.', ['media_id' => $media_id, 'meta_media_id' => $meta_media_id]);
         $this->media_repo->mark_uploaded($media_id, $meta_media_id);
 
-        // 3. Resolver destinatário
+        // 4. Resolver destinatário
         $contact_repo = new \WAS\Inbox\ContactRepository();
         $contact = $contact_repo->get_by_id($conversation->contact_id);
         if (!$contact) throw new \Exception('Contato não encontrado.');
 
-        // 4. Montar Payload de Mensagem
+        // 5. Montar Payload de Mensagem
         $mediaObject = ['id' => $meta_media_id];
         if ($caption && $mediaType !== 'audio') $mediaObject['caption'] = $caption;
-        if ($filename && $mediaType === 'document') $mediaObject['filename'] = $filename;
+        if ($realFilename && $mediaType === 'document') $mediaObject['filename'] = $realFilename;
 
         $payload = [
             'messaging_product' => 'whatsapp',
@@ -106,19 +124,19 @@ class OutboundMediaService {
             $mediaType          => $mediaObject
         ];
 
-        // 5. Enviar Mensagem
+        // 6. Enviar Mensagem
         \WAS\Core\SystemLogger::logInfo('Enviando mensagem de mídia via Cloud API...', ['media_id' => $media_id, 'to' => $contact->wa_id]);
         $sendResponse = $this->api_client->postJson('messages.send', ['phone_number_id' => $phone_number_id], $payload, $token);
         if ($sendResponse['success']) {
             \WAS\Core\SystemLogger::logInfo('Mensagem de mídia enviada com sucesso.', ['media_id' => $media_id]);
             $wa_message_id = $sendResponse['messages'][0]['id'] ?? null;
             
-            // 6. Registrar mensagem e vincular mídia
+            // 7. Registrar mensagem e vincular mídia
             $message_id = $this->message_repo->create_outbound([
                 'conversation_id' => $conversation_id,
                 'wa_message_id'   => $wa_message_id,
                 'message_type'    => $mediaType,
-                'text_body'       => $caption ?: basename($filePath),
+                'text_body'       => $caption ?: $realFilename,
                 'status'          => 'sent',
                 'raw_payload'     => json_encode($payload)
             ]);
@@ -130,7 +148,9 @@ class OutboundMediaService {
             \WAS\Compliance\AuditLogger::log('media_sent', 'media', $media_id, [
                 'conversation_id' => $conversation_id,
                 'media_type'      => $mediaType,
-                'wa_message_id'   => $wa_message_id
+                'wa_message_id'   => $wa_message_id,
+                'filename'        => $realFilename,
+                'public_url'      => $publicUrl
             ]);
 
             return ['success' => true, 'wa_message_id' => $wa_message_id, 'media_id' => $media_id];
