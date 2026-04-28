@@ -44,8 +44,16 @@ class OnboardingSessionService {
 	 * @param int $tenant_id Tenant ID.
 	 * @param int $user_id   User ID.
 	 * @return string Session UUID.
+	 * @throws \RuntimeException If Meta App is not configured.
 	 */
 	public function start( $tenant_id, $user_id ) {
+		$app_repo = new \WAS\Meta\MetaAppRepository();
+		$app = $app_repo->get_active_app();
+
+		if ( ! $app || empty( $app->app_id ) || empty( $app->app_secret ) ) {
+			throw new \RuntimeException( 'Meta App (App ID/Secret) não configurado. Configure as credenciais antes de iniciar o cadastro.' );
+		}
+
 		$session_uuid = 'ob_' . bin2hex( random_bytes( 8 ) );
 		$this->session_repository->create( $tenant_id, $user_id, $session_uuid );
 		return $session_uuid;
