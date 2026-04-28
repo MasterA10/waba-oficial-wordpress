@@ -1983,6 +1983,12 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initSettingsMeta() {
         const form = document.getElementById('was-meta-config-form');
         if (!form) return;
+
+        const modal = document.getElementById('was-security-unlock-modal');
+        const confirmBtn = document.getElementById('was-confirm-unlock');
+        const cancelBtn = document.getElementById('was-cancel-unlock');
+        const passwordInput = document.getElementById('was-unlock-password');
+
         try {
             const data = await wasApiFetch('/meta/config');
             if (data) {
@@ -2012,6 +2018,58 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) { console.error('Error fetching meta config:', err); }
 
+        // Lógica de Desbloqueio
+        document.querySelectorAll('.was-unlock-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                modal.style.display = 'block';
+                passwordInput.value = '';
+                passwordInput.focus();
+            });
+        });
+
+        cancelBtn.addEventListener('click', () => { modal.style.display = 'none'; });
+
+        confirmBtn.addEventListener('click', async () => {
+            const password = passwordInput.value;
+            if (!password) return alert('Por favor, insira sua senha.');
+
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Verificando...';
+
+            try {
+                const data = await wasApiFetch('/meta/config/reveal', 'POST', { password });
+                if (data) {
+                    const appSecretField = document.getElementById('app_secret');
+                    const accessTokenField = document.getElementById('meta_access_token');
+                    const verifyTokenField = document.getElementById('verify_token');
+
+                    if (appSecretField && data.app_secret) {
+                        appSecretField.value = data.app_secret;
+                        appSecretField.readOnly = false;
+                    }
+                    if (accessTokenField && data.meta_access_token) {
+                        accessTokenField.value = data.meta_access_token;
+                        accessTokenField.readOnly = false;
+                    }
+                    if (verifyTokenField && data.verify_token) {
+                        verifyTokenField.value = data.verify_token;
+                        verifyTokenField.readOnly = false;
+                    }
+
+                    modal.style.display = 'none';
+                    alert('Informações desbloqueadas com sucesso!');
+                    
+                    // Esconde os botões de desbloqueio após sucesso
+                    document.querySelectorAll('.was-unlock-btn').forEach(b => b.style.display = 'none');
+                }
+            } catch (err) {
+                alert('Erro na verificação: ' + (err.message || 'Senha incorreta.'));
+            } finally {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Confirmar e Revelar';
+            }
+        });
+
         const saveConfig = async (e) => {
             if (e) e.preventDefault();
             const payload = {
@@ -2027,6 +2085,8 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 await wasApiFetch('/meta/config', 'POST', payload);
                 alert('Configurações salvas com sucesso!');
+                // Recarrega para voltar ao estado bloqueado
+                location.reload();
             } catch (err) { alert(err.message || 'Erro ao salvar configurações'); }
         };
 

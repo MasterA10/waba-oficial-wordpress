@@ -6,6 +6,38 @@ if (!defined('ABSPATH')) {
     exit;
 }
 ?>
+<style>
+    .was-security-modal {
+        display: none;
+        position: fixed;
+        z-index: 10000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        backdrop-filter: blur(4px);
+    }
+    .was-security-modal-content {
+        background-color: #fff;
+        margin: 15% auto;
+        padding: 30px;
+        border-radius: 12px;
+        width: 400px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    .was-security-field-wrapper {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    .was-unlock-btn {
+        padding: 5px 12px !important;
+        height: 30px !important;
+        line-height: 1 !important;
+    }
+</style>
+
 <div class="wrap">
     <h1>Configurações do Meta App</h1>
     <hr>
@@ -27,7 +59,10 @@ if (!defined('ABSPATH')) {
                     <tr>
                         <th scope="row"><label for="app_secret">App Secret</label></th>
                         <td>
-                            <input name="app_secret" type="password" id="app_secret" value="" class="regular-text">
+                            <div class="was-security-field-wrapper">
+                                <input name="app_secret" type="text" id="app_secret" value="" class="regular-text" readonly>
+                                <button type="button" class="button was-unlock-btn" data-target="app_secret">🔓 Desbloquear</button>
+                            </div>
                             <p class="description">O segredo do seu aplicativo. Necessário para validar a assinatura dos webhooks.</p>
                         </td>
                     </tr>
@@ -48,7 +83,10 @@ if (!defined('ABSPATH')) {
                     <tr>
                         <th scope="row"><label for="meta_access_token">Meta Access Token</label></th>
                         <td>
-                            <textarea name="meta_access_token" id="meta_access_token" class="large-text" rows="4" placeholder="EAAL..."></textarea>
+                            <div class="was-security-field-wrapper" style="align-items: flex-start;">
+                                <textarea name="meta_access_token" id="meta_access_token" class="large-text" rows="4" placeholder="EAAL..." readonly></textarea>
+                                <button type="button" class="button was-unlock-btn" data-target="meta_access_token">🔓 Desbloquear</button>
+                            </div>
                             <p class="description">Token de Acesso (Access Token) gerado na Meta Developers. Será salvo criptografado.</p>
                         </td>
                     </tr>
@@ -99,8 +137,9 @@ if (!defined('ABSPATH')) {
                     <tr>
                         <th scope="row"><label for="verify_token">Webhook Verify Token</label></th>
                         <td>
-                            <div style="display: flex; gap: 10px; align-items: center;">
-                                <input name="verify_token" type="text" id="verify_token" value="" class="regular-text">
+                            <div class="was-security-field-wrapper">
+                                <input name="verify_token" type="text" id="verify_token" value="" class="regular-text" readonly>
+                                <button type="button" class="button was-unlock-btn" data-target="verify_token">🔓 Desbloquear</button>
                                 <button type="button" id="was-generate-token" class="button">Gerar Novo</button>
                             </div>
                             <script>
@@ -109,6 +148,7 @@ if (!defined('ABSPATH')) {
                                         .map(b => b.toString(16).padStart(2, '0'))
                                         .join('');
                                     document.getElementById('verify_token').value = randomToken;
+                                    document.getElementById('verify_token').readOnly = false;
                                 });
                             </script>
                             <p class="description">Token usado para validar o webhook. Cole este valor no campo "Verificar token" na Meta.</p>
@@ -121,6 +161,21 @@ if (!defined('ABSPATH')) {
                     <span id="was-save-status" style="margin-left: 10px;"></span>
                 </p>
             </form>
+        </div>
+
+        <!-- Modal de Segurança -->
+        <div id="was-security-unlock-modal" class="was-security-modal">
+            <div class="was-security-modal-content">
+                <h3 style="margin-top:0;">🔐 Verificação de Segurança</h3>
+                <p>Por favor, insira sua <strong>senha do WordPress</strong> para revelar as informações sensíveis.</p>
+                <div style="margin-bottom:20px;">
+                    <input type="password" id="was-unlock-password" class="regular-text" style="width:100%;" placeholder="Sua senha de administrador">
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:10px;">
+                    <button type="button" id="was-cancel-unlock" class="button">Cancelar</button>
+                    <button type="button" id="was-confirm-unlock" class="button button-primary">Confirmar e Revelar</button>
+                </div>
+            </div>
         </div>
 
         <div class="card" style="max-width: 800px; margin-top: 20px;">

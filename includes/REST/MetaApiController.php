@@ -64,10 +64,10 @@ $embedded_signup_url = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM 
 
         return new WP_REST_Response([
             'app_id'        => $app->app_id,
-            'app_secret'    => $app_secret_masked,
+            'app_secret'    => $app->app_secret ? '********' : '',
             'config_id'     => $app->config_id ?? '',
             'graph_version' => $app->graph_version,
-            'verify_token'  => $app->verify_token,
+            'verify_token'  => $app->verify_token ? '********' : '',
             'webhook_url'   => home_url('/was-meta-check-99'),
             'oauth_callback_url' => rest_url(WAS_REST_NAMESPACE . '/meta/oauth/callback'),
             'deauthorize_url'    => rest_url(WAS_REST_NAMESPACE . '/meta/deauthorize'),
@@ -76,9 +76,45 @@ $embedded_signup_url = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM 
             'terms_of_service_url' => home_url('/terms-of-service'),
             'support_url'        => home_url('/support'),
             'primary_phone_number_id' => $phone_service->get_primary_id($tenant_id),
-            'meta_access_token' => $raw_token ? TokenVault::mask($raw_token, 8) : '',
+            'meta_access_token' => $raw_token ? '********' : '',
             'waba_id'       => $waba_id ?: '',
             'embedded_signup_url' => $embedded_signup_url ?: ''
+        ], 200);
+    }
+
+    /**
+     * Revela a configuração do Meta App, mascarada corretamente, após validação de senha.
+     */
+    public function reveal_config(WP_REST_Request $request) {
+        $params = $request->get_json_params();
+        $password = $params['password'] ?? '';
+        
+        $user = wp_get_current_user();
+        
+        if (!$user->exists() || !wp_check_password($password, $user->data->user_pass, $user->ID)) {
+            return new WP_REST_Response(['message' => 'Senha incorreta ou usuário não autenticado.'], 403);
+        }
+
+        // Se a senha for válida, retornamos os dados com a máscara de exibição segura (e não os asteriscos fixos)
+        $app = $this->repository->get_active_app(false);
+        $phone_service = new \WAS\WhatsApp\PhoneNumberService();
+        $token_service = new \WAS\Meta\TokenService();
+        $tenant_id = \WAS\Auth\TenantContext::get_tenant_id();
+        $raw_token = $token_service->get_active_token($tenant_id);
+
+        $app_secret_masked = '';
+        if ($app && !empty($app->app_secret)) {
+            try {
+                $app_secret_masked = TokenVault::mask(TokenVault::decrypt($app->app_secret));
+            } catch (\Exception $e) {
+                $app_secret_masked = 'ERROR_DECRYPTING';
+            }
+        }
+
+        return new WP_REST_Response([
+            'app_secret'    => $app_secret_masked,
+            'meta_access_token' => $raw_token ? TokenVault::mask($raw_token, 8) : '',
+            'verify_token'  => $app ? $app->verify_token : ''
         ], 200);
     }
 
@@ -94,9 +130,14 @@ $embedded_signup_url = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM 
         }
 
         try {
-            // Se o secret vier mascarado, não atualizamos o secret
-            if (isset($params['app_secret']) && strpos($params['app_secret'], '...') !== false) {
+            // Se o secret vier mascarado (asteriscos ou pontos), não atualizamos
+            if (isset($params['app_secret']) && (strpos($params['app_secret'], '...') !== false || $params['app_secret'] === '********')) {
                 unset($params['app_secret']);
+            }
+            
+            // O mesmo para verify_token
+            if (isset($params['verify_token']) && $params['verify_token'] === '********') {
+                unset($params['verify_token']);
             }
 
             $result = $this->repository->save_app($params);
@@ -149,7 +190,7 @@ $embedded_signup_url = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM 
             }
 
             // Salvar Access Token se fornecido e não mascarado
-            if (!empty($params['meta_access_token']) && strpos($params['meta_access_token'], '...') === false) {
+            if (!empty($params['meta_access_token']) && strpos($params['meta_access_token'], '...') === false && $params['meta_access_token'] !== '********') {
                 global $wpdb;
                 $token_table = \WAS\Core\TableNameResolver::get_table_name('meta_tokens');
                 $encrypted_token = TokenVault::encrypt($params['meta_access_token']);
@@ -186,6 +227,10 @@ $embedded_signup_url = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM 
      * Verifica permissão para gerenciar Meta App.
      */
     public function permissions_check() {
-        return Routes::check_auth();
+        if (!Routes::check_auth()) {
+            return false;
+        }
+        // Exige privilégios de administrador/platform owner para ler e escrever
+        return current_user_can('manage_options') || current_user_can('was_platform_admin');
     }
 }

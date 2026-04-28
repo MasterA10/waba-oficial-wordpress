@@ -104,6 +104,14 @@ class Routes {
             ]
         ]);
 
+        register_rest_route(WAS_REST_NAMESPACE, '/meta/config/reveal', [
+            [
+                'methods'             => 'POST',
+                'callback'            => [$metaController, 'reveal_config'],
+                'permission_callback' => [$metaController, 'permissions_check'],
+            ]
+        ]);
+
         // WhatsApp Accounts
         $whatsAppController->register_routes();
 
