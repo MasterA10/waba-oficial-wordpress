@@ -739,7 +739,7 @@ A experiência para o cliente fica simples:
 Clicar → entrar com Facebook → escolher empresa/número → autorizar → pronto.
 ```
 
-Por baixo, seu sistema resolve token, WABA, número, webhook e registro oficial da API.
+Por baixo, seu sistema resolve token, WABA, número, webhook e registro oficial da API..
 
 [1]: https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/overview/?utm_source=chatgpt.com "Embedded Signup - Meta for Developers - Facebook"
 [2]: https://www.twilio.com/docs/whatsapp/isv/tech-provider-program/integration-guide "WhatsApp Tech Provider program integration guide | Twilio"
