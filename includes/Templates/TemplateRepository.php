@@ -90,6 +90,10 @@ class TemplateRepository {
         ));
     }
 
+    public function getTable() {
+        return $this->table_name;
+    }
+
     public function findByWabaNameLanguage($tenant_id, $waba_id, $name, $language) {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(

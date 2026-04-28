@@ -28,7 +28,10 @@ class TemplateApiController {
         $templates = $this->repository->list_templates();
         \WAS\Core\SystemLogger::logError('GET /templates requested by browser', [
             'count' => is_array($templates) ? count($templates) : 0,
-            'tenant_id' => TenantContext::get_tenant_id()
+            'tenant_id' => TenantContext::get_tenant_id(),
+            'db_name' => defined('DB_NAME') ? DB_NAME : 'unknown',
+            'db_host' => defined('DB_HOST') ? DB_HOST : 'unknown',
+            'table' => $this->repository->getTable()
         ]);
         return new WP_REST_Response($templates, 200);
     }

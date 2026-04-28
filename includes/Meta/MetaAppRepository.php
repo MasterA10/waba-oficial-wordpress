@@ -73,10 +73,16 @@ class MetaAppRepository {
                 $prepared_data,
                 ['id' => $existing->id]
             );
+            if ($result === false) {
+                error_log('WAS Error [MetaAppRepository::save_app update]: ' . $wpdb->last_error);
+            }
             return $result !== false ? $existing->id : false;
         } else {
             $prepared_data['created_at'] = current_time('mysql', true);
             $result = $wpdb->insert($this->table_name, $prepared_data);
+            if ($result === false) {
+                error_log('WAS Error [MetaAppRepository::save_app insert]: ' . $wpdb->last_error);
+            }
             return $result ? $wpdb->insert_id : false;
         }
     }
