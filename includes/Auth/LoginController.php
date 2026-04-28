@@ -41,6 +41,12 @@ class LoginController {
 				if ( is_wp_error( $user ) ) {
 					$errors[] = 'Usuário ou senha inválidos.';
 				} else {
+					// Registrar auditoria de login
+					\WAS\Compliance\AuditLogger::log('user_login', 'user', $user->ID, [
+						'ip' => $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0',
+						'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
+					]);
+					
 					wp_redirect( home_url( '/app/dashboard' ) );
 					exit;
 				}

@@ -32,6 +32,40 @@ if (!defined('ABSPATH')) exit;
             </div>
         </div>
     </div>
+
+    <div class="card" style="margin-top: 20px;">
+        <h2>Monitoramento de Páginas Legais</h2>
+        <table class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th>Página</th>
+                    <th>URL</th>
+                    <th>Status</th>
+                    <th>Obrigatória (Meta)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Política de Privacidade</td>
+                    <td><code>/privacy-policy</code></td>
+                    <td><span class="status-indicator status-done">OK (200)</span></td>
+                    <td>✅ SIM</td>
+                </tr>
+                <tr>
+                    <td>Termos de Serviço</td>
+                    <td><code>/terms-of-service</code></td>
+                    <td><span class="status-indicator status-done">OK (200)</span></td>
+                    <td>✅ SIM</td>
+                </tr>
+                <tr>
+                    <td>Exclusão de Dados</td>
+                    <td><code>/data-deletion</code></td>
+                    <td><span class="status-indicator status-done">OK (200)</span></td>
+                    <td>✅ SIM</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <style>

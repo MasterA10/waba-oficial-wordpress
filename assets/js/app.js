@@ -203,24 +203,38 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initMasterTokens() {
         const tb = document.getElementById('master-tokens-list');
         if (!tb) return;
-        try {
-            const data = await wasApiFetch('/admin/tokens');
-            tb.innerHTML = (data || []).map(k => `
-                <tr>
-                    <td><strong>${k.tenant_name}</strong></td>
-                    <td><code>${k.prefix}</code></td>
-                    <td>${k.length} chars</td>
-                    <td><span class="was-status-badge" style="background: ${k.status === 'active' ? '#dcfce7' : '#fee2e2'}; color: ${k.status === 'active' ? '#166534' : '#991b1b'};">
-                        ${k.status.toUpperCase()}
-                    </span></td>
-                    <td>${k.expires_at || 'NEVER'}</td>
-                    <td><span style="color: var(--danger); font-size: 0.8rem;">${k.last_error || '-'}</span></td>
-                    <td>
-                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Testar Token</button>
-                    </td>
-                </tr>
-            `).join('') || '<tr><td colspan="7">Nenhum token encontrado.</td></tr>';
-        } catch (err) { tb.innerHTML = '<tr><td colspan="7">Erro ao carregar tokens.</td></tr>'; }
+
+        const loadTokens = async () => {
+            try {
+                const data = await wasApiFetch('/admin/tokens');
+                tb.innerHTML = (data || []).map(k => `
+                    <tr>
+                        <td><strong>${k.tenant_name}</strong></td>
+                        <td><code>${k.prefix}</code></td>
+                        <td>${k.length} chars</td>
+                        <td><span class="was-status-badge" style="background: ${k.status === 'active' ? '#dcfce7' : '#fee2e2'}; color: ${k.status === 'active' ? '#166534' : '#991b1b'};">
+                            ${k.status.toUpperCase()}
+                        </span></td>
+                        <td>${k.expires_at || 'NEVER'}</td>
+                        <td><span style="color: var(--danger); font-size: 0.8rem;">${k.last_error || '-'}</span></td>
+                        <td>
+                            <button class="button test-token" data-id="${k.id}">Testar Token</button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="7">Nenhum token encontrado.</td></tr>';
+
+                document.querySelectorAll('.test-token').forEach(b => b.addEventListener('click', async (e) => {
+                    const id = e.target.dataset.id;
+                    try {
+                        const res = await wasApiFetch(`/admin/tokens/${id}/test`, 'POST');
+                        alert(res.message);
+                        loadTokens();
+                    } catch (err) { alert(err.message); }
+                }));
+
+            } catch (err) { tb.innerHTML = '<tr><td colspan="7">Erro ao carregar tokens.</td></tr>'; }
+        };
+        loadTokens();
     }
 
     async function initMasterWebhooks() {
@@ -248,23 +262,44 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initMasterTemplates() {
         const tb = document.getElementById('master-templates-list');
         if (!tb) return;
-        try {
-            const data = await wasApiFetch('/admin/templates');
-            tb.innerHTML = (data || []).map(m => `
-                <tr>
-                    <td><strong>${m.tenant_name}</strong></td>
-                    <td>${m.name}<br><small>Meta ID: ${m.meta_template_id || '-'}</small></td>
-                    <td>${m.category}</td>
-                    <td>${m.language}</td>
-                    <td><span class="was-status-badge" style="background: ${m.status === 'APPROVED' ? '#dcfce7' : '#fee2e2'}; color: ${m.status === 'APPROVED' ? '#166534' : '#991b1b'};">
-                        ${m.status.toUpperCase()}
-                    </span></td>
-                    <td>
-                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Ver Payload</button>
-                    </td>
-                </tr>
-            `).join('') || '<tr><td colspan="6">Nenhum template encontrado.</td></tr>';
-        } catch (err) { tb.innerHTML = '<tr><td colspan="6">Erro ao carregar templates.</td></tr>'; }
+
+        const modal = document.getElementById('was-master-tpl-payload-modal');
+        const closeBtn = document.getElementById('was-master-tpl-payload-close');
+
+        const loadTemplates = async () => {
+            try {
+                const data = await wasApiFetch('/admin/templates');
+                tb.innerHTML = (data || []).map(m => `
+                    <tr>
+                        <td><strong>${m.tenant_name}</strong></td>
+                        <td>${m.name}<br><small>Meta ID: ${m.meta_template_id || '-'}</small></td>
+                        <td>${m.category}</td>
+                        <td>${m.language}</td>
+                        <td><span class="was-status-badge" style="background: ${m.status === 'APPROVED' ? '#dcfce7' : '#fee2e2'}; color: ${m.status === 'APPROVED' ? '#166534' : '#991b1b'};">
+                            ${m.status.toUpperCase()}
+                        </span></td>
+                        <td>
+                            <button class="button view-payload" data-id="${m.id}" data-name="${m.name}">Ver Payload</button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="6">Nenhum template encontrado.</td></tr>';
+
+                document.querySelectorAll('.view-payload').forEach(b => b.addEventListener('click', async (e) => {
+                    const { id, name } = e.currentTarget.dataset;
+                    try {
+                        const res = await wasApiFetch(`/admin/templates/${id}/payload`);
+                        document.getElementById('master-tpl-name-title').textContent = name;
+                        document.getElementById('master-tpl-friendly-pre').textContent = JSON.stringify(res.friendly_payload, null, 2);
+                        document.getElementById('master-tpl-meta-pre').textContent = JSON.stringify(res.meta_payload, null, 2);
+                        modal.style.display = 'block';
+                    } catch (err) { alert(err.message); }
+                }));
+
+            } catch (err) { tb.innerHTML = '<tr><td colspan="6">Erro ao carregar templates.</td></tr>'; }
+        };
+
+        if (closeBtn) closeBtn.addEventListener('click', () => modal.style.display = 'none');
+        loadTemplates();
     }
 
     async function initMasterOnboardings() {
@@ -295,49 +330,99 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initMasterPhones() {
         const tb = document.getElementById('master-phones-list');
         if (!tb) return;
-        try {
-            const data = await wasApiFetch('/admin/phone-numbers');
-            tb.innerHTML = (data || []).map(p => `
-                <tr>
-                    <td><strong>${p.tenant_name}</strong><br><small>ID: ${p.tenant_id}</small></td>
-                    <td><code>${p.phone_number_id}</code></td>
-                    <td>${p.display_phone_number || '-'}</td>
-                    <td>${p.verified_name || '-'}</td>
-                    <td><span class="was-status-badge" style="background: ${p.status === 'active' ? '#dcfce7' : '#fee2e2'}; color: ${p.status === 'active' ? '#166534' : '#991b1b'};">
-                        ${p.status.toUpperCase()}
-                    </span></td>
-                    <td>${p.quality_rating || 'UNKNOWN'}</td>
-                    <td>${p.is_default ? '✅' : '-'}</td>
-                    <td>
-                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Testar Envio</button>
-                    </td>
-                </tr>
-            `).join('') || '<tr><td colspan="8">Nenhum número encontrado.</td></tr>';
-        } catch (err) { tb.innerHTML = '<tr><td colspan="8">Erro ao carregar números.</td></tr>'; }
+
+        const modal = document.getElementById('was-master-test-msg-modal');
+        const form = document.getElementById('was-master-test-msg-form');
+        const cancelBtn = document.getElementById('was-master-test-msg-cancel');
+
+        const loadPhones = async () => {
+            try {
+                const data = await wasApiFetch('/admin/phone-numbers');
+                tb.innerHTML = (data || []).map(p => `
+                    <tr>
+                        <td><strong>${p.tenant_name}</strong><br><small>ID: ${p.tenant_id}</small></td>
+                        <td><code>${p.phone_number_id}</code></td>
+                        <td>${p.display_phone_number || '-'}</td>
+                        <td>${p.verified_name || '-'}</td>
+                        <td><span class="was-status-badge" style="background: ${p.status === 'active' ? '#dcfce7' : '#fee2e2'}; color: ${p.status === 'active' ? '#166534' : '#991b1b'};">
+                            ${p.status.toUpperCase()}
+                        </span></td>
+                        <td>${p.quality_rating || 'UNKNOWN'}</td>
+                        <td>${p.is_default ? '✅' : '-'}</td>
+                        <td>
+                            <button class="button test-msg" data-id="${p.id}">Testar Envio</button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="8">Nenhum número encontrado.</td></tr>';
+
+                document.querySelectorAll('.test-msg').forEach(b => b.addEventListener('click', (e) => {
+                    document.getElementById('master-test-phone-id').value = e.target.dataset.id;
+                    modal.style.display = 'block';
+                }));
+
+            } catch (err) { tb.innerHTML = '<tr><td colspan="8">Erro ao carregar números.</td></tr>'; }
+        };
+
+        if (cancelBtn) cancelBtn.addEventListener('click', () => modal.style.display = 'none');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('master-test-phone-id').value;
+            const to = document.getElementById('master-test-to').value;
+            try {
+                const res = await wasApiFetch(`/admin/phone-numbers/${id}/test-message`, 'POST', { to: to });
+                alert(res.message);
+                modal.style.display = 'none';
+            } catch (err) { alert(err.message); }
+        });
+
+        loadPhones();
     }
 
     async function initMasterWabas() {
         const tb = document.getElementById('master-wabas-list');
         if (!tb) return;
-        try {
-            const data = await wasApiFetch('/admin/wabas');
-            tb.innerHTML = (data || []).map(w => `
-                <tr>
-                    <td><strong>${w.tenant_name}</strong><br><small>ID: ${w.tenant_id}</small></td>
-                    <td><code>${w.waba_id}</code></td>
-                    <td>${w.name || '-'}</td>
-                    <td><span class="was-status-badge" style="background: ${w.status === 'connected' ? '#dcfce7' : '#fee2e2'}; color: ${w.status === 'connected' ? '#166534' : '#991b1b'};">
-                        ${w.status.toUpperCase()}
-                    </span></td>
-                    <td>${w.webhook_subscription_status || 'UNKNOWN'}</td>
-                    <td>${w.created_at}</td>
-                    <td>
-                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Sync Templates</button>
-                        <button class="button" onclick="alert('Funcionalidade em desenvolvimento')">Inscrever Webhook</button>
-                    </td>
-                </tr>
-            `).join('') || '<tr><td colspan="7">Nenhuma WABA encontrada.</td></tr>';
-        } catch (err) { tb.innerHTML = '<tr><td colspan="7">Erro ao carregar WABAs.</td></tr>'; }
+
+        const loadWabas = async () => {
+            try {
+                const data = await wasApiFetch('/admin/wabas');
+                tb.innerHTML = (data || []).map(w => `
+                    <tr>
+                        <td><strong>${w.tenant_name}</strong><br><small>ID: ${w.tenant_id}</small></td>
+                        <td><code>${w.waba_id}</code></td>
+                        <td>${w.name || '-'}</td>
+                        <td><span class="was-status-badge" style="background: ${w.status === 'connected' ? '#dcfce7' : '#fee2e2'}; color: ${w.status === 'connected' ? '#166534' : '#991b1b'};">
+                            ${w.status.toUpperCase()}
+                        </span></td>
+                        <td>${w.webhook_subscription_status || 'UNKNOWN'}</td>
+                        <td>${w.created_at}</td>
+                        <td>
+                            <button class="button waba-action" data-id="${w.id}" data-action="sync-templates">Sync Templates</button>
+                            <button class="button waba-action" data-id="${w.id}" data-action="subscribe-webhooks">Inscrever Webhook</button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="7">Nenhuma WABA encontrada.</td></tr>';
+
+                document.querySelectorAll('.waba-action').forEach(b => b.addEventListener('click', async (e) => {
+                    const { id, action } = e.currentTarget.dataset;
+                    const btn = e.currentTarget;
+                    const originalText = btn.textContent;
+                    btn.textContent = 'Processando...';
+                    btn.disabled = true;
+
+                    try {
+                        const res = await wasApiFetch(`/admin/wabas/${id}/${action}`, 'POST');
+                        alert(res.message);
+                        loadWabas();
+                    } catch (err) { alert(err.message); } finally {
+                        btn.textContent = originalText;
+                        btn.disabled = false;
+                    }
+                }));
+
+            } catch (err) { tb.innerHTML = '<tr><td colspan="7">Erro ao carregar WABAs.</td></tr>'; }
+        };
+        loadWabas();
     }
 
     async function initMasterApps() {
@@ -1331,8 +1416,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!tb) return;
         try {
             const logs = await wasApiFetch('/audit-logs');
-            tb.innerHTML = logs.map(l => `<tr><td>${l.created_at}</td><td>${l.action}</td><td>${l.entity_type}</td><td><small>${l.metadata}</small></td></tr>`).join('') || '<tr><td colspan="4">Vazio</td></tr>';
-        } catch (err) { tb.innerHTML = 'Erro.'; }
+            tb.innerHTML = logs.map(l => `
+                <tr>
+                    <td>${l.created_at}</td>
+                    <td><span style="color:var(--slate-600)">${l.user_login || 'Sistema'}</span></td>
+                    <td><strong>${l.action.toUpperCase()}</strong></td>
+                    <td>${l.entity_type} (#${l.entity_id})</td>
+                    <td><small style="color:var(--slate-500); font-family:monospace; font-size:11px;">${l.metadata}</small></td>
+                </tr>
+            `).join('') || '<tr><td colspan="5">Nenhum registro encontrado.</td></tr>';
+        } catch (err) { tb.innerHTML = '<tr><td colspan="5">Erro ao carregar logs.</td></tr>'; }
     }
 
     async function initSettingsMeta() {
