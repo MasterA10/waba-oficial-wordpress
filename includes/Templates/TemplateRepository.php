@@ -90,6 +90,23 @@ class TemplateRepository {
         ));
     }
 
+    /**
+     * Busca um template mesmo que esteja marcado como deletado.
+     * Útil para evitar erros de 'Duplicate Entry' na sincronização.
+     */
+    public function find_any_by_name_lang($tenant_id, $waba_id, $name, $language) {
+        global $wpdb;
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->table_name} 
+             WHERE tenant_id = %d AND waba_id = %s AND name = %s AND language = %s 
+             LIMIT 1",
+            $tenant_id,
+            $waba_id,
+            $name,
+            $language
+        ));
+    }
+
     public function getTable() {
         return $this->table_name;
     }

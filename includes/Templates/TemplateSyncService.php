@@ -84,13 +84,8 @@ class TemplateSyncService {
             return 'unchanged';
         }
 
-        // Tenta encontrar primeiro pelo WABA ID + Nome + Lang (Padrão Novo)
-        $existing = $this->repository->findByWabaNameLanguage($tenantId, $wabaId, $name, $language);
-
-        // Fallback: se não achar, tenta pelo Nome + Lang (Migração para templates antigos sem waba_id)
-        if (!$existing) {
-            $existing = $this->repository->get_by_name_lang($name, $language);
-        }
+        // Tenta encontrar o registro ignorando soft-delete para evitar Duplicate Entry
+        $existing = $this->repository->find_any_by_name_lang($tenantId, $wabaId, $name, $language);
 
         $data = [
             'tenant_id' => $tenantId,
@@ -106,6 +101,7 @@ class TemplateSyncService {
             'meta_payload' => wp_json_encode($metaTemplate),
             'synced_at' => current_time('mysql', 1),
             'updated_at' => current_time('mysql', 1),
+            'deleted_at' => null, // Restaura se estava deletado
             'body_text' => ''
         ];
 
@@ -133,7 +129,7 @@ class TemplateSyncService {
             return $res ? 'created_local' : 'errors';
         }
 
-        // Se existir, atualiza
+        // Se existir, atualiza (limpa o deleted_at automaticamente se houver)
         $res = $this->repository->update($existing->id, $data);
         if ($res === false) {
             global $wpdb;
