@@ -91,6 +91,17 @@ class Plugin {
 
 		add_action( 'template_redirect', [ $this, 'handle_app_routing' ] );
         add_action( 'template_redirect', [ $this, 'handle_raw_webhook' ] );
+
+        // Landing Page on Root
+        add_filter( 'template_include', function( $template ) {
+            if ( is_front_page() || is_home() ) {
+                $landing = WAS_PLUGIN_DIR . 'templates/landing-page.php';
+                if ( file_exists( $landing ) ) {
+                    return $landing;
+                }
+            }
+            return $template;
+        } );
 	}
 
     /**
