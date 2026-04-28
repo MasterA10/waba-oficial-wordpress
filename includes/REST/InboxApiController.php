@@ -74,6 +74,14 @@ class InboxApiController {
                 'permission_callback' => [$this, 'check_permission'],
             ],
         ]);
+
+        register_rest_route(WAS_REST_NAMESPACE, '/conversations/(?P<id>\d+)/messages/(?P<message_id>\d+)/typing', [
+            [
+                'methods'             => \WP_REST_Server::CREATABLE,
+                'callback'            => [$this, 'send_typing_indicator'],
+                'permission_callback' => [$this, 'check_send_permission'],
+            ],
+        ]);
     }
 
     public function check_permission() {
@@ -459,5 +467,35 @@ class InboxApiController {
             'success' => true,
             'data'    => $messages ?: []
         ], 200);
+    }
+
+    /**
+     * Aciona o indicador de "digitando..." (WAS-090).
+     */
+    public function send_typing_indicator($request) {
+        $conversation_id = (int) $request['id'];
+        $message_id      = (int) $request['message_id'];
+
+        try {
+            $service = new \WAS\WhatsApp\TypingIndicatorService();
+            $result = $service->show_typing($conversation_id, $message_id);
+
+            if ($result['success']) {
+                return new \WP_REST_Response(['success' => true], 200);
+            }
+
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => $result['error'] ?? 'Erro ao exibir indicador de digitação'
+            ], 400);
+
+        } catch (\Throwable $e) {
+            \WAS\Core\SystemLogger::logException($e, [
+                'context'         => 'InboxApiController::send_typing_indicator',
+                'conversation_id' => $conversation_id,
+                'message_id'      => $message_id
+            ]);
+            return new \WP_REST_Response(['success' => false, 'message' => 'Erro interno ao processar indicador.'], 500);
+        }
     }
 }

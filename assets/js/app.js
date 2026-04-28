@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const { restUrl, nonce } = window.wasApp;
     let currentConversationId = null;
     let lastMessageId = 0;
+    let lastInboundMessageId = null;
+    let lastTypingSentAt = 0;
     let replyToMessageId = null;
     let chatPollTimer = null;
     let convListPollTimer = null;
@@ -683,7 +685,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (btnRefresh) btnRefresh.addEventListener('click', fetchConversations);
         if (inputField && sendBtn) {
-            inputField.addEventListener('input', () => sendBtn.disabled = inputField.value.trim() === '');
+            inputField.addEventListener('input', () => {
+                sendBtn.disabled = inputField.value.trim() === '';
+                if (inputField.value.trim().length > 0) {
+                    sendTypingIndicator();
+                }
+            });
             inputField.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
             sendBtn.addEventListener('click', sendMessage);
         }
@@ -833,6 +840,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         currentConversationId = id;
         lastMessageId = 0;
+        lastInboundMessageId = null;
+        lastTypingSentAt = 0;
         document.getElementById('was-no-conversation-selected').style.display = 'none';
         document.getElementById('was-active-chat').style.display = 'flex';
         document.getElementById('was-chat-contact-name').textContent = contactName;
@@ -848,6 +857,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderMessage(text, msg.direction, msg.message_type, payload, msg.media_url, msg.media_filename, msg.created_at, msg.reply_preview, msg.id);
                 // Rastrear último ID para polling
                 if (msg.id && parseInt(msg.id) > lastMessageId) lastMessageId = parseInt(msg.id);
+                // Rastrear última inbound para typing indicator
+                if (msg.direction === 'inbound') lastInboundMessageId = msg.id;
             });
             scrollToBottom();
 
@@ -883,6 +894,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const payload = (msg.message_type === 'template' && msg.raw_payload) ? JSON.parse(msg.raw_payload) : null;
                 renderMessage(text, msg.direction, msg.message_type, payload, msg.media_url, msg.media_filename, msg.created_at, msg.reply_preview, msg.id);
                 if (msg.id && parseInt(msg.id) > lastMessageId) lastMessageId = parseInt(msg.id);
+                if (msg.direction === 'inbound') lastInboundMessageId = msg.id;
             });
 
             // Auto-scroll só se já estava no fundo
@@ -1069,6 +1081,18 @@ document.addEventListener('DOMContentLoaded', () => {
                                         </div>
                                     </a>
                                     ${text ? `<div style="padding-top:4px;">${text}</div>` : ''}`;
+        } else if (type === 'button') {
+            contentDiv.innerHTML += `<div class="was-interactive-msg">
+                                        <div class="was-interactive-label">Resposta rápida</div>
+                                        <div class="was-interactive-btn-pill">${text}</div>
+                                    </div>`;
+        } else if (type === 'interactive') {
+            contentDiv.innerHTML += `<div class="was-interactive-msg">
+                                        <div class="was-interactive-label">Opção selecionada</div>
+                                        <div class="was-interactive-btn-pill">${text}</div>
+                                    </div>`;
+        } else if (type === 'reaction') {
+            contentDiv.innerHTML += `<div class="was-reaction-msg">${text}</div>`;
         } else {
             const bodySpan = document.createElement('span');
             bodySpan.textContent = text;
@@ -1521,14 +1545,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const varMap = tpl.variable_map ? JSON.parse(tpl.variable_map) : {};
             const buttons = tpl.buttons_json ? JSON.parse(tpl.buttons_json) : [];
             const inputsContainer = document.getElementById('was-tpl-variables-inputs');
-            inputsContainer.innerHTML = '';
+            
+            let html = '';
             
             // 1. Variáveis do Corpo
-            const varKeys = Object.keys(varMap);
+            let varKeys = Object.keys(varMap);
+
+            // Fallback: se não houver varMap mas o corpo tiver {{n}}, extrai as posições
+            if (varKeys.length === 0 && tpl.body_text && tpl.body_text.includes('{{')) {
+                const matches = tpl.body_text.match(/{{\s*(\d+)\s*}}/g);
+                if (matches) {
+                    const uniquePositions = [...new Set(matches.map(m => m.match(/\d+/)[0]))];
+                    uniquePositions.forEach(pos => { varMap[pos] = pos; });
+                    varKeys = Object.keys(varMap);
+                }
+            }
+
             if (varKeys.length > 0) {
-                inputsContainer.innerHTML += '<h4>Variáveis do Corpo</h4>';
+                html += '<h4>Variáveis do Corpo</h4>';
                 varKeys.forEach(k => {
-                    inputsContainer.innerHTML += `<div style="margin-bottom:10px;"><label><strong>{{${k}}}</strong> (${varMap[k]})</label><input type="text" class="tpl-var-input regular-text" data-key="${varMap[k]}" style="width:100%; margin-top:4px;" required></div>`;
+                    const label = (k === varMap[k]) ? `{{${k}}}` : `{{${k}}} (${varMap[k]})`;
+                    html += `<div style="margin-bottom:10px;"><label><strong>${label}</strong></label><input type="text" class="tpl-var-input regular-text" data-key="${varMap[k]}" style="width:100%; margin-top:4px;" required placeholder="Digite o valor..."></div>`;
                 });
             }
 
@@ -1537,24 +1574,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (btn.type === 'URL' && btn.url && btn.url.includes('{{')) {
                     const match = btn.url.match(/{{\s*([a-zA-Z0-9_]+)\s*}}/);
                     const varName = match ? match[1] : `button_${idx}`;
-                    inputsContainer.innerHTML += `<h4>Variável do Botão: ${btn.text}</h4>`;
-                    inputsContainer.innerHTML += `<div style="margin-bottom:10px;"><label><strong>{{${varName}}}</strong> (Link Dinâmico)</label><input type="text" class="tpl-var-input regular-text" data-key="${varName}" style="width:100%; margin-top:4px;" required placeholder="ex: código ou slug"></div>`;
+                    html += `<h4>Variável do Botão: ${btn.text}</h4>`;
+                    html += `<div style="margin-bottom:10px;"><label><strong>{{${varName}}}</strong> (Link Dinâmico)</label><input type="text" class="tpl-var-input regular-text" data-key="${varName}" style="width:100%; margin-top:4px;" required placeholder="ex: código ou slug"></div>`;
                 }
             });
 
-            if (inputsContainer.innerHTML === '') {
-                inputsContainer.innerHTML = '<p class="description">Este modelo não possui variáveis.</p>';
+            if (html === '') {
+                html = '<p class="description">Este modelo não possui variáveis.</p>';
             }
+
+            inputsContainer.innerHTML = html;
 
             // Inicializa o preview
             updateSendPreview();
 
             // Adiciona listeners para atualizar preview em tempo real
-            setTimeout(() => {
-                document.querySelectorAll('.tpl-var-input').forEach(inp => {
-                    inp.addEventListener('input', updateSendPreview);
-                });
-            }, 100);
+            inputsContainer.querySelectorAll('.tpl-var-input').forEach(inp => {
+                inp.addEventListener('input', updateSendPreview);
+            });
 
             modal.style.display = 'block';
         } catch (err) { alert('Erro ao carregar detalhes do template para envio.'); }
@@ -1585,10 +1622,22 @@ document.addEventListener('DOMContentLoaded', () => {
         // Body
         if (pb) {
             let processedBody = t.body_text || '';
-            Object.entries(currentVars).forEach(([k, v]) => {
-                const displayValue = v || `{{${k}}}`;
-                const safeKey = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                processedBody = processedBody.replace(new RegExp(`{{\\s*${safeKey}\\s*}}`, 'g'), `<span style="color:#25d366; font-weight:bold;">${displayValue}</span>`);
+            const varMap = t.variable_map ? JSON.parse(t.variable_map) : {};
+
+            Object.entries(currentVars).forEach(([friendlyName, v]) => {
+                const displayValue = v || `{{${friendlyName}}}`;
+                const highlight = `<span style="color:#25d366; font-weight:bold;">${displayValue}</span>`;
+                
+                // Substitui pelo nome amigável
+                const safeFriendly = friendlyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                processedBody = processedBody.replace(new RegExp(`{{\\s*${safeFriendly}\\s*}}`, 'g'), highlight);
+                
+                // Substitui pela posição (para templates sincronizados da Meta)
+                Object.entries(varMap).forEach(([pos, name]) => {
+                    if (name === friendlyName) {
+                        processedBody = processedBody.replace(new RegExp(`{{\\s*${pos}\\s*}}`, 'g'), highlight);
+                    }
+                });
             });
             pb.innerHTML = processedBody || '...';
         }
@@ -1638,13 +1687,30 @@ document.addEventListener('DOMContentLoaded', () => {
                         renderMessage(res.rendered_body || 'Modelo enviado', 'outbound', 'template', snapshot);
                         scrollToBottom();
                     } else if (!currentConversationId) {
-                        // Se não tem conversa aberta, talvez queira atualizar a lista lateral
-                        fetchConversations();
+                        location.reload();
                     }
+                } else {
+                    alert('Erro ao enviar template: ' + (res.message || 'Desconhecido'));
                 }
             } catch(err) { alert(err.message || 'Erro ao enviar template'); }
             finally { submitBtn.textContent = originalText; submitBtn.disabled = false; }
         });
+    }
+
+    async function sendTypingIndicator() {
+        if (!currentConversationId || !lastInboundMessageId) return;
+
+        const now = Date.now();
+        // Throttle: enviar apenas a cada 15 segundos
+        if (now - lastTypingSentAt < 15000) return;
+
+        lastTypingSentAt = now;
+
+        try {
+            await wasApiFetch(`/conversations/${currentConversationId}/messages/${lastInboundMessageId}/typing`, 'POST');
+        } catch (err) {
+            console.error('Falha ao enviar typing indicator:', err);
+        }
     }
 
     /**

@@ -166,39 +166,21 @@ class WebhookProcessor {
         $message = $value['messages'][0];
         $contact = $value['contacts'][0] ?? [];
 
-        // Normalizar DTO para o InboundMessageService
-        $type = $message['type'] ?? 'text';
-        $body = $message['text']['body'] ?? '';
-        $media_data = [];
+        // Normalizar mensagem usando o novo serviço centralizado
+        $normalizer = new \WAS\WhatsApp\WhatsAppInboundMessageNormalizer();
+        $normalized = $normalizer->normalize($message);
 
-        if ($type !== 'text' && isset($message[$type])) {
-            $media_obj = $message[$type];
-            $body = $media_obj['caption'] ?? $media_obj['filename'] ?? '';
-            $media_data = [
-                'id'        => $media_obj['id'] ?? null,
-                'mime_type' => $media_obj['mime_type'] ?? null,
-                'sha256'    => $media_obj['sha256'] ?? null,
-            ];
-        }
-
-        // Extrair Reply Context
-        $reply_parser = new \WAS\WhatsApp\WebhookReplyContextParser();
-        $reply_context = $reply_parser->extract($message);
-
-        $dto = [
+        // Mesclar com dados fixos do evento
+        $dto = array_merge($normalized, [
             'tenant_id'       => $tenant_id,
             'phone_number_id' => $phone_number_id,
             'wa_message_id'   => $message['id'],
             'from'            => $message['from'],
             'profile_name'    => $contact['profile']['name'] ?? '',
-            'message_type'    => $type,
-            'text_body'       => $body,
-            'media_data'      => $media_data,
             'timestamp'       => $message['timestamp'],
             'raw_event_id'    => $event_id,
-            'raw_message'     => $message, // Para debug
-            'reply_context'   => $reply_context,
-        ];
+            'raw_message'     => $message,
+        ]);
 
         // Injetar dependências manualmente para o serviço
         $service = new InboundMessageService(

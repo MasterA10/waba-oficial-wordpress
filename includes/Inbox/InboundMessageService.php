@@ -61,26 +61,14 @@ class InboundMessageService {
         }
 
         // 5. Salvar a mensagem
-        $type = $dto['message_type'] ?? $dto['type'] ?? 'text';
+        $type = $dto['message_type'] ?? 'text';
         $body = $dto['text_body'] ?? '';
 
-        // Fallback para tipos não suportados
-        if (!in_array($type, ['text', 'image', 'video', 'audio', 'document', 'sticker'])) {
-            $type = 'unknown';
-            $body = $body ?: '[Tipo de mensagem não suportado]';
-        }
-
-        // Resolver reply_to_message_id local
+        // Resolver reply_to_message_id local (Citação)
         $reply_to_message_id = null;
-        $reply_to_wa_message_id = null;
-        $context_from = null;
-        $context_payload = null;
+        $reply_to_wa_message_id = $dto['reply_to_wa_message_id'] ?? null;
 
-        if (!empty($dto['reply_context']['has_context'])) {
-            $reply_to_wa_message_id = $dto['reply_context']['reply_to_wa_message_id'];
-            $context_from = $dto['reply_context']['context_from'];
-            $context_payload = $dto['reply_context']['context_payload'];
-
+        if ($reply_to_wa_message_id) {
             $original_msg = $this->message_repo->find_by_wa_message_id($reply_to_wa_message_id);
             if ($original_msg) {
                 $reply_to_message_id = $original_msg->id;
@@ -88,30 +76,36 @@ class InboundMessageService {
         }
 
         $message_id = $this->message_repo->create_inbound([
-            'conversation_id'        => $conversation->id,
-            'wa_message_id'          => $dto['wa_message_id'],
-            'message_type'           => $type,
-            'text_body'              => $body,
-            'status'                 => 'received',
-            'reply_to_message_id'    => $reply_to_message_id,
-            'reply_to_wa_message_id' => $reply_to_wa_message_id,
-            'context_from'           => $context_from,
-            'context_payload'        => $context_payload,
-            'raw_payload'            => isset($dto['raw_message']) ? wp_json_encode($dto['raw_message']) : null,
+            'conversation_id'         => $conversation->id,
+            'wa_message_id'           => $dto['wa_message_id'],
+            'message_type'            => $type,
+            'text_body'               => $body,
+            'status'                  => 'received',
+            'reply_to_message_id'     => $reply_to_message_id,
+            'reply_to_wa_message_id'  => $reply_to_wa_message_id,
+            'context_from'            => $dto['context_from'] ?? null,
+            'context_payload'         => $dto['context_payload'] ?? null,
+            'button_text'             => $dto['button_text'] ?? null,
+            'button_payload'          => $dto['button_payload'] ?? null,
+            'interactive_type'        => $dto['interactive_type'] ?? null,
+            'interactive_id'          => $dto['interactive_id'] ?? null,
+            'interactive_title'       => $dto['interactive_title'] ?? null,
+            'interactive_description' => $dto['interactive_description'] ?? null,
+            'raw_payload'             => isset($dto['raw_message']) ? wp_json_encode($dto['raw_message']) : null,
         ]);
 
         if ($message_id) {
             // 6. Se for mídia, baixar arquivo
-            if (in_array($type, ['image', 'video', 'audio', 'document']) && !empty($dto['media_data']['id'])) {
+            if (in_array($type, ['image', 'video', 'audio', 'document', 'sticker']) && !empty($dto['meta_media_id'])) {
                 try {
                     $media_service = new \WAS\WhatsApp\InboundMediaService();
                     $media_service->handle_inbound_media(
                         $dto['tenant_id'],
                         $conversation->id,
                         $message_id,
-                        $dto['media_data']['id'],
+                        $dto['meta_media_id'],
                         $type,
-                        $dto['media_data']['mime_type'] ?? ''
+                        $dto['mime_type'] ?? ''
                     );
                 } catch (\Throwable $e) {
                     \WAS\Core\SystemLogger::logException($e, ['context' => 'InboundMessageService::handle_media', 'message_id' => $message_id]);

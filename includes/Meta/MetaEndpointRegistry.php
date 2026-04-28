@@ -15,6 +15,7 @@ class MetaEndpointRegistry {
             'templates.update' => '/{template_id}',
 
             'messages.send'    => '/{phone_number_id}/messages',
+            'messages.mark_read' => '/{phone_number_id}/messages',
 
             'media.upload'     => '/{phone_number_id}/media',
             'media.get'        => '/{media_id}',
