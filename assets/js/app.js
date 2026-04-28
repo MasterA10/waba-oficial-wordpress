@@ -951,6 +951,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     msgData.id
                 );
                 inputField.value = '';
+                if (msgData.id && parseInt(msgData.id) > lastMessageId) {
+                    lastMessageId = parseInt(msgData.id);
+                }
                 clearReplyContext();
                 scrollToBottom();
             } else {
@@ -993,6 +996,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderMessage(text, direction, type = 'text', payload = null, mediaUrl = null, mediaFilename = null, timestamp = null, replyPreview = null, messageId = null) {
         const history = document.getElementById('was-messages-history');
         if (!history) return;
+
+        // Evitar duplicados se já estiver na tela
+        if (messageId && document.querySelector(`.was-message[data-id="${messageId}"]`)) {
+            return;
+        }
 
         // Formatar hora usando o fuso horário configurado no WordPress
         const tz = wasApp.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
