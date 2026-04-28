@@ -53,12 +53,15 @@ class TemplateSendService {
         $to = preg_replace('/\D/', '', $to);
 
         if (!$conversation_id && $to) {
-            $contact = $this->contact_repo->find_by_wa_id($to);
+            $contact = $this->contact_repo->find_or_create_by_wa_id($to, 'Novo Contato', $to);
             if (!$contact) {
-                $contact_id = $this->contact_repo->create(['wa_id' => $to, 'profile_name' => 'Novo Contato']);
-            } else {
-                $contact_id = $contact->id;
+                \WAS\Core\SystemLogger::logError('TemplateSendService: Falha ao encontrar/criar contato.', [
+                    'to' => $to,
+                    'tenant_id' => $tenant_id,
+                ]);
+                return ['success' => false, 'error' => 'Não foi possível encontrar ou criar o contato.'];
             }
+            $contact_id = $contact->id;
             $conversation = $this->conversation_repo->find_open_by_contact($contact_id);
             if (!$conversation) {
                 $conversation_id = $this->conversation_repo->create(['contact_id' => $contact_id, 'status' => 'open']);
