@@ -147,19 +147,46 @@ class TemplateSendService {
             }
         }
 
-        $payload = [
-            'messaging_product' => 'whatsapp',
-            'to' => $to,
-            'type' => 'template',
-            'template' => [
-                'name' => $template->name,
-                'language' => ['code' => $template->language],
-                'components' => $components
-            ]
-        ];
+        // 4. Decisão de Payload (Regular vs Autenticação)
+        if ($template->category === 'AUTHENTICATION') {
+            $auth_builder = new AuthenticationTemplateSendPayloadBuilder();
+            
+            // Em autenticação, esperamos um código. 
+            // O frontend pode mandar como 'code', 'código' ou no primeiro índice.
+            $code = $variables['código'] ?? $variables['code'] ?? null;
+            if (!$code && !empty($variables)) {
+                $code = reset($variables);
+            }
+
+            if (!$code) {
+                return ['success' => false, 'error' => 'Código de autenticação não fornecido.'];
+            }
+
+            // Atualmente suportamos COPY_CODE
+            if ($template->otp_type === 'COPY_CODE') {
+                $payload = $auth_builder->build_copy_code_payload($to, $template->name, $template->language, $code);
+                $rendered_body = str_replace('{{1}}', $code, $template->body_text);
+                $components = $payload['template']['components'];
+            } else {
+                return ['success' => false, 'error' => 'Tipo de OTP não suportado para envio automático: ' . $template->otp_type];
+            }
+        } else {
+            // Fluxo Regular (MARKETING/UTILITY)
+            $payload = [
+                'messaging_product' => 'whatsapp',
+                'to' => $to,
+                'type' => 'template',
+                'template' => [
+                    'name' => $template->name,
+                    'language' => ['code' => $template->language],
+                    'components' => $components
+                ]
+            ];
+        }
 
         \WAS\Core\SystemLogger::logInfo('TemplateSendService: Enviando payload para Meta.', [
             'template' => $template->name,
+            'category' => $template->category,
             'to' => $to,
             'components_count' => count($components)
         ]);

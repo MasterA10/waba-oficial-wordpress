@@ -90,13 +90,23 @@ class TemplateApiController {
             return new WP_REST_Response(['message' => 'Token não configurado para o tenant.'], 400);
         }
 
+        $is_auth = strtoupper($params['category'] ?? '') === 'AUTHENTICATION';
+        $body_text = $params['body']['text'] ?? 'Template';
+
+        if ($is_auth) {
+            $body_text = 'Seu código é {{1}}.';
+            if (!empty($params['authentication']['add_security_recommendation'])) {
+                $body_text .= ' Por segurança, não compartilhe este código.';
+            }
+        }
+
         $create_data = [
             'waba_id'             => $account->waba_id,
             'whatsapp_account_id' => $account->id,
             'name'                => $params['name'],
             'category'            => $params['category'],
             'language'            => $params['language'],
-            'body_text'           => $params['body']['text'] ?? 'Authentication Template',
+            'body_text'           => $body_text,
             'status'              => 'submitting',
             'friendly_payload'    => json_encode($params),
             'variable_map'        => json_encode($variable_map)

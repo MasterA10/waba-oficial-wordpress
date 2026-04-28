@@ -30,7 +30,7 @@ final class TemplatePayloadBuilder
             $authBuilder = new AuthenticationTemplatePayloadBuilder();
             return [
                 'meta_payload' => $authBuilder->build($friendly),
-                'variable_map' => [] // Autenticação usa parâmetro fixo no envio
+                'variable_map' => ['1' => 'código'] // Autenticação COPY_CODE sempre usa 1 variável
             ];
         }
 
