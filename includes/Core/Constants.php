@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'WAS_VERSION' ) ) {
-	define( 'WAS_VERSION', '0.2.4' );
+	define( 'WAS_VERSION', '0.2.5' );
 }
 
 if ( ! defined( 'WAS_PLUGIN_FILE' ) ) {

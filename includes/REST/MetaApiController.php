@@ -90,7 +90,9 @@ $embedded_signup_url = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM 
             $result = $this->repository->save_app($params);
 
             if ($result === false) {
-                return new WP_REST_Response(['message' => 'Erro ao salvar configuração do App'], 500);
+                global $wpdb;
+                $db_error = $wpdb->last_error ? ' | DB Error: ' . $wpdb->last_error : '';
+                return new WP_REST_Response(['message' => 'Erro ao salvar configuração do App' . $db_error], 500);
             }
 
             // Salvar URL do Cadastro Incorporado (nas configurações do Tenant)

@@ -461,11 +461,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        form.addEventListener('submit', saveConfig);
+        const btnSaveMeta = document.getElementById('was-btn-save-meta');
+        if (btnSaveMeta) {
+            btnSaveMeta.addEventListener('click', saveConfig);
+        }
 
-        const embeddedForm = document.getElementById('was-embedded-signup-config-form');
-        if (embeddedForm) {
-            embeddedForm.addEventListener('submit', saveConfig);
+        const btnSaveEmbedded = document.getElementById('was-btn-save-embedded');
+        if (btnSaveEmbedded) {
+            btnSaveEmbedded.addEventListener('click', saveConfig);
         }
     }
     async function openInboxTplModal() {

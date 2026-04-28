@@ -87,7 +87,7 @@ if (!defined('ABSPATH')) {
                 </table>
 
                 <p class="submit">
-                    <button type="submit" name="submit" id="submit" class="button button-primary">Salvar Configurações</button>
+                    <button type="button" id="was-btn-save-meta" class="button button-primary">Salvar Configurações</button>
                     <span id="was-save-status" style="margin-left: 10px;"></span>
                 </p>
             </form>
@@ -97,7 +97,7 @@ if (!defined('ABSPATH')) {
             <h2>Cadastro Incorporado (Embedded Signup)</h2>
             <p class="description">Utilize o fluxo oficial da Meta para conectar sua conta WhatsApp Business de forma simplificada.</p>
             
-            <form id="was-embedded-signup-config-form" onsubmit="return false;">
+            <form id="was-embedded-signup-config-form" onsubmit="event.preventDefault(); return false;">
                 <table class="form-table">
                     <tr>
                         <th scope="row"><label for="config_id">Embedded Signup Configuration ID</label></th>
@@ -116,7 +116,7 @@ if (!defined('ABSPATH')) {
                 </table>
 
                 <p class="submit">
-                    <button type="submit" class="button button-primary">Salvar Configuração de Cadastro</button>
+                    <button type="button" id="was-btn-save-embedded" class="button button-primary">Salvar Configuração de Cadastro</button>
                     <a id="was-start-embedded-signup" href="#" class="button button-secondary" style="margin-left: 10px;" target="_blank">Iniciar Cadastro Incorporado</a>
                 </p>
             </form>
