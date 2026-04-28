@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
             <h2>Credenciais do Aplicativo</h2>
             <p class="description">Configure aqui as credenciais do seu aplicativo Meta (Facebook) para habilitar a integração com o WhatsApp.</p>
             
-            <form id="was-meta-config-form">
+            <form id="was-meta-config-form" onsubmit="return false;">
                 <table class="form-table">
                     <tr>
                         <th scope="row"><label for="app_id">App ID</label></th>
@@ -97,7 +97,7 @@ if (!defined('ABSPATH')) {
             <h2>Cadastro Incorporado (Embedded Signup)</h2>
             <p class="description">Utilize o fluxo oficial da Meta para conectar sua conta WhatsApp Business de forma simplificada.</p>
             
-            <form id="was-embedded-signup-config-form">
+            <form id="was-embedded-signup-config-form" onsubmit="return false;">
                 <table class="form-table">
                     <tr>
                         <th scope="row"><label for="config_id">Embedded Signup Configuration ID</label></th>
