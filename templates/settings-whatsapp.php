@@ -20,32 +20,25 @@ $app_id = $app ? $app->app_id : '';
         </div>
     <?php else: ?>
         <div id="was-whatsapp-setup-app">
-            <div class="card" style="max-width: 800px; margin-top: 20px;">
-                <h2>Conectar Conta WhatsApp Business</h2>
-                <p>Use o botão abaixo para iniciar o fluxo oficial da Meta e conectar sua WABA (WhatsApp Business Account).</p>
-                
-                <div id="was-connection-status" class="was-status-box" style="margin: 20px 0; padding: 15px; border-radius: 4px; border: 1px solid #ccd0d4; background: #fff;">
-                    <strong>Status:</strong> <span id="was-status-text">Verificando...</span>
-                    <div id="was-connection-details" style="display: none; margin-top: 10px;">
-                        <p><strong>WABA ID:</strong> <span id="was-waba-id"></span></p>
-                        <p><strong>Número:</strong> <span id="was-phone-number"></span></p>
-                    </div>
-                </div>
-
+            <div id="was-whatsapp-setup-app">
                 <!-- Nova seção de Verificação de Conexão -->
-                <div class="was-verify-connection-box" style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9;">
-                    <h3>Diagnóstico de Conexão</h3>
-                    <p class="description">Execute um teste completo para validar se sua integração com a Meta está 100% operacional.</p>
-                    <button id="was-btn-check-connection" class="button">Verificar conexão oficial</button>
-                    
-                    <div id="was-verify-results" style="display:none; margin-top: 15px;">
-                        <ul id="was-verify-list" style="list-style: none; padding: 0;">
+                <div class="was-verify-connection-box" style="margin: 20px 0; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+                        <div>
+                            <h2 style="margin:0; font-size: 1.25rem;">Diagnóstico de Conexão Oficial</h2>
+                            <p class="description">Valide se sua integração com a Meta Cloud API está 100% operacional.</p>
+                        </div>
+                        <button id="was-btn-check-connection" class="button button-primary">Verificar conexão oficial</button>
+                    </div>
+
+                    <div id="was-verify-results" style="display:none;">
+                        <div id="was-verify-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
                             <!-- Preenchido via JS -->
-                        </ul>
+                        </div>
                     </div>
                 </div>
 
-                <div style="margin: 20px 0; padding: 15px; background: #f0f0f1; border-radius: 4px;">
+                <div class="card" style="max-width: 800px; margin-top: 20px;">
                     <strong>URL do Webhook:</strong><br>
                     <code><?php echo esc_url_raw(rest_url(WAS_REST_NAMESPACE . '/meta/webhook')); ?></code>
                     <p class="description">Use esta URL na configuração do produto "WhatsApp" no seu painel da Meta.</p>

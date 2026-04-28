@@ -79,30 +79,18 @@ class IntegrationConnectionCheckService {
 			$results['waba'] = [ 'status' => 'success', 'label' => 'WABA Acessível', 'details' => "WABA '{$waba_res['name']}' encontrada." ];
 		}
 
-		// 4. List Phone Numbers
-		$phones_res = $this->api_client->get( 'waba.phone_numbers', [ 'waba_id' => $account->waba_id ], [], $token );
-		if ( ! $phones_res['success'] ) {
-			$results['phone_numbers'] = [ 'status' => 'error', 'label' => 'Números Encontrados', 'details' => $phones_res['error'] ];
-		} else {
-			$count = count( $phones_res['data'] ?? [] );
-			$results['phone_numbers'] = [ 'status' => 'success', 'label' => 'Números Encontrados', 'details' => "{$count} número(s) vinculado(s) à WABA." ];
-		}
+		// 4. List Phone Numbers & Run Rich Diagnostics
+        $phone_diag_service = new PhoneNumberDiagnosticsService();
+        $phone_results = $phone_diag_service->run($tenant_id, $account->waba_id, $token);
+        
+        $results['phone_numbers'] = [
+            'status'  => $phone_results['status'],
+            'label'   => 'Números Encontrados',
+            'message' => $phone_results['message'],
+            'numbers' => $phone_results['numbers'],
+        ];
 
-		// 5. Get Specific Phone Profile (Primary)
-		$phone_repo = new PhoneNumberRepository();
-		$primary_phone = $phone_repo->getDefaultByTenant( $tenant_id );
-		if ( $primary_phone && !empty($primary_phone->phone_number_id) ) {
-			$profile_res = $this->api_client->get( 'phone.business_profile', [ 'phone_number_id' => $primary_phone->phone_number_id ], [], $token );
-			if ( ! $profile_res['success'] ) {
-				$results['business_profile'] = [ 'status' => 'warning', 'label' => 'Perfil Comercial Carregado', 'details' => $profile_res['error'] ];
-			} else {
-				$results['business_profile'] = [ 'status' => 'success', 'label' => 'Perfil Comercial Carregado', 'details' => 'Perfil oficial lido com sucesso.' ];
-			}
-		} else {
-			$results['business_profile'] = [ 'status' => 'warning', 'label' => 'Perfil Comercial Carregado', 'details' => 'Nenhum número padrão configurado.' ];
-		}
-
-		// 6. Check Webhook Subscription
+		// 5. Check Webhook Subscription
 		$sub_res = $this->api_client->get( 'waba.get_subscribed_apps', [ 'waba_id' => $account->waba_id ], [], $token );
 		$is_subscribed = false;
 		if ( $sub_res['success'] ) {
@@ -119,7 +107,7 @@ class IntegrationConnectionCheckService {
 			$results['webhook'] = [ 'status' => 'warning', 'label' => 'Webhook Inscrito', 'details' => 'Assinatura não detectada ou falha na verificação.' ];
 		}
 
-		// 7. Templates
+		// 6. Templates
 		$tpl_res = $this->api_client->get( 'templates.list', [ 'waba_id' => $account->waba_id ], [], $token );
 		if ( ! $tpl_res['success'] ) {
 			$results['templates'] = [ 'status' => 'warning', 'label' => 'Templates Sincronizados', 'details' => $tpl_res['error'] ];
@@ -127,6 +115,9 @@ class IntegrationConnectionCheckService {
 			$count = count( $tpl_res['data'] ?? [] );
 			$results['templates'] = [ 'status' => 'success', 'label' => 'Templates Sincronizados', 'details' => "{$count} templates encontrados na Meta." ];
 		}
+
+        // Remover campos antigos que agora estão dentro de phone_numbers
+        unset($results['business_profile']);
 
 		return $results;
 	}

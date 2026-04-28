@@ -2005,20 +2005,52 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const res = await wasApiFetch('/whatsapp/check-connection', 'POST');
                     if (res.success && res.results) {
-                        list.innerHTML = Object.values(res.results).map(r => {
+                        list.innerHTML = '';
+                        Object.entries(res.results).forEach(([key, r]) => {
                             let icon = '✅';
                             let color = '#166534';
                             if (r.status === 'error') { icon = '❌'; color = '#991b1b'; }
                             else if (r.status === 'warning') { icon = '⚠️'; color = '#854d0e'; }
                             
-                            return `<li style="margin-bottom:8px; padding:10px; background:#fff; border-radius:6px; border-left:4px solid ${color}; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                                <strong>${icon} ${r.label}</strong><br>
-                                <small style="color:#64748b">${r.details || '-'}</small>
-                            </li>`;
-                        }).join('');
+                            // Base Result
+                            let html = `<div style="padding:16px; background:#f8fafc; border-radius:8px; border-left:4px solid ${color}; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                                <strong style="display:block; margin-bottom:4px;">${icon} ${r.label}</strong>
+                                <span style="font-size:0.85rem; color:#475569;">${r.message || r.details || '-'}</span>`;
+
+                            // Special rendering for Phone Numbers
+                            if (key === 'phone_numbers' && r.numbers) {
+                                html += `<div style="margin-top:12px; border-top:1px solid #e2e8f0; padding-top:12px;">`;
+                                r.numbers.forEach(num => {
+                                    const profile = num.business_profile || {};
+                                    const isProfileError = profile.status === 'error';
+
+                                    html += `<div style="margin-bottom:12px; padding:10px; background:#fff; border-radius:6px; border:1px solid #e2e8f0;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                            <strong>${num.display_phone_number || 'Sem número'}</strong>
+                                            <span class="was-status-badge" style="font-size:0.65rem; padding:2px 6px;">${num.status || 'N/A'}</span>
+                                        </div>
+                                        <div style="font-size:0.75rem; display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                                            <span>ID: <code>${num.phone_number_id}</code></span>
+                                            <span>Qualidade: <strong style="color:${num.quality_rating === 'GREEN' ? '#166534' : '#991b1b'}">${num.quality_rating || 'N/A'}</strong></span>
+                                            <span>Nome: ${num.verified_name || '-'}</span>
+                                            <span>Limite: ${num.messaging_limit_tier || '-'}</span>
+                                            <span>Modo: ${num.account_mode || '-'}</span>
+                                            <span>Saúde: ${num.health_status?.status || 'OK'}</span>
+                                        </div>
+                                        <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #e2e8f0; font-size:0.75rem;">
+                                            <strong>Perfil Comercial:</strong> ${isProfileError ? `<span style="color:#991b1b">⚠️ Não carregado (${profile.message || 'Erro'})</span>` : '<span style="color:#166534">✅ Carregado</span>'}
+                                        </div>
+                                    </div>`;
+                                });
+                                html += `</div>`;
+                            }
+
+                            html += `</div>`;
+                            list.innerHTML += html;
+                        });
                     }
                 } catch (err) {
-                    list.innerHTML = `<li style="color:red; padding:10px;">❌ Erro crítico ao realizar verificação: ${err.message}</li>`;
+                    list.innerHTML = `<div style="color:red; padding:10px; grid-column: 1 / -1;">❌ Erro crítico ao realizar verificação: ${err.message}</div>`;
                 } finally {
                     btnCheck.textContent = 'Verificar conexão oficial';
                     btnCheck.disabled = false;

@@ -79,5 +79,33 @@ class PhoneNumberRepository {
             $wpdb->insert($this->table_name, $prepared);
             return $wpdb->insert_id;
         }
+    /**
+     * Atualiza dados do número com base no diagnóstico da Meta.
+     */
+    public function upsertFromDiagnostics(int $tenant_id, string $waba_id, array $data) {
+        global $wpdb;
+        $phone_number_id = $data['id'] ?? $data['phone_number_id'];
+
+        $existing = $wpdb->get_row($wpdb->prepare(
+            "SELECT id FROM {$this->table_name} WHERE phone_number_id = %s AND tenant_id = %d",
+            $phone_number_id,
+            $tenant_id
+        ));
+
+        $prepared = [
+            'display_phone_number' => $data['display_phone_number'] ?? null,
+            'verified_name'        => $data['verified_name'] ?? null,
+            'status'               => $data['status'] ?? null,
+            'name_status'          => $data['details']['name_status'] ?? null,
+            'quality_rating'       => $data['quality_rating'] ?? null,
+            'messaging_limit_tier' => $data['messaging_limit_tier'] ?? null,
+            'account_mode'         => $data['account_mode'] ?? null,
+            'health_status_json'   => isset($data['details']['health_status']) ? json_encode($data['details']['health_status']) : null,
+            'last_diagnostic_at'   => current_time('mysql', 1),
+        ];
+
+        if ($existing) {
+            $wpdb->update($this->table_name, $prepared, ['id' => $existing->id]);
+        }
     }
 }
