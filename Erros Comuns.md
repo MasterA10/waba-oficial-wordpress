@@ -33,77 +33,66 @@ Este documento lista os erros técnicos mais frequentes e críticos encontrados 
 
 ## 3. Banco de Dados e Repositórios
 
+### ❌ Erro: "Unknown column" após subir arquivos para o servidor (Produção/Teste)
+*   **Causa:** O banco de dados no servidor remoto não possui as colunas novas. O `dbDelta` nativo do WP muitas vezes falha ao aplicar `ALTER TABLE` em colunas existentes.
+*   **Como evitar:** 
+    *   Use a classe `Migrator.php` para rodar comandos `ALTER TABLE` manuais e condicionais.
+    *   Sempre incremente `WAS_DB_VERSION` em `Constants.php` para disparar a atualização.
+
 ### ❌ Erro: Falha silenciosa no salvamento (insert_id = 0)
 *   **Causa:** Discrepância entre os nomes das colunas no código (ex: `type`) e no esquema real da tabela (ex: `message_type`).
 *   **Como evitar:** Consulte sempre o `Installer.php` antes de codar repositórios. Use `$wpdb->last_error` em logs de depuração para ver o motivo real da falha.
 
-### ❌ Erro: Consulta falhando com múltiplos parâmetros no `$wpdb->prepare`
-*   **Causa:** Passar um array diretamente para o `prepare` sem o operador de espalhamento (spread operator `...`).
-*   **Como evitar:** Use sempre `$wpdb->prepare($query, ...$params)`.
-
-### ❌ Erro: Tenant ID nulo em ambiente de terminal (CLI)
-*   **Causa:** O `TenantContext` depende do usuário logado, que não existe no WP-CLI.
-*   **Como evitar:** Implemente um fallback para `tenant_id = 1` quando `defined('WP_CLI')` for verdadeiro, apenas para fins de teste e manutenção.
-
-### ❌ Erro: "Unknown column" após subir arquivos para produção
-*   **Causa:** O banco de dados no servidor remoto não possui as colunas novas criadas localmente durante o desenvolvimento.
-*   **Como evitar:** 
-    *   Sempre utilize a lógica de `check_database_update` no `Plugin::boot()`.
-    *   Incremente `WAS_DB_VERSION` em `Constants.php` sempre que alterar o schema em `Installer.php`.
-    *   Isso forçará a execução do `dbDelta` no servidor assim que os arquivos forem carregados e o plugin inicializado.
+### ❌ Erro: Tenant ID nulo em processos de fundo ou CLI
+*   **Causa:** O `TenantContext` muitas vezes depende do usuário logado, que não existe em Webhooks ou WP-CLI.
+*   **Como evitar:** No `WebhookProcessor`, sempre resolva e defina o `TenantContext` manualmente usando o `phone_number_id` ou `waba_id` recebido antes de chamar qualquer Service.
 
 ---
 
-## 4. Frontend e JavaScript (app.js)
+## 4. Gerenciamento de Janela de Atendimento (24h Window)
+
+### ❌ Erro: Expectativa de que o Template abre a janela
+*   **Causa:** Confusão com as regras da Meta. Enviar um template **NÃO** abre a janela de 24 horas.
+*   **Como evitar:** Apenas mensagens **inbound** (do cliente) abrem a janela. Explique isso claramente ao usuário e use logs verbosos para mostrar o estado da janela.
+
+### ❌ Erro: Discrepância de fuso horário no cálculo da janela
+*   **Causa:** O servidor de banco de dados e o servidor PHP podem estar em timezones diferentes, fazendo o cálculo de expiração falhar.
+*   **Como evitar:** Use sempre `gmdate()` e `time()` (UTC) para cálculos de janela. Adicione logs verbosos incluindo `time_now_utc` e `raw_expires_at` para depurar no servidor de testes.
+
+### ❌ Erro: Webhooks fora de ordem encurtando a janela
+*   **Causa:** Webhooks recebidos com atraso podem processar mensagens antigas por cima de mensagens novas.
+*   **Como evitar:** A janela só deve ser renovada se o `timestamp` da mensagem recebida for maior que o `last_customer_message_at` atual.
+
+---
+
+## 5. Frontend e JavaScript (app.js)
 
 ### ❌ Erro: Tela branca ao clicar em botões de salvar
-*   **Causa:** O formulário está executando o envio padrão do HTML (recarregando a página) porque o JavaScript não interceptou o evento (geralmente por erro de sintaxe ou cache do JS antigo).
-*   **Como evitar:** 
-    *   Sempre adicione `onsubmit="event.preventDefault(); return false;"` nas tags `<form>`.
-    *   Prefira usar `<button type="button">` em vez de `type="submit"` para botões controlados via AJAX.
-    *   Incremente `WAS_VERSION` para quebrar o cache do navegador no servidor de produção.
+*   **Causa:** O formulário está executando o envio padrão do HTML (recarregando a página).
+*   **Como evitar:** Adicione `onsubmit="event.preventDefault(); return false;"` nas tags `<form>`.
 
-### ❌ Erro: Telas pararem de carregar (Templates/Logs em branco)
-*   **Causa:** Erro de sintaxe no `app.js` (chaves ou parênteses sobrando após edições manuais/ferramentas).
-*   **Como evitar:** Antes de salvar qualquer alteração em arquivos JS, rode `node --check assets/js/app.js` no terminal.
-
-### ❌ Erro: "Alterei o código mas no navegador não mudou nada"
-*   **Causa:** Cache do navegador mantendo a versão antiga do arquivo `.js` ou `.css`.
-*   **Como evitar:** Sempre incremente a constante `WAS_VERSION` e garanta que o `wp_enqueue_script` utilize essa versão como parâmetro de query string.
+### ❌ Erro: Erros de sintaxe quebrando o App todo
+*   **Causa:** Chaves ou parênteses sobrando após edições.
+*   **Como evitar:** Antes de salvar, rode `node --check assets/js/app.js` no terminal.
 
 ---
 
-## 5. Integração Meta API
+## 6. Click-to-WhatsApp Ads & Referrals
 
-### ❌ Erro: "WABA ID ou Token não configurado" na criação de templates
-*   **Causa:** O sistema usou IDs de teste ou o banco de dados não tinha o WABA ID real associado à conta.
-*   **Como evitar:** Certifique-se de que a tabela `was_whatsapp_accounts` tenha o WABA ID real e que ele seja carregado no `TemplateMetaService`.
+### ❌ Erro: Perda de dados do anúncio (Referral)
+*   **Causa:** A estrutura de dados do objeto `referral` é aninhada e complexa.
+*   **Como evitar:** Use normalizadores dedicados para extrair `ctwa_clid`, `headline` e `body`. Persista em tabelas de auditoria.
 
 ---
 
-## 6. Procedimento de Validação Obrigatório (Checklist de Salvamento)
+## 7. Procedimento de Validação Obrigatório (Checklist)
 
-Antes de finalizar qualquer alteração em arquivos de lógica, **é obrigatório** rodar as seguintes verificações no terminal para evitar que o plugin quebre o site do cliente:
+Antes de finalizar qualquer alteração:
 
-### ✅ Validação PHP (Lint)
-Impede erros fatais de sintaxe (como o `unexpected token "..."`).
-```bash
-# Validar um arquivo específico
-php -l includes/Caminho/Arquivo.php
-
-# Validar todos os arquivos do plugin de uma vez
-find . -name "*.php" -not -path "./vendor/*" -exec php -l {} \; | grep -v "No syntax errors detected"
-```
-
-### ✅ Validação JavaScript (Node.js)
-Impede que as telas do painel parem de funcionar.
-```bash
-# Validar o arquivo principal de scripts
-node --check assets/js/app.js
-
-# Validar todos os arquivos .js
-find . -name "*.js" -not -path "./node_modules/*" -exec node --check {} \;
-```
+1.  **PHP Lint**: `find . -name "*.php" -not -path "./vendor/*" -exec php -l {} \; | grep -v "No syntax errors"`
+2.  **JS Check**: `node --check assets/js/app.js`
+3.  **DB Version**: Se mudou o banco, subiu o `WAS_DB_VERSION`?
+4.  **Tenant Context**: A lógica funciona em processos de background (Webhooks)?
 
 ---
 

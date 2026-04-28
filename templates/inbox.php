@@ -111,6 +111,3 @@ if (!defined('ABSPATH')) {
         </div>
     </div>
 </div>
-
-<!-- Modal de Envio (Aprimorado) -->
-<?php include WAS_PLUGIN_DIR . 'templates/parts/send-template-modal.php'; ?>
