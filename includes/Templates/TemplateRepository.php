@@ -134,7 +134,6 @@ class TemplateRepository {
             $offset
         );
         $results = $wpdb->get_results($sql);
-        \WAS\Core\SystemLogger::logError('SQL list_templates', ['sql' => $sql, 'count' => count($results), 'error' => $wpdb->last_error]);
         return $results;
     }
 }

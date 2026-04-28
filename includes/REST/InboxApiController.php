@@ -129,11 +129,47 @@ class InboxApiController {
         $caption = $request->get_param('caption') ?: '';
         $filename = $request->get_param('filename') ?: '';
 
+        \WAS\Core\SystemLogger::logInfo('Tentativa de envio de mídia iniciada.', [
+            'conversation_id' => $id,
+            'media_type'      => $mediaType,
+            'has_file'        => !empty($_FILES['file']),
+            'file_name'       => $_FILES['file']['name'] ?? 'N/A',
+            'file_size'       => $_FILES['file']['size'] ?? 0,
+            'file_type'       => $_FILES['file']['type'] ?? 'N/A',
+            'file_error'      => $_FILES['file']['error'] ?? 'N/A',
+        ]);
+
         if (empty($_FILES['file'])) {
-            return new \WP_REST_Response(['success' => false, 'message' => 'Nenhum arquivo enviado'], 400);
+            \WAS\Core\SystemLogger::logWarning('Envio de mídia falhou: nenhum arquivo recebido.', [
+                'conversation_id' => $id,
+                'media_type'      => $mediaType,
+                'files_keys'      => array_keys($_FILES),
+            ]);
+            return new \WP_REST_Response(['success' => false, 'message' => 'Nenhum arquivo enviado. Verifique o limite de upload do servidor.'], 400);
         }
 
         $file = $_FILES['file'];
+
+        // Verificar erros de upload do PHP
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            $uploadErrors = [
+                UPLOAD_ERR_INI_SIZE   => 'Arquivo excede o limite do servidor (upload_max_filesize).',
+                UPLOAD_ERR_FORM_SIZE  => 'Arquivo excede o limite do formulário.',
+                UPLOAD_ERR_PARTIAL    => 'Upload incompleto.',
+                UPLOAD_ERR_NO_FILE    => 'Nenhum arquivo enviado.',
+                UPLOAD_ERR_NO_TMP_DIR => 'Pasta temporária não encontrada no servidor.',
+                UPLOAD_ERR_CANT_WRITE => 'Falha ao gravar arquivo em disco.',
+                UPLOAD_ERR_EXTENSION  => 'Upload bloqueado por extensão PHP.',
+            ];
+            $errorMsg = $uploadErrors[$file['error']] ?? 'Erro desconhecido no upload (código ' . $file['error'] . ').';
+            \WAS\Core\SystemLogger::logError('Erro de upload PHP detectado.', [
+                'conversation_id' => $id,
+                'media_type'      => $mediaType,
+                'php_error_code'  => $file['error'],
+                'error_message'   => $errorMsg,
+            ]);
+            return new \WP_REST_Response(['success' => false, 'message' => $errorMsg], 400);
+        }
         
         try {
             $service = new \WAS\WhatsApp\OutboundMediaService();
@@ -147,8 +183,19 @@ class InboxApiController {
             );
 
             if ($result['success']) {
+                \WAS\Core\SystemLogger::logInfo('Mídia enviada com sucesso.', [
+                    'conversation_id' => $id,
+                    'media_type'      => $mediaType,
+                    'wa_message_id'   => $result['wa_message_id'] ?? null,
+                ]);
                 return new \WP_REST_Response($result, 200);
             }
+
+            \WAS\Core\SystemLogger::logError('Falha ao enviar mídia (retorno do serviço).', [
+                'conversation_id' => $id,
+                'media_type'      => $mediaType,
+                'result'          => $result,
+            ]);
 
             return new \WP_REST_Response([
                 'success' => false,
@@ -156,10 +203,16 @@ class InboxApiController {
             ], 500);
 
         } catch (\Throwable $e) {
-            \WAS\Core\SystemLogger::logException($e, ['context' => 'InboxApiController::send_media_message', 'conversation_id' => $id, 'media_type' => $mediaType]);
+            \WAS\Core\SystemLogger::logException($e, [
+                'context'         => 'InboxApiController::send_media_message',
+                'conversation_id' => $id,
+                'media_type'      => $mediaType,
+                'file_name'       => $file['name'],
+                'file_size'       => $file['size'],
+            ]);
             return new \WP_REST_Response([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => 'Erro: ' . $e->getMessage()
             ], 500);
         }
     }
