@@ -752,10 +752,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 formData.append('file', file);
                 if (caption) formData.append('caption', caption);
 
-                console.log('Starting fetch to:', `${wasConfig.restUrl}/conversations/${currentConversationId}/messages/${mediaType}`);
-                const res = await fetch(`${wasConfig.restUrl}/conversations/${currentConversationId}/messages/${mediaType}`, {
+                console.log('Starting fetch to:', `${wasApp.restUrl}/conversations/${currentConversationId}/messages/${mediaType}`);
+                const res = await fetch(`${wasApp.restUrl}/conversations/${currentConversationId}/messages/${mediaType}`, {
                     method: 'POST',
-                    headers: { 'X-WP-Nonce': wasConfig.nonce },
+                    headers: { 'X-WP-Nonce': wasApp.nonce },
                     body: formData
                 });
 
