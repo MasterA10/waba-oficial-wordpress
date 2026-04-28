@@ -39,8 +39,21 @@ class Plugin {
 	 * Boot the plugin.
 	 */
 	public function boot() {
+		$this->check_database_update();
 		$this->register_hooks();
 		$this->register_rewrite_rules();
+	}
+
+	/**
+	 * Check if database needs an update and run installer if necessary.
+	 */
+	private function check_database_update() {
+		$current_version = get_option( WAS_DB_VERSION_OPTION, '0.0.0' );
+		
+		if ( version_compare( $current_version, WAS_DB_VERSION, '<' ) ) {
+			\WAS\Core\Installer::install();
+			update_option( WAS_DB_VERSION_OPTION, WAS_DB_VERSION );
+		}
 	}
 
 	/**

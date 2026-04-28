@@ -91,15 +91,8 @@ $embedded_signup_url = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM 
 
             if ($result === false) {
                 global $wpdb;
-                $table_name = \WAS\Core\TableNameResolver::get_table_name('meta_apps');
-                $db_error = $wpdb->last_error ? ' | DB Error: ' . $wpdb->last_error : ' | No DB Error logged';
-                
-                // Debug columns
-                $cols = $wpdb->get_results("SHOW COLUMNS FROM $table_name");
-                $col_names = array_map(function($c) { return $c->Field; }, $cols);
-                $cols_debug = ' | Cols in DB: ' . implode(',', $col_names);
-
-                return new WP_REST_Response(['message' => 'Erro ao salvar configuração do App no banco (' . $table_name . ')' . $db_error . $cols_debug], 500);
+                $db_error = $wpdb->last_error ? ' | DB Error: ' . $wpdb->last_error : '';
+                return new WP_REST_Response(['message' => 'Erro ao salvar configuração do App no banco' . $db_error], 500);
             }
 
             // Salvar URL do Cadastro Incorporado (nas configurações do Tenant)
