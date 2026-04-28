@@ -667,27 +667,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 formData.append('file', file);
                 if (caption) formData.append('caption', caption);
 
+                console.log('Starting fetch to:', `${wasConfig.restUrl}/conversations/${currentConversationId}/messages/${mediaType}`);
                 const res = await fetch(`${wasConfig.restUrl}/conversations/${currentConversationId}/messages/${mediaType}`, {
                     method: 'POST',
                     headers: { 'X-WP-Nonce': wasConfig.nonce },
                     body: formData
                 });
 
-                const data = await res.json();
+                console.log('Response status:', res.status, res.statusText);
+                
+                let data;
+                const contentType = res.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    data = await res.json();
+                } else {
+                    const rawText = await res.text();
+                    console.error('Non-JSON response received:', rawText);
+                    throw new Error(`Servidor retornou resposta inválida (Status ${res.status}). Verifique os logs do PHP.`);
+                }
+
                 tempDiv.remove();
+                console.log('API Data received:', data);
 
                 if (data.success) {
                     loadConversation(currentConversationId, document.getElementById('was-chat-contact-name').textContent);
                 } else {
-                    console.error('Media upload failed:', data);
-                    const errorMsg = data.message || (data.data && data.data.message) || data.error || 'Erro ao enviar arquivo.';
-                    alert(`Falha no envio: ${errorMsg}`);
+                    console.error('API reported failure:', data);
+                    const errorMsg = data.message || (data.data && data.data.message) || data.error || 'Erro desconhecido no servidor.';
+                    alert(`Falha no envio (API): ${errorMsg}`);
                 }
 
             } catch (err) {
-                console.error('Connection error during media upload:', err);
-                alert(`Erro na conexão: ${err.message || 'Falha ao processar arquivo.'}`);
+                console.error('Detailed connection/process error:', err);
+                if (typeof tempDiv !== 'undefined' && tempDiv) tempDiv.remove();
+                alert(`Erro Crítico: ${err.message || 'Falha ao processar arquivo.'}`);
             } finally {
+                fileInput.value = '';
+            }
                 fileInput.value = '';
             }
         });

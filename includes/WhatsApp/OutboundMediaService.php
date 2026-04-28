@@ -60,6 +60,7 @@ class OutboundMediaService {
         }
 
         // 1. Registrar mídia localmente
+        \WAS\Core\SystemLogger::logInfo('Registrando mídia localmente...', ['conversation_id' => $conversation_id, 'media_type' => $mediaType]);
         $media_id = $this->media_repo->create([
             'conversation_id' => $conversation_id,
             'media_type'      => $mediaType,
@@ -71,17 +72,20 @@ class OutboundMediaService {
         ]);
 
         // 2. Upload para Meta
+        \WAS\Core\SystemLogger::logInfo('Iniciando upload para Meta...', ['media_id' => $media_id, 'phone_number_id' => $phone_number_id]);
         $uploadResponse = $this->api_client->uploadMedia($phone_number_id, $filePath, $mimeType, $token);
         if (!$uploadResponse['success']) {
             $this->media_repo->update($media_id, ['status' => 'failed', 'error_message' => $uploadResponse['error']]);
             \WAS\Core\SystemLogger::logError('Falha no upload de mídia para a Meta.', [
                 'media_id' => $media_id,
-                'error'    => $uploadResponse['error']
+                'error'    => $uploadResponse['error'],
+                'response' => $uploadResponse
             ]);
             return $uploadResponse;
         }
 
         $meta_media_id = $uploadResponse['id'];
+        \WAS\Core\SystemLogger::logInfo('Upload concluído com sucesso.', ['media_id' => $media_id, 'meta_media_id' => $meta_media_id]);
         $this->media_repo->mark_uploaded($media_id, $meta_media_id);
 
         // 3. Resolver destinatário
@@ -103,8 +107,10 @@ class OutboundMediaService {
         ];
 
         // 5. Enviar Mensagem
+        \WAS\Core\SystemLogger::logInfo('Enviando mensagem de mídia via Cloud API...', ['media_id' => $media_id, 'to' => $contact->wa_id]);
         $sendResponse = $this->api_client->postJson('messages.send', ['phone_number_id' => $phone_number_id], $payload, $token);
         if ($sendResponse['success']) {
+            \WAS\Core\SystemLogger::logInfo('Mensagem de mídia enviada com sucesso.', ['media_id' => $media_id]);
             $wa_message_id = $sendResponse['messages'][0]['id'] ?? null;
             
             // 6. Registrar mensagem e vincular mídia
