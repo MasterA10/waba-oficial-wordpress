@@ -109,7 +109,26 @@ class InboxApiController {
                     'wa_message_id'   => $result['wa_message_id'] ?? null,
                     'is_reply'        => !!$reply_to,
                 ]);
-                return new \WP_REST_Response($result, 200);
+
+                // Formatar dados para o frontend renderizar imediatamente
+                $msg = $this->message_repo->find_by_id($result['id']);
+                if ($msg && $msg->reply_to_message_id) {
+                    $original = $this->message_repo->find_by_id($msg->reply_to_message_id);
+                    if ($original) {
+                        $msg->reply_preview = [
+                            'id'        => $original->id,
+                            'text'      => $original->text_body ?: $original->body ?: '[' . $original->message_type . ']',
+                            'direction' => $original->direction,
+                            'type'      => $original->message_type
+                        ];
+                    }
+                }
+
+                return new \WP_REST_Response([
+                    'success' => true,
+                    'wa_message_id' => $result['wa_message_id'] ?? null,
+                    'data' => $msg
+                ], 200);
             }
 
             \WAS\Core\SystemLogger::logWarning('InboxAPI: Falha no envio de texto.', [

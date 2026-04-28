@@ -145,7 +145,12 @@ class OutboundMessageService {
 
             $this->conversation_repo->update_last_message_at($conversation_id);
             
-            return ['success' => true, 'wa_message_id' => $wa_message_id, 'data' => ['id' => $saved_id]];
+            return [
+                'success'       => true, 
+                'wa_message_id' => $wa_message_id, 
+                'id'            => $saved_id,
+                'data'          => ['id' => $saved_id]
+            ];
         } else {
             \WAS\Core\SystemLogger::logError('A Meta API recusou o envio da mensagem de texto.', [
                 'conversation_id' => $conversation_id,

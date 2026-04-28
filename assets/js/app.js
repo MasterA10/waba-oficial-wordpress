@@ -924,12 +924,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 reply_to_message_id: replyToMessageId
             });
             if (res.success) {
-                // Se era uma resposta, o renderMessage vai precisar do reply_preview se quisermos mostrar na hora
-                // Mas geralmente o fetchConversations ou polling vai trazer os dados completos.
-                // Por simplicidade agora, limpamos e deixamos o polling trazer se for o caso, 
-                // ou renderizamos localmente se o backend retornar o preview.
-                const replyPreview = res.data?.reply_preview || null;
-                renderMessage(body, 'outbound', 'text', null, null, null, new Date().toISOString(), replyPreview, res.data?.id);
+                // Usar o objeto completo retornado pela API (res.data) para renderizar a mensagem com citação correta
+                const msgData = res.data || {};
+                renderMessage(
+                    msgData.text_body || body, 
+                    'outbound', 
+                    'text', 
+                    null, 
+                    null, 
+                    null, 
+                    msgData.created_at || new Date().toISOString(), 
+                    msgData.reply_preview || null, 
+                    msgData.id
+                );
                 inputField.value = '';
                 clearReplyContext();
                 scrollToBottom();
@@ -1003,7 +1010,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const replyBox = document.createElement('div');
             replyBox.className = 'was-reply-box';
             const author = replyPreview.direction === 'outbound' ? 'Você' : (document.getElementById('was-chat-contact-name').textContent || 'Contato');
-            const replyText = replyPreview.text_body || replyPreview.body || (replyPreview.message_type !== 'text' ? `[${replyPreview.message_type}]` : '...');
+            const replyText = replyPreview.text || replyPreview.text_body || replyPreview.body || (replyPreview.type !== 'text' ? `[${replyPreview.type || 'Mídia'}]` : '...');
             
             replyBox.innerHTML = `
                 <div class="was-reply-user">${author}</div>
