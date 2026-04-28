@@ -99,25 +99,6 @@ class ConversationRepository {
     }
 
     /**
-     * Atualiza o ID da última mensagem enviada pelo atendente.
-     */
-    public function update_last_outbound_wa_message_id($conversation_id, $wa_message_id) {
-        global $wpdb;
-        $tenant_id = TenantContext::get_tenant_id();
-
-        return $wpdb->update(
-            $this->table_name,
-            [
-                'last_outbound_wa_message_id' => $wa_message_id,
-                'updated_at'                  => current_time('mysql', 1)
-            ],
-            ['id' => $conversation_id, 'tenant_id' => $tenant_id],
-            ['%s', '%s'],
-            ['%d', '%d']
-        );
-    }
-
-    /**
      * Marca o momento em que um indicador de digitação foi enviado.
      */
     public function mark_typing_sent($conversation_id) {

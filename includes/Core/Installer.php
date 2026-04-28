@@ -252,7 +252,6 @@ class Installer {
 			first_referral_id bigint(20) UNSIGNED DEFAULT NULL,
 			last_referral_id bigint(20) UNSIGNED DEFAULT NULL,
 			last_inbound_wa_message_id varchar(190) DEFAULT NULL,
-			last_outbound_wa_message_id varchar(190) DEFAULT NULL,
 			last_typing_sent_at datetime DEFAULT NULL,
 			last_outbound_sent_at datetime DEFAULT NULL,
 			last_message_at datetime NULL,

@@ -10,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentConversationId = null;
     let lastMessageId = 0;
     let lastInboundMessageId = null;
-    let lastOutboundMessageId = null;
     let lastTypingSentAt = 0;
     let lastMessageSentAt = 0;
     let typingTimer = null;
@@ -849,7 +848,6 @@ document.addEventListener('DOMContentLoaded', () => {
         currentConversationId = id;
         lastMessageId = 0;
         lastInboundMessageId = null;
-        lastOutboundMessageId = null;
         lastTypingSentAt = 0;
         document.getElementById('was-no-conversation-selected').style.display = 'none';
         document.getElementById('was-active-chat').style.display = 'flex';
@@ -868,7 +866,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (msg.id && parseInt(msg.id) > lastMessageId) lastMessageId = parseInt(msg.id);
                 // Rastrear última inbound para typing indicator
                 if (msg.direction === 'inbound') lastInboundMessageId = msg.id;
-                if (msg.direction === 'outbound') lastOutboundMessageId = msg.id;
             });
             scrollToBottom();
 
@@ -1877,8 +1874,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function sendTypingIndicator() {
-        const targetId = lastInboundMessageId || lastOutboundMessageId;
-        if (!currentConversationId || !targetId) return;
+        if (!currentConversationId || !lastInboundMessageId) return;
 
         const now = Date.now();
 
@@ -1891,8 +1887,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTypingSentAt = now;
 
         try {
-            const targetId = lastInboundMessageId || lastOutboundMessageId;
-            await wasApiFetch(`/conversations/${currentConversationId}/messages/${targetId}/typing`, 'POST');
+            await wasApiFetch(`/conversations/${currentConversationId}/messages/${lastInboundMessageId}/typing`, 'POST');
         } catch (err) {
             console.error('Falha ao enviar typing indicator:', err);
         }

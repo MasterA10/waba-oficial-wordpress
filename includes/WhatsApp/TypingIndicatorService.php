@@ -55,11 +55,11 @@ final class TypingIndicatorService {
         }
 
         if (!$wa_message_id) {
-            $wa_message_id = $conversation->last_inbound_wa_message_id ?: $conversation->last_outbound_wa_message_id;
+            $wa_message_id = $conversation->last_inbound_wa_message_id;
         }
 
         if (!$wa_message_id) {
-            return ['success' => false, 'error' => 'Nenhuma mensagem encontrada para acionar o indicador.'];
+            return ['success' => false, 'error' => 'Nenhuma mensagem recebida para acionar o indicador.'];
         }
 
         // 3. Validar Política de Cooldown
