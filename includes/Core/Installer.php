@@ -21,6 +21,7 @@ class Installer {
 	 */
 	public static function install() {
 		self::create_tables();
+		\WAS\Core\Migrator::run();
 		self::validate_installation();
 		self::create_capabilities();
 		\WAS\Compliance\LegalPagesGenerator::generateAll();
