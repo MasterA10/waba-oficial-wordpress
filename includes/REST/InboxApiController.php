@@ -83,14 +83,6 @@ class InboxApiController {
             ],
         ]);
 
-        register_rest_route(WAS_REST_NAMESPACE, '/conversations/(?P<id>\d+)/messages/(?P<message_id>\d+)/typing', [
-            [
-                'methods'             => \WP_REST_Server::CREATABLE,
-                'callback'            => [$this, 'send_typing_indicator'],
-                'permission_callback' => [$this, 'check_send_permission'],
-            ],
-        ]);
-
         register_rest_route(WAS_REST_NAMESPACE, '/conversations/(?P<id>\d+)/window', [
             [
                 'methods'             => \WP_REST_Server::READABLE,
@@ -540,11 +532,7 @@ class InboxApiController {
             $result = $service->show_typing($conversation_id, $message_id);
 
             if ($result['success']) {
-                return new \WP_REST_Response($result, 200);
-            }
-
-            if (!empty($result['skipped'])) {
-                return new \WP_REST_Response($result, 200);
+                return new \WP_REST_Response(['success' => true], 200);
             }
 
             return new \WP_REST_Response([
