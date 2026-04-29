@@ -91,6 +91,47 @@ class MessageRepository {
     }
 
     /**
+     * Busca uma mensagem inbound específica dentro da conversa atual.
+     */
+    public function find_inbound_by_id_for_conversation($id, $conversation_id, $tenant_id = null) {
+        global $wpdb;
+        $tenant_id = $tenant_id ?: TenantContext::get_tenant_id();
+
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->table_name}
+             WHERE id = %d
+               AND conversation_id = %d
+               AND tenant_id = %d
+               AND direction = 'inbound'
+             LIMIT 1",
+            $id,
+            $conversation_id,
+            $tenant_id
+        ));
+    }
+
+    /**
+     * Busca a última mensagem inbound com ID oficial do WhatsApp na conversa.
+     */
+    public function find_latest_inbound_for_conversation($conversation_id, $tenant_id = null) {
+        global $wpdb;
+        $tenant_id = $tenant_id ?: TenantContext::get_tenant_id();
+
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->table_name}
+             WHERE conversation_id = %d
+               AND tenant_id = %d
+               AND direction = 'inbound'
+               AND wa_message_id IS NOT NULL
+               AND wa_message_id <> ''
+             ORDER BY created_at DESC, id DESC
+             LIMIT 1",
+            $conversation_id,
+            $tenant_id
+        ));
+    }
+
+    /**
      * Lista mensagens de uma conversa com join de mídia e preview de resposta.
      */
     public function list_by_conversation($conversation_id, $limit = 50, $offset = 0) {

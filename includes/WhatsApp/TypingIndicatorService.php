@@ -4,7 +4,6 @@ namespace WAS\WhatsApp;
 use WAS\Meta\MetaApiClient;
 use WAS\Meta\TokenService;
 use WAS\Inbox\MessageRepository;
-use WAS\Core\SystemLogger;
 use WAS\Auth\TenantContext;
 
 if (!defined('ABSPATH')) {
@@ -44,13 +43,15 @@ final class TypingIndicatorService {
             return ['success' => false, 'error' => 'Conversa não encontrada'];
         }
 
-        // 2. Determinar o wa_message_id a ser usado
+        // 2. Determinar o wa_message_id inbound a ser usado.
         $wa_message_id = null;
 
         if ($messageId) {
-            $message = $this->message_repo->find_by_id($messageId);
-            if ($message && $message->direction === 'inbound') {
+            $message = $this->message_repo->find_inbound_by_id_for_conversation($messageId, $conversationId, $tenant_id);
+            if ($message) {
                 $wa_message_id = $message->wa_message_id;
+            } else {
+                return ['success' => false, 'error' => 'A mensagem informada não é uma mensagem recebida desta conversa.'];
             }
         }
 
@@ -59,7 +60,18 @@ final class TypingIndicatorService {
         }
 
         if (!$wa_message_id) {
+            $latest_inbound = $this->message_repo->find_latest_inbound_for_conversation($conversationId, $tenant_id);
+            if ($latest_inbound) {
+                $wa_message_id = $latest_inbound->wa_message_id;
+            }
+        }
+
+        if (!$wa_message_id) {
             return ['success' => false, 'error' => 'Nenhuma mensagem recebida para acionar o indicador.'];
+        }
+
+        if (strpos($wa_message_id, 'wamid.') !== 0) {
+            return ['success' => false, 'error' => 'A mensagem recebida não possui um ID oficial válido do WhatsApp.'];
         }
 
         // 3. Validar Política de Cooldown
@@ -68,7 +80,7 @@ final class TypingIndicatorService {
         }
 
         // 4. Busca configurações de envio
-        $phone_number_id = $this->phone_service->get_primary_id($tenant_id);
+        $phone_number_id = $conversation->phone_number_id ?: $this->phone_service->get_primary_id($tenant_id);
         $token = $this->token_service->get_active_token($tenant_id);
 
         if (!$phone_number_id || !$token) {
@@ -85,11 +97,11 @@ final class TypingIndicatorService {
             ]
         ];
 
-        $response = $this->api_client->postJson('messages.send', ['phone_number_id' => $phone_number_id], $payload, $token);
+        $response = $this->api_client->postJson('messages.mark_read', ['phone_number_id' => $phone_number_id], $payload, $token);
 
         if ($response['success'] ?? false) {
             $conv_repo->mark_typing_sent($conversationId);
-            return ['success' => true];
+            return ['success' => true, 'wa_message_id' => $wa_message_id];
         }
 
         return $response;

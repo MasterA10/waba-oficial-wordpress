@@ -1951,7 +1951,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTypingSentAt = now;
 
         try {
-            await wasApiFetch(`/conversations/${currentConversationId}/messages/${lastInboundMessageId}/typing`, 'POST');
+            await wasApiFetch(`/conversations/${currentConversationId}/typing`, 'POST', { message_id: lastInboundMessageId });
         } catch (err) {
             console.error('Falha ao enviar typing indicator:', err);
         }
