@@ -2144,6 +2144,105 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnCheck = document.getElementById('was-btn-check-connection');
         const resultsBox = document.getElementById('was-verify-results');
         const list = document.getElementById('was-verify-list');
+        const btnLaunch = document.getElementById('was-launch-signup');
+
+        if (btnLaunch) {
+            btnLaunch.addEventListener('click', async () => {
+                const originalText = btnLaunch.textContent;
+                btnLaunch.textContent = 'Iniciando...';
+                btnLaunch.disabled = true;
+
+                try {
+                    // 1. Iniciar sessão no backend
+                    const sessionData = await wasApiFetch('/onboarding/whatsapp/start', 'POST');
+                    if (!sessionData.success || !sessionData.session_uuid) {
+                        throw new Error(sessionData.error || 'Falha ao iniciar sessão de onboarding.');
+                    }
+
+                    const sessionUuid = sessionData.session_uuid;
+
+                    // 2. Configurar listener para mensagens do popup (WABA ID e Phone ID)
+                    let signupData = {
+                        waba_id: null,
+                        phone_number_id: null,
+                        business_id: null
+                    };
+
+                    const messageListener = (event) => {
+                        if (event.origin !== 'https://www.facebook.com' && event.origin !== 'https://web.facebook.com') return;
+                        
+                        try {
+                            const data = JSON.parse(event.data);
+                            if (data.type !== 'WA_EMBEDDED_SIGNUP') return;
+
+                            if (data.event === 'FINISH') {
+                                signupData.waba_id = data.data.waba_id || null;
+                                signupData.phone_number_id = data.data.phone_number_id || null;
+                                signupData.business_id = data.data.business_id || null;
+                                console.log('Embedded Signup Data Captured:', signupData);
+                            }
+                        } catch (e) {}
+                    };
+
+                    window.addEventListener('message', messageListener);
+
+                    // 3. Abrir o popup da Meta
+                    if (typeof FB === 'undefined') {
+                        throw new Error('O SDK do Facebook ainda não foi carregado. Verifique se há algum bloqueador de anúncios ativo ou se você está em um ambiente seguro (HTTPS).');
+                    }
+
+                    FB.login(async (response) => {
+                        if (response.authResponse && response.authResponse.code) {
+                            const code = response.authResponse.code;
+                            
+                            // Aguardar um pouco para garantir que o evento 'message' chegou
+                            setTimeout(async () => {
+                                try {
+                                    const result = await wasApiFetch('/onboarding/whatsapp/complete', 'POST', {
+                                        session_uuid: sessionUuid,
+                                        code: code,
+                                        waba_id: signupData.waba_id,
+                                        phone_number_id: signupData.phone_number_id,
+                                        business_id: signupData.business_id
+                                    });
+
+                                    if (result.success) {
+                                        alert('WhatsApp conectado com sucesso!');
+                                        location.reload();
+                                    } else {
+                                        alert('Erro ao completar conexão: ' + (result.message || result.error));
+                                    }
+                                } catch (err) {
+                                    alert('Erro ao processar conexão: ' + err.message);
+                                } finally {
+                                    window.removeEventListener('message', messageListener);
+                                    btnLaunch.textContent = originalText;
+                                    btnLaunch.disabled = false;
+                                }
+                            }, 1000);
+                        } else {
+                            alert('Onboarding cancelado ou falhou.');
+                            btnLaunch.textContent = originalText;
+                            btnLaunch.disabled = false;
+                            window.removeEventListener('message', messageListener);
+                        }
+                    }, {
+                        config_id: wasApp.metaConfigId || '', // Deve ser passado via wp_localize_script
+                        response_type: 'code',
+                        override_default_response_type: true,
+                        extras: {
+                            setup: {},
+                            sessionInfoVersion: '3'
+                        }
+                    });
+
+                } catch (err) {
+                    alert('Erro: ' + err.message);
+                    btnLaunch.textContent = originalText;
+                    btnLaunch.disabled = false;
+                }
+            });
+        }
 
         if (btnCheck) {
             btnCheck.addEventListener('click', async () => {
