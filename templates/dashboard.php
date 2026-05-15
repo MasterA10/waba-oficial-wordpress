@@ -118,7 +118,18 @@ if ($show_onboarding):
     }
 
     // Função para mostrar sucesso na tela
-    async function wasShowOnboardingSuccess(data) {
+    function wasResolveOnboardingId(value, savedValue) {
+        const normalizedValue = String(value || '').trim();
+        const normalizedSavedValue = String(savedValue || '').trim();
+
+        if (normalizedValue && normalizedValue.toLowerCase() !== 'sincronizando...') {
+            return normalizedValue;
+        }
+
+        return normalizedSavedValue || 'ID Pendente';
+    }
+
+    async function wasShowOnboardingSuccess(data = {}) {
         const content = document.getElementById('was-onboarding-content');
         const success = document.getElementById('was-onboarding-success');
         const wabaEl = document.getElementById('success-waba-id');
@@ -128,9 +139,9 @@ if ($show_onboarding):
         if (success) {
             success.style.display = 'block';
             
-            // Mostrar IMEDIATAMENTE o que já temos salvo ou o que veio no 'data'
-            const initialWabaId = data.waba_id || wasSavedConfig.waba_id || 'ID Pendente';
-            const initialPhoneId = data.phone_number_id || wasSavedConfig.phone_number_id || 'ID Pendente';
+            // Mostrar IMEDIATAMENTE o que veio da Meta ou o que já está salvo nas configurações.
+            const initialWabaId = wasResolveOnboardingId(data.waba_id, wasSavedConfig.waba_id);
+            const initialPhoneId = wasResolveOnboardingId(data.phone_number_id, wasSavedConfig.phone_number_id);
 
             if (wabaEl) wabaEl.textContent = 'WABA ID: ' + initialWabaId;
             if (phoneEl) phoneEl.textContent = 'Phone ID: ' + initialPhoneId;
@@ -265,10 +276,7 @@ if ($show_onboarding):
                     }
                     
                     // Mostrar a tela de sucesso
-                    wasShowOnboardingSuccess({
-                        waba_id: 'Sincronizando...',
-                        phone_number_id: 'Sincronizando...'
-                    });
+                    wasShowOnboardingSuccess();
                 });
 
             } else {
@@ -283,7 +291,6 @@ if ($show_onboarding):
     document.getElementById('was-sdk-login')?.addEventListener('click', wasLoginWithFacebookSDK);
 </script>
 <?php endif; ?>
-
 
 
 
