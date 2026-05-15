@@ -205,9 +205,7 @@ $app_id = $app ? $app->app_id : '';
                 </table>
 
                 <p class="submit">
-                    <button type="button" id="was-btn-save-embedded" class="button button-primary">Salvar Configuração de Cadastro</button>
-                    <a id="was-start-embedded-signup" href="#" class="button button-secondary" style="margin-left: 10px;" target="_blank">Iniciar Cadastro Incorporado</a>
-                    <button type="button" id="was-sdk-login" class="button button-secondary" style="margin-left: 10px;">Login with Facebook (SDK)</button>
+                    <button type="button" id="was-sdk-login" class="button button-primary button-large" style="background-color: #1877f2; border-color: #1877f2;">Login with Facebook (SDK)</button>
                 </p>
 
                 <div id="was-fb-debug-box" style="margin-top: 20px; display: none;">
