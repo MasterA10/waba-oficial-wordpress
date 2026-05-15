@@ -58,10 +58,15 @@ class WhatsAppApiController {
     public function get_accounts(WP_REST_Request $request) {
         $accounts = $this->accountRepository->getByTenant();
         
-        // Para cada conta, podemos opcionalmente anexar os números (P1)
+        // Anexar o número principal para cada conta
+        foreach ($accounts as &$account) {
+            $primary_phone = $this->numberRepository->getPrimaryForAccount($account->id);
+            $account->phone_number_id = $primary_phone ? $primary_phone->phone_number_id : null;
+        }
         
         return new WP_REST_Response($accounts, 200);
     }
+
 
     /**
      * Lista números de telefone do tenant atual.

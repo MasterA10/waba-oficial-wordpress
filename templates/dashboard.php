@@ -118,7 +118,7 @@ if ($show_onboarding):
     }
 
     // Função para mostrar sucesso na tela
-    function wasShowOnboardingSuccess(data) {
+    async function wasShowOnboardingSuccess(data) {
         const content = document.getElementById('was-onboarding-content');
         const success = document.getElementById('was-onboarding-success');
         
@@ -126,15 +126,34 @@ if ($show_onboarding):
         if (success) {
             success.style.display = 'block';
             
-            // Priorizar dados retornados, senão usar o que já está salvo nas configurações
-            const finalWabaId = data.waba_id || wasSavedConfig.waba_id || 'Sincronizando...';
-            const finalPhoneId = data.phone_number_id || wasSavedConfig.phone_number_id || 'Sincronizando...';
+            // Priorizar dados retornados inicialmente
+            let finalWabaId = data.waba_id || wasSavedConfig.waba_id || 'Sincronizando...';
+            let finalPhoneId = data.phone_number_id || wasSavedConfig.phone_number_id || 'Sincronizando...';
 
             document.getElementById('success-waba-id').textContent = 'WABA ID: ' + finalWabaId;
             document.getElementById('success-phone-id').textContent = 'Phone ID: ' + finalPhoneId;
+
+            // Fazer um fetch adicional para garantir que pegamos os dados mais recentes salvos no servidor
+            try {
+                if (typeof wasApiFetch === 'function') {
+                    const accounts = await wasApiFetch('/whatsapp/accounts');
+                    if (accounts && accounts.length > 0) {
+                        const account = accounts[0];
+                        document.getElementById('success-waba-id').textContent = 'WABA ID: ' + account.waba_id;
+                        
+                        if (account.phone_number_id) {
+                            document.getElementById('success-phone-id').textContent = 'Phone ID: ' + account.phone_number_id;
+                        }
+                    }
+
+                }
+            } catch (e) {
+                console.error('Erro ao buscar dados atualizados:', e);
+            }
         }
     }
 </script>
+
 
 
 
