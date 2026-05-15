@@ -121,31 +121,31 @@ if ($show_onboarding):
     async function wasShowOnboardingSuccess(data) {
         const content = document.getElementById('was-onboarding-content');
         const success = document.getElementById('was-onboarding-success');
+        const wabaEl = document.getElementById('success-waba-id');
+        const phoneEl = document.getElementById('success-phone-id');
         
         if (content) content.style.display = 'none';
         if (success) {
             success.style.display = 'block';
             
-            // Priorizar dados retornados inicialmente
-            let finalWabaId = data.waba_id || wasSavedConfig.waba_id || 'Sincronizando...';
-            let finalPhoneId = data.phone_number_id || wasSavedConfig.phone_number_id || 'Sincronizando...';
+            // Mostrar IMEDIATAMENTE o que já temos salvo ou o que veio no 'data'
+            const initialWabaId = data.waba_id || wasSavedConfig.waba_id || 'ID Pendente';
+            const initialPhoneId = data.phone_number_id || wasSavedConfig.phone_number_id || 'ID Pendente';
 
-            document.getElementById('success-waba-id').textContent = 'WABA ID: ' + finalWabaId;
-            document.getElementById('success-phone-id').textContent = 'Phone ID: ' + finalPhoneId;
+            if (wabaEl) wabaEl.textContent = 'WABA ID: ' + initialWabaId;
+            if (phoneEl) phoneEl.textContent = 'Phone ID: ' + initialPhoneId;
 
-            // Fazer um fetch adicional para garantir que pegamos os dados mais recentes salvos no servidor
+            // Fazer o fetch em segundo plano para atualizar se houver algo novo
             try {
                 if (typeof wasApiFetch === 'function') {
                     const accounts = await wasApiFetch('/whatsapp/accounts');
                     if (accounts && accounts.length > 0) {
                         const account = accounts[0];
-                        document.getElementById('success-waba-id').textContent = 'WABA ID: ' + account.waba_id;
-                        
-                        if (account.phone_number_id) {
-                            document.getElementById('success-phone-id').textContent = 'Phone ID: ' + account.phone_number_id;
+                        if (wabaEl) wabaEl.textContent = 'WABA ID: ' + account.waba_id;
+                        if (account.phone_number_id && phoneEl) {
+                            phoneEl.textContent = 'Phone ID: ' + account.phone_number_id;
                         }
                     }
-
                 }
             } catch (e) {
                 console.error('Erro ao buscar dados atualizados:', e);
@@ -153,6 +153,7 @@ if ($show_onboarding):
         }
     }
 </script>
+
 
 
 
