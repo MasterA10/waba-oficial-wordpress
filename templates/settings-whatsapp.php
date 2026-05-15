@@ -45,7 +45,10 @@ $app_id = $app ? $app->app_id : '';
                 </div>
 
                 <div id="was-connect-actions">
-                    <button id="was-sdk-login" type="button" class="button button-primary button-large" style="background-color: #1877f2; border-color: #1877f2;">
+                    <button id="was-launch-signup" class="button button-primary button-large" style="background-color: #1877f2; border-color: #1877f2;">
+                        Embedded Signup
+                    </button>
+                    <button id="was-sdk-login" type="button" class="button button-secondary button-large" style="margin-left: 10px;">
                         Login with Facebook (SDK)
                     </button>
                     <button id="was-disconnect-waba" class="button button-link-delete" style="display: none;">Desconectar Conta</button>
