@@ -39,8 +39,20 @@ class PhoneNumberRepository {
         $tenant_id = $tenant_id ?: TenantContext::getTenantId();
 
         return $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$this->table_name} WHERE tenant_id = %d AND is_default = 1 LIMIT 1",
+            "SELECT * FROM {$this->table_name} WHERE tenant_id = %d ORDER BY is_default DESC, created_at DESC LIMIT 1",
             $tenant_id
+        ));
+    }
+
+    /**
+     * Busca o número principal vinculado a uma conta WhatsApp.
+     */
+    public function getPrimaryForAccount(int $whatsapp_account_id) {
+        global $wpdb;
+
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->table_name} WHERE whatsapp_account_id = %d ORDER BY is_default DESC, created_at DESC LIMIT 1",
+            $whatsapp_account_id
         ));
     }
 

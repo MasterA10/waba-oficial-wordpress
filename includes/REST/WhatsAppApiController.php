@@ -61,6 +61,9 @@ class WhatsAppApiController {
         // Anexar o número principal para cada conta
         foreach ($accounts as &$account) {
             $primary_phone = $this->numberRepository->getPrimaryForAccount($account->id);
+            if (!$primary_phone) {
+                $primary_phone = $this->numberRepository->getDefaultByTenant($account->tenant_id);
+            }
             $account->phone_number_id = $primary_phone ? $primary_phone->phone_number_id : null;
         }
         

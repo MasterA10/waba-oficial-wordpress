@@ -124,6 +124,7 @@ $embedded_signup_url = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM 
     public function save_config(WP_REST_Request $request) {
         $params = $request->get_json_params();
         $tenant_id = \WAS\Auth\TenantContext::get_tenant_id();
+        $whatsapp_account_id = null;
 
         if (empty($params['app_id'])) {
             return new WP_REST_Response(['message' => 'App ID é obrigatório'], 400);
@@ -178,6 +179,7 @@ $embedded_signup_url = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM 
 
                 if ($existing_acc) {
                     $wpdb->update($acc_table, ['waba_id' => sanitize_text_field($params['waba_id'])], ['id' => $existing_acc]);
+                    $whatsapp_account_id = (int) $existing_acc;
                 } else {
                     $wpdb->insert($acc_table, [
                         'tenant_id' => $tenant_id,
@@ -186,6 +188,7 @@ $embedded_signup_url = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM 
                         'status'    => 'active',
                         'created_at' => current_time('mysql', 1)
                     ]);
+                    $whatsapp_account_id = (int) $wpdb->insert_id;
                 }
             }
 
@@ -199,7 +202,7 @@ $embedded_signup_url = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM 
                 $wpdb->delete($token_table, ['tenant_id' => $tenant_id]);
                 $wpdb->insert($token_table, [
                     'tenant_id' => $tenant_id,
-                    'whatsapp_account_id' => 1,
+                    'whatsapp_account_id' => $whatsapp_account_id ?: $this->get_whatsapp_account_id_for_tenant($tenant_id),
                     'access_token_encrypted' => $encrypted_token,
                     'status' => 'active',
                     'created_at' => current_time('mysql', 1)
@@ -221,6 +224,15 @@ $embedded_signup_url = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM 
         } catch (\Exception $e) {
             return new WP_REST_Response(['message' => 'Erro interno: ' . $e->getMessage()], 500);
         }
+    }
+
+    private function get_whatsapp_account_id_for_tenant($tenant_id) {
+        global $wpdb;
+        $acc_table = \WAS\Core\TableNameResolver::get_table_name('whatsapp_accounts');
+
+        $account_id = $wpdb->get_var($wpdb->prepare("SELECT id FROM $acc_table WHERE tenant_id = %d ORDER BY id ASC LIMIT 1", $tenant_id));
+
+        return $account_id ? (int) $account_id : null;
     }
 
     /**
