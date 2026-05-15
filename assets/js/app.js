@@ -2013,7 +2013,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setText('support_url', data.support_url);
 
                 if (document.getElementById('was-start-embedded-signup')) {
-                    document.getElementById('was-start-embedded-signup').href = data.embedded_signup_url || '#';
+                    document.getElementById('was-start-embedded-signup').href = 'https://business.facebook.com/messaging/whatsapp/onboard/?app_id=803378469198821&config_id=1126530680535435&extras=%7B%22featureType%22%3A%22whatsapp_business_app_onboarding%22%2C%22sessionInfoVersion%22%3A%223%22%2C%22version%22%3A%22v4%22%2C%22features%22%3A[%7B%22name%22%3A%22app_only_install%22%7D]%7D';
                 }
             }
         } catch (err) { console.error('Error fetching meta config:', err); }
@@ -2136,7 +2136,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * WhatsApp Business Setup (Embedded Signup & Verification)
      */
-    if (document.getElementById('was-whatsapp-setup-app')) {
+    if (document.getElementById('was-whatsapp-setup-app') || document.getElementById('was-launch-signup')) {
         initWhatsAppSetup();
     }
 
@@ -2180,61 +2180,67 @@ document.addEventListener('DOMContentLoaded', () => {
                                 signupData.phone_number_id = data.data.phone_number_id || null;
                                 signupData.business_id = data.data.business_id || null;
                                 console.log('Embedded Signup Data Captured:', signupData);
+                                
+                                // Atualizar o log visual no dashboard se existir
+                                const resultPre = document.getElementById('was-fb-result');
+                                if (resultPre) {
+                                    resultPre.textContent = JSON.stringify({
+                                        event: 'WA_EMBEDDED_SIGNUP_FINISH',
+                                        timestamp: new Date().toISOString(),
+                                        data: signupData
+                                    }, null, 2);
+                                }
+
+                                // Mostrar a tela de sucesso no Dashboard
+                                if (typeof wasShowOnboardingSuccess === 'function') {
+                                    wasShowOnboardingSuccess(signupData);
+                                }
                             }
-                        } catch (e) {}
+
+                        } catch (e) {
+                            console.error('Error parsing Meta message:', e);
+                        }
+
                     };
 
                     window.addEventListener('message', messageListener);
 
-                    // 3. Abrir o popup da Meta
-                    if (typeof FB === 'undefined') {
-                        throw new Error('O SDK do Facebook ainda não foi carregado. Verifique se há algum bloqueador de anúncios ativo ou se você está em um ambiente seguro (HTTPS).');
-                    }
+                    // 3. Abrir o popup da Meta com a URL hardcoded (Não usa FB.login conforme solicitado)
+                    const signupUrl = 'https://business.facebook.com/messaging/whatsapp/onboard/?app_id=803378469198821&config_id=1126530680535435&extras=%7B%22featureType%22%3A%22whatsapp_business_app_onboarding%22%2C%22sessionInfoVersion%22%3A%223%22%2C%22version%22%3A%22v4%22%2C%22features%22%3A[%7B%22name%22%3A%22app_only_install%22%7D]%7D';
+                    const popup = window.open(signupUrl, 'fb_signup', 'width=600,height=700');
 
-                    FB.login(async (response) => {
-                        if (response.authResponse && response.authResponse.code) {
-                            const code = response.authResponse.code;
-                            
-                            // Aguardar um pouco para garantir que o evento 'message' chegou
-                            setTimeout(async () => {
-                                try {
-                                    const result = await wasApiFetch('/onboarding/whatsapp/complete', 'POST', {
-                                        session_uuid: sessionUuid,
-                                        code: code,
-                                        waba_id: signupData.waba_id,
-                                        phone_number_id: signupData.phone_number_id,
-                                        business_id: signupData.business_id
-                                    });
-
-                                    if (result.success) {
-                                        alert('WhatsApp conectado com sucesso!');
-                                        location.reload();
-                                    } else {
-                                        alert('Erro ao completar conexão: ' + (result.message || result.error));
-                                    }
-                                } catch (err) {
-                                    alert('Erro ao processar conexão: ' + err.message);
-                                } finally {
-                                    window.removeEventListener('message', messageListener);
-                                    btnLaunch.textContent = originalText;
-                                    btnLaunch.disabled = false;
-                                }
-                            }, 1000);
-                        } else {
-                            alert('Onboarding cancelado ou falhou.');
+                    const checkPopup = setInterval(() => {
+                        if (!popup || popup.closed) {
+                            clearInterval(checkPopup);
                             btnLaunch.textContent = originalText;
                             btnLaunch.disabled = false;
-                            window.removeEventListener('message', messageListener);
+                            
+                            // Se capturamos os IDs, tentamos finalizar no backend
+                            if (signupData.waba_id) {
+                                (async () => {
+                                    try {
+                                        const result = await wasApiFetch('/onboarding/whatsapp/complete', 'POST', {
+                                            session_uuid: sessionUuid,
+                                            waba_id: signupData.waba_id,
+                                            phone_number_id: signupData.phone_number_id,
+                                            business_id: signupData.business_id
+                                        });
+
+                                        if (result.success) {
+                                            alert('WhatsApp conectado com sucesso!');
+                                            location.reload();
+                                        }
+                                    } catch (err) {
+                                        console.error('Erro ao completar conexão:', err);
+                                    } finally {
+                                        window.removeEventListener('message', messageListener);
+                                    }
+                                })();
+                            } else {
+                                window.removeEventListener('message', messageListener);
+                            }
                         }
-                    }, {
-                        config_id: wasApp.metaConfigId || '', // Deve ser passado via wp_localize_script
-                        response_type: 'code',
-                        override_default_response_type: true,
-                        extras: {
-                            setup: {},
-                            sessionInfoVersion: '3'
-                        }
-                    });
+                    }, 1000);
 
                 } catch (err) {
                     alert('Erro: ' + err.message);

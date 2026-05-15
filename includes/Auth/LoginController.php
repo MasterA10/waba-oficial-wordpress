@@ -47,8 +47,9 @@ class LoginController {
 						'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
 					]);
 					
-					wp_redirect( home_url( '/app/dashboard' ) );
+					wp_redirect( home_url( '/app/dashboard?onboarding=1' ) );
 					exit;
+
 				}
 			}
 		}
